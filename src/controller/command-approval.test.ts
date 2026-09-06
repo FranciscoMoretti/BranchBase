@@ -113,22 +113,26 @@ test("trust revocation preserves retained runtime ownership", async () => {
   }
 });
 
-test("trust revocation blocks pending work on a persisted removed worktree", async () => {
+test("trust revocation blocks pending work on a persisted undiscovered worktree", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
   try {
     controller.trustRepository(repoPath, [
       { fingerprint: snapshot.trustFingerprint },
     ]);
-    const removedWorktreePath = join(repoPath, "removed-worktree");
+    const persistedWorktreePath = join(repoPath, "persisted-worktree");
+    mkdirSync(persistedWorktreePath);
     const config = loadBranchBaseConfig(join(repoPath, ".branchbase.json"));
+    config.appGroups.service.start = {
+      argv: ["bun", "-e", "setTimeout(() => {}, 5000)"],
+    };
     state.instance({
       configFingerprint: repositoryCommandFingerprint(config),
       groupId: "service",
       mode: "per-worktree",
       repoLabel: "repo",
       repoPath,
-      worktreeLabel: "removed-worktree",
-      worktreePath: removedWorktreePath,
+      worktreeLabel: "persisted-worktree",
+      worktreePath: persistedWorktreePath,
     });
     const appGroups = (
       controller as unknown as {
@@ -140,9 +144,9 @@ test("trust revocation blocks pending work on a persisted removed worktree", asy
       groupId: "service",
       repoPath,
       worktree: {
-        id: "removed-worktree",
-        path: removedWorktreePath,
-        routeLabel: "removed-worktree",
+        id: "persisted-worktree",
+        path: persistedWorktreePath,
+        routeLabel: "persisted-worktree",
       },
     });
 
@@ -150,7 +154,7 @@ test("trust revocation blocks pending work on a persisted removed worktree", asy
     await pending.catch(() => undefined);
     expect(controller.inspect(repoPath).trusted).toBe(true);
     expect(
-      snapshot.worktrees.some(({ path }) => path === removedWorktreePath)
+      snapshot.worktrees.some(({ path }) => path === persistedWorktreePath)
     ).toBe(false);
   } finally {
     await controller.close();
