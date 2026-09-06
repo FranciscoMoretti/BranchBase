@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -125,6 +126,12 @@ test("preserves unreadable-folder and scan-limit warnings together", () => {
   const originalMode = 0o755;
   chmodSync(unreadable, 0o000);
   try {
+    try {
+      readdirSync(unreadable);
+      return;
+    } catch {
+      // The environment enforces the permission bits, so exercise the warning.
+    }
     const result = scanRepositories(root, 2, 2);
     expect(result.warning).toContain("folders could not be read");
     expect(result.warning).toContain("Scan limited to 2 folders");
