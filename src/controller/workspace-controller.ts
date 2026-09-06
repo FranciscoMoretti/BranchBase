@@ -510,7 +510,8 @@ export class WorkspaceController {
       workspace.worktrees.some(
         (worktree) =>
           worktreeHasRunningAppGroups(worktree) ||
-          worktree.setupState === "running"
+          worktree.setupState === "running" ||
+          this.appGroups.hasPendingLifecycle(worktree.path)
       )
     ) {
       throw new Error(
