@@ -60,7 +60,7 @@ import {
   PortlessRoutingEngine,
 } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
-import { inspectListeningPorts } from "../runtime/ports";
+import { inspectListeningPorts, pathInside } from "../runtime/ports";
 import {
   ProcessSupervisor,
   setupProcessId,
