@@ -40,6 +40,26 @@ const WorkspacePage = lazy(() =>
   }))
 );
 
+const HISTORY_INDEX = "branchbaseHistoryIndex";
+
+function readHistoryIndex(state: unknown): number | null {
+  if (
+    state &&
+    typeof state === "object" &&
+    HISTORY_INDEX in state &&
+    typeof state[HISTORY_INDEX as keyof typeof state] === "number"
+  ) {
+    return state[HISTORY_INDEX as keyof typeof state] as number;
+  }
+  return null;
+}
+
+interface PendingNavigation {
+  fallback?: boolean;
+  href: string;
+  traversal?: { delta: number; targetIndex: number };
+}
+
 export function ProductApp() {
   const [location, setLocation] = useState(readLocation);
   const observation = useObservation(location.repo);
@@ -50,12 +70,36 @@ export function ProductApp() {
   const projects = useProjects();
   const client = useQueryClient();
   const dirty = useRef(false);
+  const historyInitialized = useRef(false);
+  const historyIndex = useRef<number | null>(null);
+  if (!historyInitialized.current) {
+    const existingIndex = readHistoryIndex(window.history.state);
+    historyIndex.current = existingIndex ?? 0;
+    if (existingIndex === null) {
+      window.history.replaceState(
+        { ...window.history.state, [HISTORY_INDEX]: historyIndex.current },
+        "",
+        window.location.href
+      );
+    }
+    historyInitialized.current = true;
+  }
+  const historyAction = useRef<
+    { kind: "restore" | "accept"; index: number } | undefined
+  >(undefined);
   const currentHref = useRef(window.location.href);
   const scrollPositions = useRef(new Map<string, number>());
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const pendingNavigation = useRef<PendingNavigation | null>(null);
   const go = useCallback((href: string) => {
     scrollPositions.current.set(currentHref.current, window.scrollY);
-    window.history.pushState(null, "", href);
+    const nextIndex = (historyIndex.current ?? -1) + 1;
+    window.history.pushState(
+      { ...window.history.state, [HISTORY_INDEX]: nextIndex },
+      "",
+      href
+    );
+    historyIndex.current = nextIndex;
     currentHref.current = window.location.href;
     setLocation(readLocation());
   }, []);
@@ -77,8 +121,9 @@ export function ProductApp() {
   );
   useEffect(() => {
     const setDirty = (event: Event) => {
-      if (event instanceof CustomEvent) {
-        dirty.current = event.detail === true;
+      const detail = (event as CustomEvent<boolean>).detail;
+      if (typeof detail === "boolean") {
+        dirty.current = detail;
       }
     };
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -89,14 +134,52 @@ export function ProductApp() {
     };
     const sync = () => {
       scrollPositions.current.set(currentHref.current, window.scrollY);
-      if (dirty.current) {
-        const target = window.location.href;
-        window.history.replaceState(null, "", currentHref.current);
-        setPendingHref(target);
-      } else {
-        currentHref.current = window.location.href;
+      const target = window.location.href;
+      const targetIndex = readHistoryIndex(window.history.state);
+      const action = historyAction.current;
+      if (action && targetIndex === action.index) {
+        historyAction.current = undefined;
+        if (action.kind === "restore") {
+          return;
+        }
+        historyIndex.current = targetIndex;
+        currentHref.current = target;
         setLocation(readLocation());
+        return;
       }
+      if (dirty.current) {
+        const currentIndex = historyIndex.current;
+        if (
+          currentIndex !== null &&
+          targetIndex !== null &&
+          targetIndex !== currentIndex
+        ) {
+          pendingNavigation.current = {
+            href: target,
+            traversal: {
+              delta: targetIndex - currentIndex,
+              targetIndex,
+            },
+          };
+          historyAction.current = { kind: "restore", index: currentIndex };
+          setPendingHref(target);
+          window.history.go(currentIndex - targetIndex);
+          return;
+        }
+        // Untagged entries have no safe traversal delta. Keep the dirty app
+        // visible and require an explicit full navigation to discard it.
+        window.history.replaceState(
+          { ...window.history.state, [HISTORY_INDEX]: currentIndex ?? 0 },
+          "",
+          currentHref.current
+        );
+        pendingNavigation.current = { href: target, fallback: true };
+        setPendingHref(target);
+        return;
+      }
+      historyIndex.current = targetIndex;
+      currentHref.current = target;
+      setLocation(readLocation());
     };
     const click = (event: MouseEvent) => {
       if (
@@ -258,6 +341,7 @@ export function ProductApp() {
         onOpenChange={(open) => {
           if (!open) {
             setPendingHref(null);
+            pendingNavigation.current = null;
           }
         }}
         open={pendingHref !== null}
@@ -278,8 +362,20 @@ export function ProductApp() {
               onClick={() => {
                 if (pendingHref) {
                   dirty.current = false;
-                  go(pendingHref);
+                  const pending = pendingNavigation.current;
+                  pendingNavigation.current = null;
                   setPendingHref(null);
+                  if (pending?.traversal) {
+                    historyAction.current = {
+                      kind: "accept",
+                      index: pending.traversal.targetIndex,
+                    };
+                    window.history.go(pending.traversal.delta);
+                  } else if (pending?.fallback) {
+                    window.location.assign(pending.href);
+                  } else {
+                    go(pendingHref);
+                  }
                 }
               }}
             >
