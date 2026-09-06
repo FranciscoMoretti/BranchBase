@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   realpathSync,
@@ -116,15 +117,21 @@ test("trust revocation preserves retained runtime ownership", async () => {
 
 test("trust revocation blocks pending work on a persisted undiscovered worktree", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
+  const processes = (controller as unknown as { processes: ProcessSupervisor })
+    .processes;
+  const persistedWorktreePath = join(repoPath, "persisted-worktree");
+  let pending: Promise<unknown> | undefined;
+  let managed:
+    | ReturnType<ProcessSupervisor["listManagedProcesses"]>[number]
+    | undefined;
   try {
     controller.trustRepository(repoPath, [
       { fingerprint: snapshot.trustFingerprint },
     ]);
-    const persistedWorktreePath = join(repoPath, "persisted-worktree");
     mkdirSync(persistedWorktreePath);
     const config = loadBranchBaseConfig(join(repoPath, ".branchbase.json"));
     config.appGroups.service.start = {
-      argv: ["sleep", "2"],
+      argv: ["sleep", "5"],
     };
     config.appGroups.service.apps.api.readiness = {
       path: "/",
@@ -149,7 +156,7 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
         };
       }
     ).appGroups;
-    const pending = appGroups.start({
+    pending = appGroups.start({
       config,
       groupId: "service",
       repoPath,
@@ -161,7 +168,20 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
     });
 
     expect(appGroups.hasPendingLifecycle(persistedWorktreePath)).toBe(true);
+    for (let attempt = 0; attempt < 100 && !managed; attempt += 1) {
+      managed = processes
+        .listManagedProcesses()
+        .find((process) => process.cwd === persistedWorktreePath);
+      if (!managed) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    expect(managed).toBeDefined();
     expect(() => controller.revokeTrust(repoPath)).toThrow("Stop App groups");
+    if (!managed) {
+      throw new Error("Expected managed App-group process");
+    }
+    await processes.stopManagedProcess(managed.ownerId, persistedWorktreePath);
     const pendingError = await pending.then(
       () => null,
       (error) => error
@@ -173,17 +193,28 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
       snapshot.worktrees.some(({ path }) => path === persistedWorktreePath)
     ).toBe(false);
   } finally {
+    if (managed) {
+      await processes.stopManagedProcess(
+        managed.ownerId,
+        persistedWorktreePath
+      );
+    }
+    await pending?.catch(() => undefined);
     await controller.close();
   }
 });
 
 test("trust revocation blocks a setup process for a persisted worktree", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
+  const processes = (controller as unknown as { processes: ProcessSupervisor })
+    .processes;
+  const worktreePath = join(repoPath, "persisted-setup-worktree");
+  const markerPath = join(worktreePath, "cwd-moved");
+  let processId: string | undefined;
   try {
     controller.trustRepository(repoPath, [
       { fingerprint: snapshot.trustFingerprint },
     ]);
-    const worktreePath = join(repoPath, "removed-setup-worktree");
     mkdirSync(worktreePath);
     const worktreeId = Buffer.from(worktreePath).toString("base64url");
     const config = loadBranchBaseConfig(join(repoPath, ".branchbase.json"));
@@ -193,15 +224,18 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
       mode: "per-worktree",
       repoLabel: "repo",
       repoPath,
-      worktreeLabel: "removed-setup-worktree",
+      worktreeLabel: "persisted-setup-worktree",
       worktreePath,
     });
-    const processes = (
-      controller as unknown as { processes: ProcessSupervisor }
-    ).processes;
-    const processId = setupProcessId(worktreeId);
+    processId = setupProcessId(worktreeId);
     const pid = processes.startManagedProcess({
-      argv: ["bun", "-e", "setTimeout(() => {}, 5000)"],
+      argv: [
+        "sh",
+        "-c",
+        'cd /tmp && touch "$1" && exec sleep 5',
+        "setup-test",
+        markerPath,
+      ],
       cwd: worktreePath,
       env: process.env as Record<string, string>,
       label: "Setup",
@@ -211,17 +245,35 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
     });
     let managed = false;
     for (let attempt = 0; attempt < 50; attempt += 1) {
-      if (processes.managedPid(processId, worktreePath) === pid) {
+      if (
+        existsSync(markerPath) &&
+        processes.managedPidByIdentity(processId, worktreeId) === pid
+      ) {
         managed = true;
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     expect(managed).toBe(true);
+    expect(
+      processes.managedPidByIdentity(processId, `${worktreeId}-mismatch`)
+    ).toBe(null);
+    const persistedProcesses = new ProcessSupervisor(
+      processes.controlDirectory
+    );
+    (controller as unknown as { processes: ProcessSupervisor }).processes =
+      persistedProcesses;
     expect(() => controller.revokeTrust(repoPath)).toThrow(
       "finish setup processes"
     );
+    expect(await processes.stopManagedProcess(processId, worktreePath)).toBe(
+      pid
+    );
   } finally {
+    if (processId) {
+      await processes.stopManagedProcess(processId, worktreePath);
+    }
+    rmSync(markerPath, { force: true });
     await controller.close();
   }
 });

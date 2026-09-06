@@ -140,6 +140,28 @@ export class ProcessSupervisor {
     return record.pid;
   }
 
+  managedPidByIdentity(processId: string, ownerId: string): number | null {
+    const tracked = this.processes.get(processId);
+    if (
+      tracked?.child.pid &&
+      tracked.record.ownerId === ownerId &&
+      this.processTargetIsLive({ id: tracked.child.pid, kind: "process" }) &&
+      processStartMarker(tracked.child.pid) === tracked.record.startMarker
+    ) {
+      return tracked.child.pid;
+    }
+    const record = this.persistedRecord(processId);
+    if (
+      !record ||
+      record.ownerId !== ownerId ||
+      !this.processTargetIsLive({ id: record.pid, kind: "process" }) ||
+      processStartMarker(record.pid) !== record.startMarker
+    ) {
+      return null;
+    }
+    return record.pid;
+  }
+
   startManagedProcess(input: StartManagedProcessInput): number {
     if (!pathInside(input.cwd, input.ownerRoot)) {
       const message = "Command working directory must stay inside its worktree";

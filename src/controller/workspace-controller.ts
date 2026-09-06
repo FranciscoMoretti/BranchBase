@@ -60,7 +60,7 @@ import {
   PortlessRoutingEngine,
 } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
-import { inspectListeningPorts, pathInside } from "../runtime/ports";
+import { inspectListeningPorts } from "../runtime/ports";
 import {
   ProcessSupervisor,
   setupProcessId,
@@ -510,17 +510,15 @@ export class WorkspaceController {
     const hasPendingLifecycle = resources.worktreePaths.some((worktreePath) =>
       this.appGroups.hasPendingLifecycle(worktreePath)
     );
-    const setupProcessOwnerIds = new Set(
-      worktreePaths.map((path) => Buffer.from(path).toString("base64url"))
-    );
-    const hasRunningSetup = this.processes
-      .listManagedProcesses()
-      .some(
-        (process) =>
-          process.label === "Setup" &&
-          setupProcessOwnerIds.has(process.ownerId) &&
-          worktreePaths.some((path) => pathInside(process.cwd, path))
+    const hasRunningSetup = worktreePaths.some((path) => {
+      const ownerId = Buffer.from(path).toString("base64url");
+      return (
+        this.processes.managedPidByIdentity(
+          setupProcessId(ownerId),
+          ownerId
+        ) !== null
       );
+    });
     if (
       resources.hasRetainedRuns ||
       hasRunningSetup ||
