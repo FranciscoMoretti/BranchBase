@@ -30,7 +30,21 @@ export const AppEndpointSnapshotSchema = z.strictObject({
 
 export const AppGroupSnapshotSchema = z.strictObject({
   category: z.enum(["application", "infrastructure"]).optional(),
+  pending: z.boolean().optional(),
   resources: ProcessUsageSchema.nullable().optional(),
+  run: z
+    .object({ startedAt: z.string(), worktreePath: z.string() })
+    .nullable()
+    .optional(),
+  dependencies: z
+    .array(
+      z.object({
+        groupId: z.string(),
+        instanceId: z.string(),
+        name: z.string(),
+      })
+    )
+    .optional(),
   apps: z.array(AppEndpointSnapshotSchema),
   cleanupOnly: z.boolean().optional(),
   health: AppHealthSchema,

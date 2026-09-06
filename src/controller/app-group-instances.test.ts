@@ -230,9 +230,15 @@ describe("App-group instance assignment", () => {
 
       const started = runtime.start(target);
       expect(runtime.hasPendingLifecycle(temporary)).toBe(true);
+      expect(runtime.inspect(target, { pidsByPort: new Map() }).pending).toBe(
+        true
+      );
       routing.release();
       await started;
       expect(runtime.hasPendingLifecycle(temporary)).toBe(false);
+      expect(runtime.inspect(target, { pidsByPort: new Map() }).pending).toBe(
+        false
+      );
     } finally {
       rmSync(temporary, { force: true, recursive: true });
     }
@@ -473,6 +479,24 @@ describe("App-group instance assignment", () => {
       ).toBe("started");
       expect(routing.prepared).toBe(true);
       const running = controller.inspect(repository).worktrees[0];
+      const apps = running?.appGroups.find((group) => group.id === "Apps");
+      const services = running?.appGroups.find(
+        (group) => group.id === "Services"
+      );
+      expect(apps?.run).toEqual({
+        startedAt: expect.any(String),
+        worktreePath: running?.path,
+      });
+      if (!services) {
+        throw new Error("Missing Services snapshot");
+      }
+      expect(apps?.dependencies).toEqual([
+        {
+          groupId: "Services",
+          instanceId: services.instance.id,
+          name: services.instance.name,
+        },
+      ]);
       expect(
         running?.appGroups.find((group) => group.id === "Apps")?.health
       ).toBe("partially-running");
