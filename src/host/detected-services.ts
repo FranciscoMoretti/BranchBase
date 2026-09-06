@@ -139,6 +139,17 @@ export class DetectedServices {
   } {
     const managedKey = managedPids.toSorted((a, b) => a - b).join(",");
     if (managedKey === this.managedKey && Date.now() - this.cached.at < 4000) {
+      const samples = inspectProcessSamples();
+      if (samples !== this.cached.samples) {
+        this.cached = {
+          ...this.cached,
+          samples,
+          services: this.cached.services.map((service) => ({
+            ...service,
+            resources: processTreeUsage(samples, [service.pid]),
+          })),
+        };
+      }
       return this.cached;
     }
     this.managedKey = managedKey;

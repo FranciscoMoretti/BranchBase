@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { spawn } from "bun";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
-import type { DetectedService } from "./discovery-contract";
+import { type DetectedService, ObservationSchema } from "./discovery-contract";
 import { scanRepositories } from "./folder-discovery";
 import { ProductStore } from "./product-store";
 import { ProjectDiscovery } from "./project-discovery";
@@ -244,6 +244,63 @@ test("associated services exclude nested Git repositories and unrelated paths", 
   ).toEqual([1001]);
   expect(probed).toEqual([1001]);
 });
+test("observation schema bounds service identities and resources", () => {
+  const observation = {
+    configured: false,
+    repoPath: "/repo",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    warning: null,
+    worktrees: [
+      {
+        id: "main",
+        path: "/repo",
+        branch: "main",
+        isMain: true,
+        services: [
+          {
+            pid: 123,
+            port: 3000,
+            command: "server",
+            cwd: "/repo",
+            startedAt: null,
+            url: null,
+            address: "127.0.0.1:3000",
+            resources: { cpuPercent: 1, memoryBytes: 1024, processCount: 1 },
+            managed: false,
+          },
+        ],
+      },
+    ],
+  };
+  expect(ObservationSchema.safeParse(observation).success).toBe(true);
+  expect(
+    ObservationSchema.safeParse({
+      ...observation,
+      worktrees: [
+        {
+          ...observation.worktrees[0],
+          services: [{ ...observation.worktrees[0].services[0], pid: 0 }],
+        },
+      ],
+    }).success
+  ).toBe(false);
+  expect(
+    ObservationSchema.safeParse({
+      ...observation,
+      worktrees: [
+        {
+          ...observation.worktrees[0],
+          services: [
+            {
+              ...observation.worktrees[0].services[0],
+              resources: { cpuPercent: 1, memoryBytes: -1, processCount: 1 },
+            },
+          ],
+        },
+      ],
+    }).success
+  ).toBe(false);
+});
 test("version one metadata loads with no discovery fields", () => {
   const root = temporary();
   writeFileSync(
@@ -275,12 +332,23 @@ test("version one metadata loads with no discovery fields", () => {
       const line = await child.stdout.getReader().read();
       const port = Number(new TextDecoder().decode(line.value).trim());
       expect(port).toBeGreaterThan(0);
-      const first = workspace.observeRepository(repo);
-      const service = first.worktrees
+      let first = workspace.observeRepository(repo);
+      let service = first.worktrees
         .find((item) => item.path === linked)
         ?.services.find((item) => item.pid === child.pid);
       expect(service?.port).toBe(port);
       expect(service?.managed).toBe(false);
+      const resourceDeadline = Date.now() + 1500;
+      while (
+        (service?.resources?.processCount ?? 0) === 0 &&
+        Date.now() < resourceDeadline
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        first = workspace.observeRepository(repo);
+        service = first.worktrees
+          .find((item) => item.path === linked)
+          ?.services.find((item) => item.pid === child.pid);
+      }
       expect(service?.resources?.processCount).toBeGreaterThan(0);
       expect(first.worktrees[0]?.services).toEqual([]);
       const expectedUrl = `http://127.0.0.1:${port}`;
