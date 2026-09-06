@@ -10,6 +10,8 @@ import {
 const LINES = /\r?\n/;
 const END_PORT = /:(\d+)$/;
 const WHITESPACE = /\s+/;
+const POSITIVE_PROBE_TTL = 30_000;
+const NEGATIVE_PROBE_TTL = 1000;
 export function parseListeners(output: string) {
   let pid = 0,
     command = "Process";
@@ -177,7 +179,8 @@ export class DetectedServices {
       warning = "Some process working directories are unavailable.";
     }
     if (rows.length === 256) {
-      warning = "Showing the first 256 listeners.";
+      const limitWarning = "Showing the first 256 listeners.";
+      warning = [warning, limitWarning].filter(Boolean).join(" ") || null;
     }
     this.cached = { at: Date.now(), services, warning, samples };
     return this.cached;
@@ -195,7 +198,8 @@ export class DetectedServices {
     }
     const key = `${pid}:${port}:${cwd}:${command}:${service.startedAt}:${address}`;
     const cached = this.probes.get(key);
-    if (cached && Date.now() - cached.at < 30_000) {
+    const cacheTtl = cached?.url ? POSITIVE_PROBE_TTL : NEGATIVE_PROBE_TTL;
+    if (cached && Date.now() - cached.at < cacheTtl) {
       return cached.url;
     }
     if (this.activeProbes >= 4) {

@@ -283,13 +283,24 @@ test("version one metadata loads with no discovery fields", () => {
       expect(service?.managed).toBe(false);
       expect(service?.resources?.processCount).toBeGreaterThan(0);
       expect(first.worktrees[0]?.services).toEqual([]);
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const next = workspace.observeRepository(repo);
+      const expectedUrl = `http://127.0.0.1:${port}`;
+      const deadline = Date.now() + 2000;
+      let next = workspace.observeRepository(repo);
+      while (Date.now() < deadline) {
+        const url = next.worktrees
+          .find((item) => item.path === linked)
+          ?.services.find((item) => item.pid === child.pid)?.url;
+        if (url === expectedUrl) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        next = workspace.observeRepository(repo);
+      }
       expect(
         next.worktrees
           .find((item) => item.path === linked)
           ?.services.find((item) => item.pid === child.pid)?.url
-      ).toBe(`http://127.0.0.1:${port}`);
+      ).toBe(expectedUrl);
     } finally {
       child.kill();
       await child.exited;

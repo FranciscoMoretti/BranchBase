@@ -61,3 +61,41 @@ test("HTTP detection requires a response, including non-2xx responses", async ()
     server.stop(true);
   }
 });
+test("HTTP detection retries a failed probe after the short negative cache", async () => {
+  const reservation = serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch: () => new Response("ready"),
+  });
+  const port = reservation.port;
+  if (port === undefined) {
+    throw new Error("Expected a reserved port.");
+  }
+  reservation.stop(true);
+  const detector = new DetectedServices();
+  const service = {
+    pid: process.pid,
+    command: "bun",
+    port,
+    address: `127.0.0.1:${port}`,
+    cwd: "/repo",
+    startedAt: null,
+    url: null,
+    resources: null,
+    managed: false,
+  };
+  expect(detector.webUrl(service)).toBeNull();
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  const server = serve({
+    port,
+    hostname: "127.0.0.1",
+    fetch: () => new Response("ready"),
+  });
+  try {
+    expect(detector.webUrl(service)).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(detector.webUrl(service)).toBe(`http://127.0.0.1:${port}`);
+  } finally {
+    server.stop(true);
+  }
+});
