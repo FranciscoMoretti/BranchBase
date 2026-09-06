@@ -94,6 +94,29 @@ test("canonicalizes a selected symlink alias before scanning", async () => {
     await workspace.close();
   }
 });
+test("validates missing development folders with an actionable error", async () => {
+  const root = temporary();
+  const workspace = controller(join(root, "state"));
+  try {
+    expect(() => workspace.addDevelopmentFolder(join(root, "missing"))).toThrow(
+      "Choose a development folder."
+    );
+  } finally {
+    await workspace.close();
+  }
+});
+test("removes missing development folders by their stored path", async () => {
+  const root = temporary();
+  const missing = join(root, "missing");
+  const workspace = controller(join(root, "state"));
+  try {
+    new ProductStore(join(root, "state")).saveFolder(missing);
+    workspace.removeDevelopmentFolder(missing);
+    expect(workspace.developmentFolders()).toEqual([]);
+  } finally {
+    await workspace.close();
+  }
+});
 test("preserves unreadable-folder and scan-limit warnings together", () => {
   const root = temporary();
   const unreadable = join(root, "aaa-unreadable");

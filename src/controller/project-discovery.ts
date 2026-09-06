@@ -27,16 +27,27 @@ export class ProjectDiscovery {
   }
 
   addFolder(path: string) {
-    const canonical = realpathSync(path);
-    if (!statSync(canonical).isDirectory()) {
+    let canonical: string;
+    try {
+      canonical = realpathSync(path);
+      if (!statSync(canonical).isDirectory()) {
+        throw new Error("Choose a development folder.");
+      }
+    } catch {
       throw new Error("Choose a development folder.");
     }
     this.store.saveFolder(canonical);
     this.scan(true);
   }
   removeFolder(path: string) {
-    this.store.removeFolder(path);
-    this.scans.delete(path);
+    let key = path;
+    try {
+      key = realpathSync(path);
+    } catch {
+      // Preserve the exact missing path so it can be removed from persisted metadata.
+    }
+    this.store.removeFolder(key);
+    this.scans.delete(key);
   }
   folders() {
     this.scan();

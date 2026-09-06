@@ -228,6 +228,44 @@ describe("BranchBase HTTP server", () => {
     }
   });
 
+  it("reports unavailable observation support instead of a schema error", async () => {
+    const appRoot = mkdtempSync(
+      join(tmpdir(), "branchbase-server-observation-")
+    );
+    const controller = {
+      close: () => Promise.resolve(),
+      execute: () => Promise.reject(new Error("not used")),
+      handleCodexHook: () => ({ accepted: false }),
+      inspect: () => {
+        throw new Error("not used");
+      },
+      inspectCodex: () => Promise.reject(new Error("not used")),
+      logs: () => [],
+    } as unknown as BranchBaseServerController;
+    const server = await createBranchBaseServer({
+      appRoot,
+      controller,
+      development: false,
+      enableCodexHooks: false,
+      port: 0,
+    });
+
+    try {
+      const url = await server.listen();
+      const response = await fetch(
+        new URL("/api/observation?repoPath=%2Fcode%2Frepo", url)
+      );
+      expect(response.status).toBe(501);
+      expect(await response.json()).toEqual({
+        code: "observation-unavailable",
+        error: "Repository observation is unavailable.",
+      });
+    } finally {
+      await server.close();
+      rmSync(appRoot, { force: true, recursive: true });
+    }
+  });
+
   it("formats IPv6 hosts as valid origins", async () => {
     const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-ipv6-"));
     const controller = {

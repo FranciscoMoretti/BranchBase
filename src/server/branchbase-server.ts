@@ -149,11 +149,18 @@ export async function createBranchBaseServer(
 
   function handleDiscoveryGet(url: URL, response: ServerResponse): boolean {
     if (url.pathname === "/api/observation") {
+      if (!controller.observeRepository) {
+        sendJson(response, 501, {
+          code: "observation-unavailable",
+          error: "Repository observation is unavailable.",
+        });
+        return true;
+      }
       sendJson(
         response,
         200,
         ObservationSchema.parse(
-          controller.observeRepository?.(url.searchParams.get("repoPath") ?? "")
+          controller.observeRepository(url.searchParams.get("repoPath") ?? "")
         )
       );
       return true;
