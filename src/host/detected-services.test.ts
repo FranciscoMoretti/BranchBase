@@ -93,6 +93,7 @@ test("HTTP detection retries a failed probe after the short negative cache", asy
     managed: false,
   };
   expect(detector.webUrl(service)).toBeNull();
+  await new Promise((resolve) => setTimeout(resolve, PROBE_TIMEOUT_MS));
   const server = serve({
     port,
     hostname: "127.0.0.1",
