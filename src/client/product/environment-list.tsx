@@ -87,7 +87,7 @@ function AppOverflow({
           <DropdownMenuLabel>
             {group.name} apps · {worktree.branch}
           </DropdownMenuLabel>
-          {group.apps.map((app) =>
+          {group.apps.slice(2).map((app) =>
             app.open && app.url ? (
               <DropdownMenuItem
                 key={app.id}
@@ -220,9 +220,6 @@ function TaskSummary({
     (task) => task.activity?.state === "waiting-for-approval"
   );
   let label = tasks === undefined ? "Loading tasks…" : "No tasks";
-  if (unavailable) {
-    label = "Tasks unavailable";
-  }
   if (tasks?.length) {
     label = "Tasks idle or unknown";
   }

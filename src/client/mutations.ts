@@ -83,6 +83,7 @@ export function useCommands(repoPath: string) {
           "updateRepositoryConfig",
         ].includes(name)
     )
+    .filter(([, mutation]) => mutation.error)
     .map(([, mutation]) => mutation)
     .sort((a, b) => b.submittedAt - a.submittedAt)[0];
   return { ...mutations, error: latest?.error ?? null };

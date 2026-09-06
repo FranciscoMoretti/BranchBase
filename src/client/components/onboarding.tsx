@@ -61,10 +61,9 @@ export function Onboarding({
     if (setup.active) {
       return setup.notice();
     }
-    const message = opener.error?.message ?? picker.error;
     return (
       <FormFeedback
-        error={message ? new Error(message) : null}
+        error={opener.error ?? (picker.error ? new Error(picker.error) : null)}
         title="Could not open project"
       />
     );

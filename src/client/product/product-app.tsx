@@ -84,13 +84,14 @@ export function ProductApp() {
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (dirty.current) {
         event.preventDefault();
+        event.returnValue = true;
       }
     };
     const sync = () => {
       scrollPositions.current.set(currentHref.current, window.scrollY);
       if (dirty.current) {
         const target = window.location.href;
-        window.history.pushState(null, "", currentHref.current);
+        window.history.replaceState(null, "", currentHref.current);
         setPendingHref(target);
       } else {
         currentHref.current = window.location.href;
@@ -148,13 +149,17 @@ export function ProductApp() {
             )
             .slice(0, 5)
         : [];
-      localStorage.setItem("branchbase:projects-migrated", "1");
     } catch {
       return;
     }
-    Promise.allSettled(
+    Promise.all(
       paths.map((repoPath) => runCommand("save-project", { repoPath }))
-    ).then(() => client.invalidateQueries({ queryKey: ["projects"] }));
+    )
+      .then(() => {
+        localStorage.setItem("branchbase:projects-migrated", "1");
+        return client.invalidateQueries({ queryKey: ["projects"] });
+      })
+      .catch(() => undefined);
   }, [client]);
   const inspectedPath = observation.data?.repoPath;
   useEffect(() => {
@@ -241,6 +246,7 @@ export function ProductApp() {
             key={location.repo}
             label="Project"
             query={projectQuery}
+            resetKey={`${location.repo}:${observation.data?.configured ? "workspace" : "observation"}`}
           >
             {content}
           </QueryContent>

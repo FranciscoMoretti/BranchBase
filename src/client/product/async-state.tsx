@@ -1,5 +1,5 @@
 import { AlertCircleIcon, RefreshCwIcon, XIcon } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";
 import { errorDescription, isConnectionError } from "../request-error";
@@ -11,6 +11,7 @@ export interface QueryState {
   isFetching: boolean;
   isPending: boolean;
   refetch: () => unknown;
+  resetKey?: string;
 }
 
 export function ErrorDetails({ error }: { error: Error }) {
@@ -165,14 +166,23 @@ export function QueryContent({
   label,
   children,
   compact = false,
+  resetKey,
 }: {
   query: QueryState;
   label: string;
   children: ReactNode;
   compact?: boolean;
+  resetKey?: string;
 }) {
   const hasData = query.data !== undefined;
   const [lastFailure, setLastFailure] = useState<Error | null>(null);
+  const previousResetKey = useRef(resetKey);
+  useEffect(() => {
+    if (previousResetKey.current !== resetKey) {
+      previousResetKey.current = resetKey;
+      setLastFailure(null);
+    }
+  }, [resetKey]);
   useEffect(() => {
     if (query.error) {
       setLastFailure(query.error);

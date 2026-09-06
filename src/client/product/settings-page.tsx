@@ -110,7 +110,10 @@ export function SettingsPage({
                     <Input
                       id="project-name"
                       maxLength={100}
-                      onChange={(event) => setName(event.target.value)}
+                      onChange={(event) => {
+                        setName(event.target.value);
+                        mutation.reset();
+                      }}
                       required
                       value={name ?? project?.name ?? data.repoName}
                     />
@@ -329,7 +332,7 @@ function IntegrationSettings({ repoPath }: { repoPath: string }) {
       <h2>Codex</h2>
       <Status
         label={connectionLabel(codex.isError, codex.isLoading)}
-        value={codex.isError ? "partial" : "stopped"}
+        value={codex.isError || codex.isLoading ? "partial" : "running"}
       />
       <p className="product-muted">
         Task discovery matches conversations to their exact worktree paths. Live

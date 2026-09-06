@@ -176,7 +176,7 @@ export function GroupDetails({
                 />
                 <Button
                   aria-label={`${pinned ? "Unpin" : "Pin"} ${app.label} on Projects`}
-                  disabled={save.isPending}
+                  disabled={save.isPending || !project}
                   onClick={() =>
                     save.mutate({
                       command: "save-project",

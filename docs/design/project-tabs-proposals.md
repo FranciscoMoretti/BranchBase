@@ -85,6 +85,12 @@ coherent section rather than displaying every subsection as duplicated overview
 content. Projects needs only one Add project entry point; remove redundant bottom
 creation action. Replace vague Healthy with a precise runtime summary.
 
+The generation prompts below are preserved as historical imagegen inputs. For
+current implementations, the approved guidance supersedes conflicting prompt
+details: Settings opens one section at a time; Projects has one Add project
+entry point with a runtime summary such as worktree and running-group counts;
+and the redundant bottom Add button is omitted.
+
 ## Generation prompts
 
 ### Projects

@@ -26,6 +26,8 @@ import {
   Status,
 } from "./primitives";
 
+const WINDOWS_PATH_SEPARATOR = /[\\/]/;
+
 export function ServiceLink({ service }: { service: DetectedService }) {
   return (
     <span className="product-actions product-service-link" title={service.cwd}>
@@ -147,7 +149,10 @@ function ObservedSettings({
 }) {
   const [name, setName] = useState<string | null>(null);
   const resolvedName =
-    name ?? project?.name ?? data.repoPath.split("/").at(-1) ?? "Project";
+    name ??
+    project?.name ??
+    data.repoPath.split(WINDOWS_PATH_SEPARATOR).at(-1) ??
+    "Project";
   const command = useProductCommand();
   return (
     <>
@@ -302,9 +307,11 @@ export function ObservedProjectPage({
               </Button>
             </fieldset>
           </div>
-          <div className="product-observation-warning" role="status">
-            {data.warning}
-          </div>
+          {data.warning ? (
+            <div className="product-observation-warning" role="status">
+              {data.warning}
+            </div>
+          ) : null}
           <div className="product-observed-worktrees">
             {visible.map((worktree) => (
               <article className="product-observed-worktree" key={worktree.id}>

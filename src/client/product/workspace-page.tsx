@@ -43,6 +43,7 @@ import { SettingsPage } from "./settings-page";
 function needsAttention(worktree: WorktreeSnapshot): boolean {
   return Boolean(
     worktree.configuration.error ||
+      !worktree.configuration.trusted ||
       worktree.setupState === "failed" ||
       worktree.appGroups.some(
         (group) => appGroupDisplayStatus(group) === "partial"

@@ -52,6 +52,7 @@ export function projectIsActive(project: ProjectOverview): boolean {
 function projectNeedsAttention(project: ProjectOverview): boolean {
   return Boolean(
     project.error ||
+      project.observation?.warning ||
       project.workspace?.worktrees.some(
         (worktree) =>
           worktree.configuration.error ||
@@ -100,6 +101,28 @@ function projectStateLabel(project: ProjectOverview) {
 function projectResources(project: ProjectOverview) {
   return project.workspace?.resources ?? project.observation?.resources;
 }
+function attentionNotice(
+  project: ProjectOverview,
+  warning:
+    | NonNullable<ProjectOverview["workspace"]>["worktrees"][number]
+    | undefined
+) {
+  if (project.observation?.warning) {
+    return {
+      href: hrefFor({ repo: project.path, view: "activity" }),
+      label: project.observation.warning,
+    };
+  }
+  if (warning) {
+    return {
+      href: attentionHref(project.path, warning),
+      label: warning.configuration.trusted
+        ? `Needs attention · ${warning.branch}`
+        : "Review commands",
+    };
+  }
+  return null;
+}
 function ProjectRow({ project }: { project: ProjectOverview }) {
   const workspace = project.workspace;
   const detected =
@@ -122,6 +145,7 @@ function ProjectRow({ project }: { project: ProjectOverview }) {
         (group) => appGroupDisplayStatus(group) === "partial"
       )
   );
+  const attention = attentionNotice(project, warning);
   return (
     <article className="product-project-row">
       <FolderGit2Icon className="product-project-icon" />
@@ -178,17 +202,12 @@ function ProjectRow({ project }: { project: ProjectOverview }) {
         {project.error ? (
           <span className="product-warning">{project.error}</span>
         ) : null}
-        {!project.error && warning ? (
-          <a
-            className="product-warning"
-            href={attentionHref(project.path, warning)}
-          >
-            {warning.configuration.trusted
-              ? `Needs attention · ${warning.branch}`
-              : "Review commands"}
+        {!project.error && attention ? (
+          <a className="product-warning" href={attention.href}>
+            {attention.label}
           </a>
         ) : null}
-        {project.error || warning ? null : (
+        {project.error || attention ? null : (
           <Status
             label={projectStateLabel(project)}
             value={active || detected.length ? "running" : "stopped"}

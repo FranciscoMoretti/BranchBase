@@ -5,7 +5,7 @@ import {
   GitForkIcon,
   SettingsIcon,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { AppEndpointSnapshot } from "../../controller/workspace-snapshot";
 import { Button } from "../components/ui/button";
 import {
@@ -62,6 +62,15 @@ export function CopyButton({
   label?: string;
 }) {
   const [state, setState] = useState("idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+      }
+    },
+    []
+  );
   return (
     <Button
       aria-label={label}
@@ -73,7 +82,10 @@ export function CopyButton({
         } catch {
           setState("failed");
         }
-        setTimeout(() => setState("idle"), 1800);
+        if (timer.current) {
+          clearTimeout(timer.current);
+        }
+        timer.current = setTimeout(() => setState("idle"), 1800);
       }}
       size="icon-sm"
       title={label}
@@ -106,7 +118,7 @@ export function AppLink({
       </a>
     );
   }
-  if (app.protocol === "tcp" && app.readiness === "ready" && app.directUrl) {
+  if (app.readiness === "ready" && app.directUrl) {
     return (
       <span className="inline-flex items-center gap-1">
         {name ? app.label : app.directUrl}

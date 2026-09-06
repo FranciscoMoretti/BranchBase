@@ -12,6 +12,13 @@ import { QueryContent } from "./async-state";
 import { hrefFor, useActivity } from "./data";
 import { Blank, PageHeading, Search, Status } from "./primitives";
 
+function activityStatus(severity: string): string {
+  if (severity === "warning") {
+    return "partial";
+  }
+  return severity === "success" ? "running" : "stopped";
+}
+
 export function ActivityPage({
   repoPath,
   groupId,
@@ -163,7 +170,7 @@ export function ActivityPage({
               </div>
               <Status
                 label={event.kind}
-                value={event.severity === "warning" ? "partial" : "stopped"}
+                value={activityStatus(event.severity)}
               />
               {event.worktreeId ? (
                 <a

@@ -53,7 +53,7 @@
 }
 
 :root {
-  --background: #fafaf8;
+  --background: #fff;
   --foreground: #111113;
   --card: #fff;
   --card-foreground: #111113;
@@ -61,20 +61,21 @@
   --popover-foreground: #111113;
   --primary: #171719;
   --primary-foreground: #fafaf8;
-  --secondary: #f1f1ee;
+  --secondary: #f5f5f5;
   --secondary-foreground: #202023;
-  --muted: #f3f3f0;
+  --muted: #fafafa;
   --muted-foreground: #6f6f72;
-  --accent: #efefec;
+  --accent: #f2f2f2;
   --accent-foreground: #202023;
   --destructive: #d43d46;
   --status-running: #e5f5ea;
   --status-running-foreground: #207a48;
   --status-partial: #fff1cf;
   --status-partial-foreground: #8a5a00;
-  --border: #e7e7e4;
-  --input: #dededb;
-  --ring: #6d5ef6;
+  --border: #e8e8e8;
+  --input: #dedede;
+  --ring: #0070f3;
+  --product-link: #0068d6;
   --brand: #6d5ef6;
   --brand-soft: #efedff;
   --canvas-grid: rgb(17 17 19 / 4%);
@@ -106,17 +107,18 @@
   --primary-foreground: #111215;
   --secondary: #222328;
   --secondary-foreground: #f5f5f4;
-  --muted: #1d1e22;
+  --muted: #151619;
   --muted-foreground: #a5a5a8;
-  --accent: #25262c;
+  --accent: #24252a;
   --accent-foreground: #f5f5f4;
   --destructive: #ff6369;
   --status-running: #173b29;
   --status-running-foreground: #68d391;
   --status-partial: #3c3016;
   --status-partial-foreground: #f2bd57;
-  --border: #292a2e;
-  --input: #34353b;
+  --border: #303137;
+  --input: #36373d;
+  --product-link: #70adff;
   --ring: #8b7cff;
   --brand: #8b7cff;
   --brand-soft: #292447;
@@ -1209,26 +1211,7 @@
   }
 }
 
-/* Product surfaces: approved expandable environments and project navigation. */
-:root {
-  --background: #fff;
-  --secondary: #f5f5f5;
-  --muted: #fafafa;
-  --accent: #f2f2f2;
-  --border: #e8e8e8;
-  --input: #dedede;
-  --ring: #0070f3;
-  --product-link: #0068d6;
-}
-.dark {
-  --background: #0c0d0f;
-  --secondary: #222328;
-  --muted: #151619;
-  --accent: #24252a;
-  --border: #303137;
-  --input: #36373d;
-  --product-link: #70adff;
-}
+/* Product surfaces use the shared theme tokens above. */
 .product-shell {
   min-height: 100vh;
   font-size: 14px;
@@ -2102,8 +2085,10 @@
   text-align: left;
 }
 .product-form-feedback {
-  min-height: 72px;
+  height: 88px;
+  min-height: 88px;
   padding-block: 8px;
+  overflow: auto;
   font-size: 13px;
   line-height: 1.5;
   color: var(--destructive);
@@ -2142,12 +2127,6 @@
 .product-query-compact .product-unavailable {
   min-height: 360px;
 }
-.product-form-feedback {
-  height: 88px;
-  min-height: 88px;
-  overflow: auto;
-}
-
 /* Repository observation uses the same quiet rows as managed environments. */
 .product-discovery-help {
   min-height: 64px;

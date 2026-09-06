@@ -134,7 +134,9 @@ export function CodexTasksSection({
             <BotIcon className="size-4" />
             Codex tasks
           </h3>
-          <Badge variant="outline">{tasks.length}</Badge>
+          <Badge variant="outline">
+            {loading || discoveryUnavailable ? "—" : tasks.length}
+          </Badge>
         </div>
         {newTaskUrl ? (
           <a className={buttonVariants({ size: "sm" })} href={newTaskUrl}>

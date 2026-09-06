@@ -25,7 +25,10 @@ export function DiscoveryDialog({
   const [kind, setKind] = useState(initialKind);
   const [path, setPath] = useState("");
   const command = useProductCommand();
-  const picker = useRepositoryPicker(setPath);
+  const picker = useRepositoryPicker((selectedPath) => {
+    setPath(selectedPath);
+    command.reset();
+  });
   const pending = command.isPending || picker.pending;
   return (
     <Dialog
@@ -94,7 +97,9 @@ export function DiscoveryDialog({
           error={
             command.error ?? (picker.error ? new Error(picker.error) : null)
           }
-          title="Could not add folder"
+          title={
+            kind === "folder" ? "Could not add folder" : "Could not add project"
+          }
         />
         <DialogFooter>
           <Button disabled={pending} onClick={onClose} variant="outline">

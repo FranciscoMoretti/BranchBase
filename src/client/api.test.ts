@@ -44,6 +44,23 @@ describe("request recovery", () => {
       code: "INVALID_RESPONSE",
     });
   });
+  it("distinguishes request timeouts from caller cancellation", async () => {
+    const timeout = new Error("slow");
+    timeout.name = "TimeoutError";
+    globalThis.fetch = ((_input: string | URL | Request) =>
+      Promise.reject(timeout)) as typeof fetch;
+    await expect(getJson("/api/projects")).rejects.toMatchObject({
+      code: "REQUEST_TIMEOUT",
+    });
+
+    const abort = new Error("cancelled");
+    abort.name = "AbortError";
+    globalThis.fetch = ((_input: string | URL | Request) =>
+      Promise.reject(abort)) as typeof fetch;
+    await expect(getJson("/api/projects")).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
   it("retries session acquisition after a connection failure rather than caching a rejected promise", async () => {
     let calls = 0;
     globalThis.fetch = ((input: string | URL | Request) => {

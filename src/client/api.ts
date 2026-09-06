@@ -71,7 +71,17 @@ export async function request(
         init?.signal ??
         (init?.method === "POST" ? undefined : AbortSignal.timeout(15_000)),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error;
+    }
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new BranchBaseApiError(
+        "BranchBase did not respond before the request timed out",
+        "REQUEST_TIMEOUT",
+        null
+      );
+    }
     throw new BranchBaseApiError(
       "Connection to BranchBase is unavailable",
       "CONNECTION_UNAVAILABLE",

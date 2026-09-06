@@ -71,6 +71,11 @@ export function InfrastructurePage({
       .toLowerCase()
       .includes(search.toLowerCase())
   );
+  const shownUnused = [...unused.values()].filter(({ instance, group }) =>
+    `${instance.name} ${group.name}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
   return (
     <>
       <PageHeading
@@ -84,7 +89,7 @@ export function InfrastructurePage({
           value={search}
         />
         <span className="product-muted">
-          {countLabel(instances.size + unused.size, "instance")}
+          {countLabel(shown.length + shownUnused.length, "instance")}
         </span>
       </div>
       <div className="product-infrastructure">
@@ -156,63 +161,57 @@ export function InfrastructurePage({
           </article>
         ))}
       </div>
-      {[...unused.values()]
-        .filter(({ instance, group }) =>
-          `${instance.name} ${group.name}`
-            .toLowerCase()
-            .includes(search.toLowerCase())
-        )
-        .map(({ instance, group, worktree }) => {
-          const owner = data.worktrees.find((item) =>
-            item.appGroups.some(
-              (candidate) =>
-                candidate.cleanupOnly && candidate.instance.id === instance.id
-            )
-          );
-          const cleanup = owner?.appGroups.find(
+      {shownUnused.map(({ instance, group, worktree }) => {
+        const owner = data.worktrees.find((item) =>
+          item.appGroups.some(
             (candidate) =>
               candidate.cleanupOnly && candidate.instance.id === instance.id
-          );
-          return (
-            <section className="product-settings-panel" key={instance.id}>
-              <div className="product-infra-heading">
-                <DatabaseIcon />
-                <div>
-                  <h2>{instance.name}</h2>
-                  <p className="product-muted">
-                    {group.name} · No selecting worktrees
-                  </p>
-                </div>
-                <Status value={instance.running ? "running" : "stopped"} />
-                <Button
-                  onClick={() =>
-                    controls.inspect(
-                      owner ?? worktree,
-                      cleanup ?? group,
-                      cleanup ? "logs" : "configuration"
-                    )
-                  }
-                  variant="outline"
-                >
-                  {cleanup ? "Inspect run" : "Choose instance in worktree"}
-                </Button>
-                {cleanup && owner ? (
-                  <GroupToggle
-                    controls={controls}
-                    group={cleanup}
-                    worktree={owner}
-                  />
-                ) : null}
+          )
+        );
+        const cleanup = owner?.appGroups.find(
+          (candidate) =>
+            candidate.cleanupOnly && candidate.instance.id === instance.id
+        );
+        return (
+          <section className="product-settings-panel" key={instance.id}>
+            <div className="product-infra-heading">
+              <DatabaseIcon />
+              <div>
+                <h2>{instance.name}</h2>
+                <p className="product-muted">
+                  {group.name} · No selecting worktrees
+                </p>
               </div>
-              <p className="product-muted">
-                {cleanup
-                  ? "This retained run is still owned by BranchBase and can be stopped."
-                  : `Open ${worktree.branch} to select this instance before starting it.`}
-              </p>
-            </section>
-          );
-        })}
-      {shown.length === 0 && unused.size === 0 ? (
+              <Status value={instance.running ? "running" : "stopped"} />
+              <Button
+                onClick={() =>
+                  controls.inspect(
+                    owner ?? worktree,
+                    cleanup ?? group,
+                    cleanup ? "logs" : "configuration"
+                  )
+                }
+                variant="outline"
+              >
+                {cleanup ? "Inspect run" : "Choose instance in worktree"}
+              </Button>
+              {cleanup && owner ? (
+                <GroupToggle
+                  controls={controls}
+                  group={cleanup}
+                  worktree={owner}
+                />
+              ) : null}
+            </div>
+            <p className="product-muted">
+              {cleanup
+                ? "This retained run is still owned by BranchBase and can be stopped."
+                : `Open ${worktree.branch} to select this instance before starting it.`}
+            </p>
+          </section>
+        );
+      })}
+      {shown.length === 0 && shownUnused.length === 0 ? (
         <Blank
           description="Set an app group's category to infrastructure in project configuration to show its instances here."
           title="No infrastructure instances"
