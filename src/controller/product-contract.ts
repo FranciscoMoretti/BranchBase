@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ObservationSchema } from "./discovery-contract";
 import { WorkspaceSnapshotSchema } from "./workspace-snapshot";
 
 export const AppPinSchema = z.strictObject({
@@ -13,6 +14,7 @@ export const ProjectRecordSchema = z.strictObject({
   pins: z.array(AppPinSchema).max(24),
 });
 export const ProjectOverviewSchema = ProjectRecordSchema.extend({
+  observation: ObservationSchema.nullable().optional(),
   error: z.string().nullable(),
   workspace: WorkspaceSnapshotSchema.nullable(),
 });

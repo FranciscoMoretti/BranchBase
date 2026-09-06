@@ -36,6 +36,9 @@ export const RepositoryInitializationPlanSchema = z.object({
 });
 
 const INPUT_SCHEMAS = {
+  "add-development-folder": RepositoryPathSchema,
+  "remove-development-folder": RepositoryPathSchema,
+  "scan-development-folders": z.object({}),
   "save-project": RepositoryPathSchema.extend({
     name: z.string().trim().min(1).max(100).optional(),
     pins: z.array(AppPinSchema).max(24).optional(),
@@ -80,6 +83,9 @@ const INPUT_SCHEMAS = {
 } as const;
 
 const RESULT_SCHEMAS = {
+  "add-development-folder": CommandReceiptSchema,
+  "remove-development-folder": CommandReceiptSchema,
+  "scan-development-folders": CommandReceiptSchema,
   "save-project": CommandReceiptSchema,
   "remove-project": CommandReceiptSchema,
   "revoke-trust": CommandReceiptSchema,

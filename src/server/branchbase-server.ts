@@ -14,6 +14,10 @@ import {
 } from "../codex/codex-integration";
 import { AppGroupLifecycleError } from "../controller/app-group-lifecycle-error";
 import { isBranchBaseCommandName } from "../controller/command-contract";
+import {
+  FoldersResponseSchema,
+  ObservationSchema,
+} from "../controller/discovery-contract";
 import { ProjectsResponseSchema } from "../controller/product-contract";
 import { ProductCatalogError } from "../controller/product-store";
 import {
@@ -42,7 +46,12 @@ export type BranchBaseServerController = Pick<
   WorkspaceController,
   "close" | "execute" | "handleCodexHook" | "inspect" | "inspectCodex" | "logs"
 > &
-  Partial<Pick<WorkspaceController, "projects">>;
+  Partial<
+    Pick<
+      WorkspaceController,
+      "projects" | "observeRepository" | "developmentFolders"
+    >
+  >;
 
 export interface BranchBaseServerOptions {
   appRoot: string;
@@ -138,10 +147,36 @@ export async function createBranchBaseServer(
     );
   }
 
+  function handleDiscoveryGet(url: URL, response: ServerResponse): boolean {
+    if (url.pathname === "/api/observation") {
+      sendJson(
+        response,
+        200,
+        ObservationSchema.parse(
+          controller.observeRepository?.(url.searchParams.get("repoPath") ?? "")
+        )
+      );
+      return true;
+    }
+    if (url.pathname === "/api/development-folders") {
+      sendJson(
+        response,
+        200,
+        FoldersResponseSchema.parse({
+          folders: controller.developmentFolders?.() ?? [],
+        })
+      );
+      return true;
+    }
+    return false;
+  }
   async function handleGetApi(
     url: URL,
     response: ServerResponse
   ): Promise<boolean> {
+    if (handleDiscoveryGet(url, response)) {
+      return true;
+    }
     if (url.pathname === "/api/projects") {
       sendJson(
         response,

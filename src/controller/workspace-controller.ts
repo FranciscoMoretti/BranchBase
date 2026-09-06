@@ -73,8 +73,10 @@ import {
   parseCommandInput,
   parseCommandResult,
 } from "./command-contract";
+import type { Observation } from "./discovery-contract";
 import type { AppPin, ProjectOverview } from "./product-contract";
 import { ProductStore } from "./product-store";
+import { ProjectDiscovery } from "./project-discovery";
 import { initializeRepository as initializeRepositoryConfig } from "./repository-initializer";
 import {
   type WorkspaceSnapshot,
@@ -88,6 +90,30 @@ type CommandHandler = (
 ) => unknown;
 
 const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
+  "add-development-folder": (controller, input) => {
+    controller.addDevelopmentFolder(String(input.repoPath));
+    return {
+      ok: true,
+      command: "add-development-folder",
+      message: "Development folder added",
+    };
+  },
+  "remove-development-folder": (controller, input) => {
+    controller.removeDevelopmentFolder(String(input.repoPath));
+    return {
+      ok: true,
+      command: "remove-development-folder",
+      message: "Folder removed; projects kept",
+    };
+  },
+  "scan-development-folders": (controller) => {
+    controller.scanDevelopmentFolders();
+    return {
+      ok: true,
+      command: "scan-development-folders",
+      message: "Folder scan complete",
+    };
+  },
   "save-project": (controller, input) => {
     controller.saveProject(
       String(input.repoPath),
@@ -148,6 +174,7 @@ function git(cwd: string, args: string[]): string {
   const result = spawnSync("git", args, {
     cwd,
     encoding: "utf8",
+    timeout: 3000,
   });
   if (result.status !== 0) {
     throw new Error(
@@ -298,6 +325,7 @@ export class WorkspaceController {
     string,
     Map<string, { cwd: string; sessionId: string }>
   >();
+  private readonly discovery: ProjectDiscovery;
   private readonly processes: ProcessSupervisor;
   private readonly routing: LocalRoutingEngine;
   private readonly state: FileBranchBaseStateStore;
@@ -314,6 +342,9 @@ export class WorkspaceController {
     this.routing = runtime.routing ?? new PortlessRoutingEngine();
     this.state = runtime.state ?? new FileBranchBaseStateStore();
     this.product = new ProductStore(dirname(this.state.path));
+    this.discovery = new ProjectDiscovery(this.product, (path) =>
+      resolveWorktrees(git(path, ["rev-parse", "--show-toplevel"]))
+    );
     this.appGroups = new AppGroupRuntime(
       this.processes,
       this.routing,
@@ -329,8 +360,9 @@ export class WorkspaceController {
     repoPath: string,
     options?: CodexIntegrationLoadOptions
   ): Promise<CodexIntegrationSnapshot> {
-    const workspace = this.inspect(repoPath);
-    const worktrees = workspace.worktrees.map(({ id, path }) => ({ id, path }));
+    const worktrees = resolveWorktrees(
+      git(repoPath, ["rev-parse", "--show-toplevel"])
+    ).map(({ id, path }) => ({ id, path }));
     const discovered = await this.codexAdapter.loadAssociatedTasks(
       worktrees,
       options
@@ -577,17 +609,37 @@ export class WorkspaceController {
     );
   }
 
+  addDevelopmentFolder(path: string) {
+    this.discovery.addFolder(path);
+  }
+  removeDevelopmentFolder(path: string) {
+    this.discovery.removeFolder(path);
+  }
+  scanDevelopmentFolders() {
+    this.discovery.scan(true);
+  }
+  developmentFolders() {
+    return this.discovery.folders();
+  }
+  observeRepository(path: string) {
+    return this.discovery.observe(path);
+  }
   projects(): ProjectOverview[] {
+    this.discovery.scan();
     return this.product.projects().map((project) => {
+      let observation: Observation | null = null;
       try {
+        observation = this.observeRepository(project.path);
         return {
           ...project,
+          observation,
           error: null,
-          workspace: this.inspect(project.path),
+          workspace: observation.configured ? this.inspect(project.path) : null,
         };
       } catch (error) {
         return {
           ...project,
+          observation,
           error: error instanceof Error ? error.message : String(error),
           workspace: null,
         };

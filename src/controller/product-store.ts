@@ -9,9 +9,12 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
+import { DevelopmentFolderSchema } from "./discovery-contract";
 import { type AppPin, ProjectRecordSchema } from "./product-contract";
 
 const StoreSchema = z.strictObject({
+  folders: z.array(DevelopmentFolderSchema).default([]),
+  excludedPaths: z.array(z.string()).default([]),
   projects: z.array(ProjectRecordSchema),
   version: z.literal(1),
 });
@@ -69,6 +72,7 @@ export class ProductStore {
   }
   saveProject(path: string, name: string, pins?: AppPin[]): void {
     const state = this.read();
+    state.excludedPaths = state.excludedPaths.filter((value) => value !== path);
     const existing = state.projects.find((project) => project.path === path);
     const record = ProjectRecordSchema.parse({
       addedAt: existing?.addedAt ?? new Date().toISOString(),
@@ -85,7 +89,32 @@ export class ProductStore {
   }
   removeProject(path: string): void {
     const state = this.read();
+    state.excludedPaths = [...new Set([...state.excludedPaths, path])];
     state.projects = state.projects.filter((project) => project.path !== path);
+    this.write(state);
+  }
+  folders() {
+    return this.read().folders;
+  }
+  excludedPaths() {
+    return this.read().excludedPaths;
+  }
+  saveFolder(path: string) {
+    const state = this.read();
+    if (state.folders.some((folder) => folder.path === path)) {
+      return;
+    }
+    if (state.folders.length >= 20) {
+      throw new Error(
+        "You can watch up to 20 development folders. Remove one before adding another."
+      );
+    }
+    state.folders.push({ path, addedAt: new Date().toISOString() });
+    this.write(state);
+  }
+  removeFolder(path: string) {
+    const state = this.read();
+    state.folders = state.folders.filter((folder) => folder.path !== path);
     this.write(state);
   }
 }
