@@ -138,7 +138,7 @@ export function Toolbar({
           variant="ghost"
         >
           <span
-            className="refresh-progress bg-foreground/10"
+            className="refresh-progress bg-foreground/35"
             key={updatedAt}
             style={style}
           />
