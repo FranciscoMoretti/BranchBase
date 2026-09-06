@@ -97,7 +97,15 @@ describe("repository trust fingerprint", () => {
       const modulePath = join(process.cwd(), "src/config/repository-trust.ts");
       const child = `
         import { trustRepository } from ${JSON.stringify(modulePath)};
-        trustRepository(process.env.BRANCHBASE_TEST_REPO!, { setup: { argv: ["true"] }, appGroups: {} }, process.env.BRANCHBASE_TEST_DIR);
+        for (let attempt = 0; ; attempt += 1) {
+          try {
+            trustRepository(process.env.BRANCHBASE_TEST_REPO!, { setup: { argv: ["true"] }, appGroups: {} }, process.env.BRANCHBASE_TEST_DIR);
+            break;
+          } catch (error) {
+            if (attempt >= 100 || !String(error).includes("retry the approval change")) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 1));
+          }
+        }
       `;
       const processes = Array.from({ length: 8 }, (_, index) =>
         // biome-ignore lint/correctness/noUndeclaredVariables: Bun is the test runtime.
@@ -111,10 +119,32 @@ describe("repository trust fingerprint", () => {
           stderr: "pipe",
         })
       );
-      const results = await Promise.all(
-        processes.map((process) => process.exited)
+      const resultPromise = Promise.all(
+        processes.map(async (process) => {
+          const [stdout, stderr, exitCode] = await Promise.all([
+            new Response(process.stdout).text(),
+            new Response(process.stderr).text(),
+            process.exited,
+          ]);
+          return { exitCode, stderr, stdout };
+        })
       );
-      expect(results.every((exitCode) => exitCode === 0)).toBe(true);
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timed out waiting for trust workers")),
+          5000
+        )
+      );
+      let results: Array<{ exitCode: number; stderr: string; stdout: string }>;
+      try {
+        results = await Promise.race([resultPromise, timeout]);
+      } catch (error) {
+        for (const process of processes) {
+          process.kill();
+        }
+        throw error;
+      }
+      expect(results.every(({ exitCode }) => exitCode === 0)).toBe(true);
 
       const store = JSON.parse(
         readFileSync(join(directory, "trusted-repositories.json"), "utf8")

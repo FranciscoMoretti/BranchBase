@@ -27,18 +27,6 @@ const TrustStoreSchema = z.record(
   z.union([z.boolean(), z.string(), z.array(z.string())])
 );
 
-const TRUST_LOCK_TIMEOUT_MS = 10_000;
-const TRUST_LOCK_RETRY_MS = 10;
-
-function waitForLock(): void {
-  Atomics.wait(
-    new Int32Array(new SharedArrayBuffer(4)),
-    0,
-    0,
-    TRUST_LOCK_RETRY_MS
-  );
-}
-
 function withTrustStoreLock<T>(
   controlDirectory: string,
   action: (file: string) => T
@@ -49,24 +37,17 @@ function withTrustStoreLock<T>(
     create: true,
     strict: true,
   });
-  const started = Date.now();
-
   try {
-    while (true) {
-      try {
-        database.run("BEGIN IMMEDIATE");
-        break;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "SQLITE_BUSY") {
-          throw error;
-        }
-        if (Date.now() - started >= TRUST_LOCK_TIMEOUT_MS) {
-          throw new Error(
-            `Timed out waiting for repository trust lock: ${file}`
-          );
-        }
-        waitForLock();
+    try {
+      database.run("BEGIN IMMEDIATE");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "SQLITE_BUSY") {
+        throw new Error(
+          "Repository trust store is busy; retry the approval change.",
+          { cause: error }
+        );
       }
+      throw error;
     }
     try {
       return action(file);

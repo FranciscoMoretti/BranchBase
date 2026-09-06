@@ -179,17 +179,25 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
     const processes = (
       controller as unknown as { processes: ProcessSupervisor }
     ).processes;
-    processes.startManagedProcess({
+    const processId = setupProcessId(worktreeId);
+    const pid = processes.startManagedProcess({
       argv: ["bun", "-e", "setTimeout(() => {}, 5000)"],
       cwd: worktreePath,
       env: process.env as Record<string, string>,
       label: "Setup",
       ownerId: worktreeId,
       ownerRoot: worktreePath,
-      processId: setupProcessId(worktreeId),
+      processId,
     });
-    rmSync(worktreePath, { force: true, recursive: true });
-
+    let managed = false;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      if (processes.managedPid(processId, worktreePath) === pid) {
+        managed = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(managed).toBe(true);
     expect(() => controller.revokeTrust(repoPath)).toThrow(
       "finish setup processes"
     );
