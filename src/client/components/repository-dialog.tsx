@@ -1,7 +1,7 @@
 import { FolderOpenIcon } from "lucide-react";
 import { useState } from "react";
-
 import type { WorkspaceSnapshot } from "../../controller/workspace-snapshot";
+import { FormFeedback } from "../product/async-state";
 import { useRepositoryOpen } from "../use-repository-open";
 import { useRepositoryPicker } from "../use-repository-picker";
 import { useRepositorySetup } from "../use-repository-setup";
@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "./ui/field";
+import { Field, FieldGroup, FieldLabel } from "./ui/field";
 import { Input } from "./ui/input";
 
 export function RepositoryDialog({
@@ -24,11 +24,14 @@ export function RepositoryDialog({
 }: {
   currentPath: string;
   onClose: () => void;
-  onConfirm: (path: string, snapshot: WorkspaceSnapshot) => void;
+  onConfirm: (
+    path: string,
+    snapshot: WorkspaceSnapshot
+  ) => void | Promise<void>;
 }) {
   const [draft, setDraft] = useState(currentPath);
-  const opener = useRepositoryOpen((path, snapshot) => {
-    onConfirm(path, snapshot);
+  const opener = useRepositoryOpen(async (path, snapshot) => {
+    await onConfirm(path, snapshot);
     onClose();
   });
   function changeDraft(path: string) {
@@ -59,7 +62,12 @@ export function RepositoryDialog({
       return setup.notice();
     }
     const message = opener.error?.message ?? picker.error;
-    return message ? <FieldError>{message}</FieldError> : null;
+    return (
+      <FormFeedback
+        error={message ? new Error(message) : null}
+        title="Could not open project"
+      />
+    );
   }
 
   return (
@@ -74,10 +82,13 @@ export function RepositoryDialog({
       >
         <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-xl overflow-auto">
           <DialogHeader className="pr-8">
-            <DialogTitle>Change repository</DialogTitle>
+            <DialogTitle>
+              {currentPath ? "Change repository" : "Add project"}
+            </DialogTitle>
             <DialogDescription>
-              The current repository stays open until the replacement has been
-              verified.
+              {currentPath
+                ? "The current repository stays open until the replacement has been verified."
+                : "Choose an existing Git repository. BranchBase discovers its worktrees and configured app groups."}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>

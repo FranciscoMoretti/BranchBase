@@ -1,6 +1,5 @@
-import { AlertCircleIcon, ShieldCheckIcon } from "lucide-react";
-
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { ShieldCheckIcon } from "lucide-react";
+import { FormFeedback } from "../product/async-state";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -111,13 +110,7 @@ export function RepositoryTrustDialog({
           Trust is saved for this command fingerprint. BranchBase asks again if
           the configured commands change.
         </p>
-        {error ? (
-          <Alert variant="destructive">
-            <AlertCircleIcon />
-            <AlertTitle>Could not trust repository</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        ) : null}
+        <FormFeedback error={error} title="Could not approve commands" />
         <DialogFooter>
           <Button disabled={pending} onClick={onClose} variant="outline">
             {dismissButtonLabel(actionLabel)}
