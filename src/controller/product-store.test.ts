@@ -44,6 +44,20 @@ test("project metadata and pins survive restart without authorizing commands", (
     },
   ]);
 });
+test("removal preserves operational history", () => {
+  const { product } = store();
+  product.saveProject("/repo", "App");
+  product.append({
+    repoPath: "/repo",
+    kind: "command",
+    message: "Start completed",
+    severity: "success",
+  });
+  product.removeProject("/repo");
+  expect(product.projects()).toEqual([]);
+  expect(product.events("/repo")).toHaveLength(1);
+  expect(product.events("/another")).toHaveLength(0);
+});
 test("pin limits reject invalid metadata without losing the prior record", () => {
   const { product } = store();
   product.saveProject("/repo", "App");
@@ -131,8 +145,49 @@ function observedFixture() {
   };
 }
 
+test("observed shared runtime transitions are durable, deduplicated, and include route failures", async () => {
+  const { product, directory, snapshot, controller } = observedFixture();
+  try {
+    const worktree = snapshot.worktrees[0];
+    snapshot.worktrees.push({
+      ...structuredClone(worktree),
+      id: "second",
+      branch: "second",
+    });
+    product.observe(snapshot);
+    expect(product.events()).toHaveLength(0);
+    for (const item of snapshot.worktrees) {
+      const group = item.appGroups[0];
+      group.health = "running";
+      group.processRunning = true;
+      group.apps[0].readiness = "ready";
+      group.apps[0].routeState = "active";
+    }
+    product.observe(snapshot);
+    product.observe(snapshot);
+    expect(product.events()).toHaveLength(1);
+    expect(product.events()[0].message).toBe("service: Running");
+    for (const item of snapshot.worktrees) {
+      item.appGroups[0].apps[0].routeState = "conflict";
+    }
+    product.observe(snapshot);
+    expect(new ProductStore(directory).events()[0]).toMatchObject({
+      message: "service: Partial",
+      severity: "warning",
+    });
+    snapshot.worktrees.pop();
+    product.observe(snapshot);
+    expect(product.events()[0]).toMatchObject({
+      message: "Worktree no longer discovered",
+      worktreeName: "second",
+    });
+  } finally {
+    await controller.close();
+  }
+});
+
 test("saved projects survive controller restart and unavailable configuration can be removed safely", async () => {
-  const { controller, repoPath } = observedFixture();
+  const { controller, repoPath, directory } = observedFixture();
   try {
     await controller.execute("save-project", { repoPath, name: "My project" });
     expect(controller.projects()[0]).toMatchObject({
@@ -143,6 +198,11 @@ test("saved projects survive controller restart and unavailable configuration ca
     expect(controller.projects()[0].workspace).toBeNull();
     controller.removeProject(repoPath);
     expect(controller.projects()).toHaveLength(0);
+    expect(
+      new ProductStore(join(directory, "runtime"))
+        .events(repoPath)
+        .some((event) => event.message === "Project saved")
+    ).toBe(true);
   } finally {
     await controller.close();
   }
@@ -185,4 +245,26 @@ test("project removal and trust revocation preserve retained runtime ownership",
   } finally {
     await controller.close();
   }
+});
+
+test("activity history initializes when upgrading a project-only catalog", () => {
+  const { directory, product } = store();
+  writeFileSync(
+    join(directory, "product.json"),
+    JSON.stringify({
+      projects: [
+        { addedAt: "2026-09-06", name: "App", path: "/repo", pins: [] },
+      ],
+      version: 1,
+    })
+  );
+  expect(product.events()).toEqual([]);
+  product.append({
+    repoPath: "/repo",
+    kind: "command",
+    message: "Saved",
+    severity: "success",
+  });
+  expect(product.projects()[0]?.name).toBe("App");
+  expect(new ProductStore(directory).events()).toHaveLength(1);
 });

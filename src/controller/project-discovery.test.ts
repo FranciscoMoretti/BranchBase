@@ -16,7 +16,11 @@ import { join } from "node:path";
 import { spawn } from "bun";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
-import { type DetectedService, ObservationSchema } from "./discovery-contract";
+import {
+  type DetectedService,
+  type Observation,
+  ObservationSchema,
+} from "./discovery-contract";
 import { scanRepositories } from "./folder-discovery";
 import { ProductStore } from "./product-store";
 import { ProjectDiscovery } from "./project-discovery";
@@ -219,14 +223,14 @@ test("associated services exclude managed, nested, and unrelated paths", () => {
     resources: null,
     managed: false,
   });
-  const services = [
+  let services = [
     service(inside, 1001),
     { ...service(inside, 1004), managed: true },
     service(nested, 1002),
     service(`${repo}-other`, 1003),
   ];
   const probed: number[] = [];
-  const warning: string | null = null;
+  let warning: string | null = null;
   const discovery = new ProjectDiscovery(
     store,
     () => [{ id: "main", path: repo, branch: "main" }],
@@ -244,6 +248,36 @@ test("associated services exclude managed, nested, and unrelated paths", () => {
     discovery.observe(repo).worktrees[0]?.services.map((item) => item.pid)
   ).toEqual([1001]);
   expect(probed).toEqual([1001]);
+  expect(store.events()).toEqual([]);
+  services = [];
+  warning = "Inspection unavailable";
+  discovery.observe(repo);
+  expect(store.events()).toEqual([]);
+  warning = null;
+  discovery.observe(repo);
+  expect(store.events()[0]?.worktreeId).toBe("main");
+  expect(store.events()[0]?.worktreeName).toBe("main");
+  expect(store.events()[0]?.message).toContain(
+    "No longer detected: main · bun on port 1001"
+  );
+});
+test("observation starts with a baseline and deduplicates unchanged worktrees", () => {
+  const root = temporary();
+  const store = new ProductStore(root);
+  const observation: Observation = {
+    repoPath: "/repo",
+    configured: false,
+    updatedAt: new Date().toISOString(),
+    warning: null,
+    worktrees: [
+      { id: "w", path: "/repo", branch: "main", isMain: true, services: [] },
+    ],
+  };
+  store.observeDetected(observation);
+  store.observeDetected(observation);
+  expect(store.events()).toEqual([]);
+  store.observeDetected({ ...observation, worktrees: [] });
+  expect(store.events()).toHaveLength(1);
 });
 test("observation schema bounds service identities and resources", () => {
   const observation = {
@@ -306,7 +340,7 @@ test("version one metadata loads with no discovery fields", () => {
   const root = temporary();
   writeFileSync(
     join(root, "product.json"),
-    JSON.stringify({ projects: [], version: 1 })
+    JSON.stringify({ events: [], observations: {}, projects: [], version: 1 })
   );
   const store = new ProductStore(root);
   expect(store.folders()).toEqual([]);

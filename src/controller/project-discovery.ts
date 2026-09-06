@@ -119,6 +119,12 @@ export class ProjectDiscovery {
       for (const root of roots) {
         if (!(saved.has(root) || excluded.has(root))) {
           this.store.saveProject(root, basename(root));
+          this.store.append({
+            repoPath: root,
+            kind: "discovery",
+            severity: "info",
+            message: "Project discovered in development folder",
+          });
         }
       }
     } catch {
@@ -183,6 +189,10 @@ export class ProjectDiscovery {
         worktree.services.map((service) => service.pid)
       )
     );
+    // A failed inspection must never manufacture service-disappearance events.
+    if (!result.warning) {
+      this.store.observeDetected(result);
+    }
     return result;
   }
 }

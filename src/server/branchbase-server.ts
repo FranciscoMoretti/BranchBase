@@ -18,7 +18,10 @@ import {
   FoldersResponseSchema,
   ObservationSchema,
 } from "../controller/discovery-contract";
-import { ProjectsResponseSchema } from "../controller/product-contract";
+import {
+  ActivityResponseSchema,
+  ProjectsResponseSchema,
+} from "../controller/product-contract";
 import { ProductCatalogError } from "../controller/product-store";
 import {
   MissingWorktreeConfigError,
@@ -49,7 +52,7 @@ export type BranchBaseServerController = Pick<
   Partial<
     Pick<
       WorkspaceController,
-      "projects" | "observeRepository" | "developmentFolders"
+      "projects" | "activity" | "observeRepository" | "developmentFolders"
     >
   >;
 
@@ -190,6 +193,19 @@ export async function createBranchBaseServer(
         200,
         ProjectsResponseSchema.parse({
           projects: controller.projects?.() ?? [],
+        })
+      );
+      return true;
+    }
+    if (url.pathname === "/api/activity") {
+      sendJson(
+        response,
+        200,
+        ActivityResponseSchema.parse({
+          events:
+            controller.activity?.(
+              url.searchParams.get("repoPath") ?? undefined
+            ) ?? [],
         })
       );
       return true;

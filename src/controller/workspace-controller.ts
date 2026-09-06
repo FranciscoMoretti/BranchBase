@@ -449,11 +449,69 @@ export class WorkspaceController {
   ): Promise<BranchBaseCommandResult<Name>> {
     const handler = COMMAND_HANDLERS[command];
     const parsed = parseCommandInput(command, input);
-    const result = await handler(
-      this,
-      parsed as BranchBaseCommandInput<Name> & Record<string, unknown>
-    );
-    return parseCommandResult(command, result);
+    const values = parsed as BranchBaseCommandInput<Name> &
+      Record<string, unknown>;
+    const repoPath =
+      typeof values.repoPath === "string" ? values.repoPath : null;
+    const record = (
+      severity: "info" | "success" | "warning",
+      message: string
+    ) => {
+      if (!repoPath || command === "preview-repository-config") {
+        return;
+      }
+      let canonicalPath = repoPath;
+      let worktreeName: string | undefined;
+      try {
+        const worktrees = resolveWorktrees(
+          git(repoPath, ["rev-parse", "--show-toplevel"])
+        );
+        canonicalPath = worktrees[0]?.path ?? repoPath;
+        worktreeName =
+          worktrees.find((worktree) => worktree.id === values.worktreeId)
+            ?.branch ?? undefined;
+      } catch {
+        // Failed discovery commands retain the supplied path as their context.
+      }
+      try {
+        this.product.append({
+          kind:
+            command.includes("config") || command.includes("trust")
+              ? "configuration"
+              : "command",
+          message,
+          repoPath: canonicalPath,
+          severity,
+          ...(worktreeName ? { worktreeName } : {}),
+          ...(typeof values.worktreeId === "string"
+            ? { worktreeId: values.worktreeId }
+            : {}),
+          ...(typeof values.appGroupName === "string"
+            ? { groupId: values.appGroupName }
+            : {}),
+        });
+      } catch {
+        process.stderr.write(
+          "BranchBase could not persist an activity event.\n"
+        );
+      }
+    };
+    try {
+      const result = await handler(this, values);
+      const parsedResult = parseCommandResult(command, result);
+      const message =
+        typeof parsedResult === "object" &&
+        parsedResult !== null &&
+        "message" in parsedResult &&
+        typeof parsedResult.message === "string"
+          ? parsedResult.message
+          : `${command.replaceAll("-", " ")}: completed`;
+      record("success", message);
+      return parsedResult;
+    } catch (error) {
+      record("warning", `${command.replaceAll("-", " ")}: failed`);
+      throw error;
+    }
   }
 
   inspect(repoPath: string): WorkspaceSnapshot {
@@ -619,6 +677,7 @@ export class WorkspaceController {
       updatedAt: new Date().toISOString(),
       worktrees,
     };
+    this.product.observe(snapshot);
     return snapshot;
   }
 
@@ -675,6 +734,10 @@ export class WorkspaceController {
         };
       }
     });
+  }
+
+  activity(repoPath?: string) {
+    return this.product.events(repoPath);
   }
 
   removeProject(repoPath: string): void {
