@@ -95,7 +95,8 @@ function writeTrustStore(
 }
 
 function trustStore(
-  controlDirectory?: string
+  controlDirectory?: string,
+  failOnInvalid = false
 ): Record<string, boolean | string | string[]> {
   const file = trustFile(controlDirectory);
   if (!existsSync(file)) {
@@ -103,7 +104,13 @@ function trustStore(
   }
   try {
     return TrustStoreSchema.parse(JSON.parse(readFileSync(file, "utf8")));
-  } catch {
+  } catch (error) {
+    if (failOnInvalid) {
+      throw new Error(
+        "Repository trust store is invalid; refusing to overwrite it.",
+        { cause: error }
+      );
+    }
     return {};
   }
 }
@@ -178,7 +185,7 @@ export function trustRepository(
   const directory = controlDirectory ?? defaultControlDirectory();
   const fingerprint = repositoryCommandFingerprint(config);
   withTrustStoreLock(directory, (file) => {
-    const store = trustStore(directory);
+    const store = trustStore(directory, true);
     const existing = store[repoPath];
     let fingerprints: string[] = [];
     if (Array.isArray(existing)) {
@@ -199,7 +206,7 @@ export function revokeRepositoryTrust(
 ): void {
   const directory = controlDirectory ?? defaultControlDirectory();
   withTrustStoreLock(directory, (file) => {
-    const store = trustStore(directory);
+    const store = trustStore(directory, true);
     delete store[repoPath];
     writeTrustStore(file, store);
   });

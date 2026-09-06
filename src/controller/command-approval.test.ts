@@ -12,7 +12,10 @@ import { join } from "node:path";
 import { loadBranchBaseConfig } from "../config/branchbase-config";
 import { repositoryCommandFingerprint } from "../config/repository-trust";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
-import { ProcessSupervisor } from "../runtime/process-supervisor";
+import {
+  ProcessSupervisor,
+  setupProcessId,
+} from "../runtime/process-supervisor";
 import type { AppGroupTarget } from "./app-group-runtime";
 import { WorkspaceController } from "./workspace-controller";
 
@@ -149,6 +152,34 @@ test("trust revocation blocks pending work on a persisted removed worktree", asy
     expect(
       snapshot.worktrees.some(({ path }) => path === removedWorktreePath)
     ).toBe(false);
+  } finally {
+    await controller.close();
+  }
+});
+
+test("trust revocation blocks a setup process for a persisted worktree", async () => {
+  const { controller, repoPath, snapshot } = observedFixture();
+  try {
+    controller.trustRepository(repoPath, [
+      { fingerprint: snapshot.trustFingerprint },
+    ]);
+    const worktree = snapshot.worktrees[0];
+    const processes = (
+      controller as unknown as { processes: ProcessSupervisor }
+    ).processes;
+    processes.startManagedProcess({
+      argv: ["bun", "-e", "setTimeout(() => {}, 5000)"],
+      cwd: worktree.path,
+      env: process.env as Record<string, string>,
+      label: "Setup",
+      ownerId: worktree.id,
+      ownerRoot: worktree.path,
+      processId: setupProcessId(worktree.id),
+    });
+
+    expect(() => controller.revokeTrust(repoPath)).toThrow(
+      "finish setup processes"
+    );
   } finally {
     await controller.close();
   }

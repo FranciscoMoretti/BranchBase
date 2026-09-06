@@ -6,6 +6,7 @@ import { BranchBaseConfigSchema } from "./branchbase-schema";
 import {
   repositoryCommandFingerprint,
   repositoryIsTrusted,
+  revokeRepositoryTrust,
   trustRepository,
 } from "./repository-trust";
 
@@ -39,6 +40,28 @@ describe("repository trust fingerprint", () => {
 
       expect(
         repositoryIsTrusted(repoPath, config("per-worktree"), directory)
+      ).toBe(false);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("refuses to overwrite a malformed trust store during revocation", () => {
+    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
+    try {
+      const file = join(directory, "trusted-repositories.json");
+      const contents = JSON.stringify({
+        "/code/valid": "retained-fingerprint",
+        "/code/invalid": { trusted: true },
+      });
+      writeFileSync(file, contents);
+
+      expect(() => revokeRepositoryTrust("/code/valid", directory)).toThrow(
+        "trust store is invalid"
+      );
+      expect(readFileSync(file, "utf8")).toBe(contents);
+      expect(
+        repositoryIsTrusted("/code/valid", config("per-worktree"), directory)
       ).toBe(false);
     } finally {
       rmSync(directory, { force: true, recursive: true });

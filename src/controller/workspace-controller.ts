@@ -60,7 +60,7 @@ import {
   PortlessRoutingEngine,
 } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
-import { inspectListeningPorts } from "../runtime/ports";
+import { inspectListeningPorts, pathInside } from "../runtime/ports";
 import {
   ProcessSupervisor,
   setupProcessId,
@@ -501,11 +501,31 @@ export class WorkspaceController {
   revokeTrust(repoPath: string): void {
     const workspace = this.inspect(repoPath);
     const resources = this.state.repositoryResources(workspace.repoPath);
+    const worktreePaths = [
+      ...new Set([
+        ...resources.worktreePaths,
+        ...workspace.worktrees.map((worktree) => worktree.path),
+      ]),
+    ];
     const hasPendingLifecycle = resources.worktreePaths.some((worktreePath) =>
       this.appGroups.hasPendingLifecycle(worktreePath)
     );
+    const setupProcessIds = new Set(
+      worktreePaths.map((path) =>
+        setupProcessId(Buffer.from(path).toString("base64url"))
+      )
+    );
+    const hasRunningSetup = this.processes
+      .listManagedProcesses()
+      .some(
+        (process) =>
+          process.label === "Setup" &&
+          setupProcessIds.has(process.ownerId) &&
+          worktreePaths.some((path) => pathInside(process.cwd, path))
+      );
     if (
       resources.hasRetainedRuns ||
+      hasRunningSetup ||
       hasPendingLifecycle ||
       workspace.worktrees.some(
         (worktree) =>
@@ -515,7 +535,7 @@ export class WorkspaceController {
       )
     ) {
       throw new Error(
-        "Stop App groups before revoking approval so their Stop commands remain available."
+        "Stop App groups, finish setup processes, and clear retained runs before revoking approval."
       );
     }
     revokeRepositoryTrust(workspace.repoPath, this.processes.controlDirectory);
