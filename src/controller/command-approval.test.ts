@@ -158,24 +158,37 @@ test("trust revocation blocks pending work on a persisted removed worktree", asy
 });
 
 test("trust revocation blocks a setup process for a persisted worktree", async () => {
-  const { controller, repoPath, snapshot } = observedFixture();
+  const { controller, state, repoPath, snapshot } = observedFixture();
   try {
     controller.trustRepository(repoPath, [
       { fingerprint: snapshot.trustFingerprint },
     ]);
-    const worktree = snapshot.worktrees[0];
+    const worktreePath = join(repoPath, "removed-setup-worktree");
+    mkdirSync(worktreePath);
+    const worktreeId = Buffer.from(worktreePath).toString("base64url");
+    const config = loadBranchBaseConfig(join(repoPath, ".branchbase.json"));
+    state.instance({
+      configFingerprint: repositoryCommandFingerprint(config),
+      groupId: "service",
+      mode: "per-worktree",
+      repoLabel: "repo",
+      repoPath,
+      worktreeLabel: "removed-setup-worktree",
+      worktreePath,
+    });
     const processes = (
       controller as unknown as { processes: ProcessSupervisor }
     ).processes;
     processes.startManagedProcess({
       argv: ["bun", "-e", "setTimeout(() => {}, 5000)"],
-      cwd: worktree.path,
+      cwd: worktreePath,
       env: process.env as Record<string, string>,
       label: "Setup",
-      ownerId: worktree.id,
-      ownerRoot: worktree.path,
-      processId: setupProcessId(worktree.id),
+      ownerId: worktreeId,
+      ownerRoot: worktreePath,
+      processId: setupProcessId(worktreeId),
     });
+    rmSync(worktreePath, { force: true, recursive: true });
 
     expect(() => controller.revokeTrust(repoPath)).toThrow(
       "finish setup processes"

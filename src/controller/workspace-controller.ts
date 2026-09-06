@@ -510,17 +510,15 @@ export class WorkspaceController {
     const hasPendingLifecycle = resources.worktreePaths.some((worktreePath) =>
       this.appGroups.hasPendingLifecycle(worktreePath)
     );
-    const setupProcessIds = new Set(
-      worktreePaths.map((path) =>
-        setupProcessId(Buffer.from(path).toString("base64url"))
-      )
+    const setupProcessOwnerIds = new Set(
+      worktreePaths.map((path) => Buffer.from(path).toString("base64url"))
     );
     const hasRunningSetup = this.processes
       .listManagedProcesses()
       .some(
         (process) =>
           process.label === "Setup" &&
-          setupProcessIds.has(process.ownerId) &&
+          setupProcessOwnerIds.has(process.ownerId) &&
           worktreePaths.some((path) => pathInside(process.cwd, path))
       );
     if (
