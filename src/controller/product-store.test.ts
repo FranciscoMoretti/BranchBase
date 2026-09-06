@@ -3,15 +3,17 @@ import { spawnSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
-import { ProductStore } from "./product-store";
+import { ProductCatalogError, ProductStore } from "./product-store";
 import { WorkspaceController } from "./workspace-controller";
 
 const directories: string[] = [];
@@ -47,6 +49,19 @@ test("pin limits reject invalid metadata without losing the prior record", () =>
   product.saveProject("/repo", "App");
   expect(() => product.saveProject("/repo", " ")).toThrow();
   expect(product.projects()[0]?.name).toBe("App");
+});
+
+test("invalid project catalogs fail with recovery guidance without overwriting the file", () => {
+  const { directory, product } = store();
+  const contents = '{"projects": [}';
+  writeFileSync(join(directory, "product.json"), contents);
+
+  expect(() => product.projects()).toThrow(ProductCatalogError);
+  expect(() => product.projects()).toThrow("repair or restore it");
+  expect(() => product.saveProject("/repo", "App")).toThrow(
+    ProductCatalogError
+  );
+  expect(readFileSync(join(directory, "product.json"), "utf8")).toBe(contents);
 });
 
 function observedFixture() {
@@ -111,6 +126,19 @@ test("saved projects survive controller restart and unavailable configuration ca
     writeFileSync(join(repoPath, ".branchbase.json"), "invalid");
     expect(controller.projects()[0].workspace).toBeNull();
     controller.removeProject(repoPath);
+    expect(controller.projects()).toHaveLength(0);
+  } finally {
+    await controller.close();
+  }
+});
+
+test("saved projects can be removed through a symlink alias", async () => {
+  const { controller, repoPath, directory } = observedFixture();
+  const alias = join(directory, "repo-alias");
+  symlinkSync(repoPath, alias, "dir");
+  try {
+    controller.saveProject(repoPath);
+    controller.removeProject(alias);
     expect(controller.projects()).toHaveLength(0);
   } finally {
     await controller.close();

@@ -15,6 +15,22 @@ const StoreSchema = z.strictObject({
   version: z.literal(1),
 });
 
+export class ProductCatalogError extends Error {
+  readonly code = "invalid_product_catalog";
+  readonly file: string;
+  readonly cause: unknown;
+
+  constructor(file: string, cause: unknown) {
+    super(
+      `BranchBase could not read a valid project catalog at ${file}. ` +
+        "The file was left unchanged; repair or restore it before retrying."
+    );
+    this.file = file;
+    this.cause = cause;
+    this.name = "ProductCatalogError";
+  }
+}
+
 /** Product metadata is separate from runtime ownership and never authorizes commands. */
 export class ProductStore {
   private readonly file: string;
@@ -30,7 +46,11 @@ export class ProductStore {
         version: 1,
       });
     }
-    return StoreSchema.parse(JSON.parse(readFileSync(this.file, "utf8")));
+    try {
+      return StoreSchema.parse(JSON.parse(readFileSync(this.file, "utf8")));
+    } catch (error) {
+      throw new ProductCatalogError(this.file, error);
+    }
   }
   private write(value: z.infer<typeof StoreSchema>): void {
     mkdirSync(this.directory, { recursive: true });

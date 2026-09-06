@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { CodexContextStore } from "../codex/branchbase-context";
 import {
   CodexHookActivityStore,
@@ -175,6 +175,28 @@ function resolveWorktrees(repositoryRoot: string): ResolvedWorktree[] {
       const path = realpathSync(item.path);
       return { ...item, id: worktreeId(path), path };
     });
+}
+
+function projectAliasPaths(repoPath: string): Set<string> {
+  const aliases = new Set([repoPath, resolve(repoPath)]);
+  if (!existsSync(repoPath)) {
+    return aliases;
+  }
+  try {
+    aliases.add(realpathSync(repoPath));
+  } catch {
+    return aliases;
+  }
+  try {
+    const root = git(repoPath, ["rev-parse", "--show-toplevel"]);
+    const mainWorktree = resolveWorktrees(root)[0]?.path;
+    if (mainWorktree) {
+      aliases.add(mainWorktree);
+    }
+  } catch {
+    // Removal must still work by the exact saved path when Git is unavailable.
+  }
+  return aliases;
 }
 
 function commandSummary(label: string, command: BranchBaseCommand): string {
@@ -554,9 +576,11 @@ export class WorkspaceController {
   }
 
   removeProject(repoPath: string): void {
-    const saved = this.product
-      .projects()
-      .find((project) => project.path === repoPath);
+    const projects = this.product.projects();
+    const exact = projects.find((project) => project.path === repoPath);
+    const aliases = exact ? null : projectAliasPaths(repoPath);
+    const saved =
+      exact ?? projects.find((project) => aliases?.has(project.path));
     if (!saved) {
       throw new Error("This project is not saved in BranchBase.");
     }
