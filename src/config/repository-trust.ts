@@ -1,9 +1,11 @@
-import { createHash } from "node:crypto";
+import { Database } from "bun:sqlite";
+import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
@@ -24,6 +26,73 @@ const TrustStoreSchema = z.record(
   z.string(),
   z.union([z.boolean(), z.string(), z.array(z.string())])
 );
+
+const TRUST_LOCK_TIMEOUT_MS = 10_000;
+const TRUST_LOCK_RETRY_MS = 10;
+
+function waitForLock(): void {
+  Atomics.wait(
+    new Int32Array(new SharedArrayBuffer(4)),
+    0,
+    0,
+    TRUST_LOCK_RETRY_MS
+  );
+}
+
+function withTrustStoreLock<T>(
+  controlDirectory: string,
+  action: (file: string) => T
+): T {
+  const file = trustFile(controlDirectory);
+  mkdirSync(controlDirectory, { recursive: true });
+  const database = new Database(`${file}.lock`, {
+    create: true,
+    strict: true,
+  });
+  const started = Date.now();
+
+  try {
+    while (true) {
+      try {
+        database.run("BEGIN IMMEDIATE");
+        break;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "SQLITE_BUSY") {
+          throw error;
+        }
+        if (Date.now() - started >= TRUST_LOCK_TIMEOUT_MS) {
+          throw new Error(
+            `Timed out waiting for repository trust lock: ${file}`
+          );
+        }
+        waitForLock();
+      }
+    }
+    try {
+      return action(file);
+    } finally {
+      database.run("ROLLBACK");
+    }
+  } finally {
+    database.close(true);
+  }
+}
+
+function writeTrustStore(
+  file: string,
+  store: Record<string, boolean | string | string[]>
+): void {
+  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporary, `${JSON.stringify(store, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    renameSync(temporary, file);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
 
 function trustStore(
   controlDirectory?: string
@@ -107,31 +176,21 @@ export function trustRepository(
   controlDirectory?: string
 ): void {
   const directory = controlDirectory ?? defaultControlDirectory();
-  const file = trustFile(directory);
-  const store = trustStore(directory);
-  const existing = store[repoPath];
-  let fingerprints: string[] = [];
-  if (Array.isArray(existing)) {
-    fingerprints = existing;
-  } else if (typeof existing === "string") {
-    fingerprints = [existing];
-  }
   const fingerprint = repositoryCommandFingerprint(config);
-  mkdirSync(directory, { recursive: true });
-  const temporary = `${file}.${process.pid}`;
-  writeFileSync(
-    temporary,
-    `${JSON.stringify(
-      {
-        ...store,
-        [repoPath]: [...new Set([...fingerprints, fingerprint])],
-      },
-      null,
-      2
-    )}\n`,
-    { mode: 0o600 }
-  );
-  renameSync(temporary, file);
+  withTrustStoreLock(directory, (file) => {
+    const store = trustStore(directory);
+    const existing = store[repoPath];
+    let fingerprints: string[] = [];
+    if (Array.isArray(existing)) {
+      fingerprints = existing;
+    } else if (typeof existing === "string") {
+      fingerprints = [existing];
+    }
+    writeTrustStore(file, {
+      ...store,
+      [repoPath]: [...new Set([...fingerprints, fingerprint])],
+    });
+  });
 }
 
 export function revokeRepositoryTrust(
@@ -139,13 +198,9 @@ export function revokeRepositoryTrust(
   controlDirectory?: string
 ): void {
   const directory = controlDirectory ?? defaultControlDirectory();
-  const store = trustStore(directory);
-  delete store[repoPath];
-  mkdirSync(directory, { recursive: true });
-  const file = trustFile(directory);
-  const temporary = `${file}.${process.pid}`;
-  writeFileSync(temporary, `${JSON.stringify(store, null, 2)}\n`, {
-    mode: 0o600,
+  withTrustStoreLock(directory, (file) => {
+    const store = trustStore(directory);
+    delete store[repoPath];
+    writeTrustStore(file, store);
   });
-  renameSync(temporary, file);
 }

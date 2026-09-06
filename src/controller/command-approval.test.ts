@@ -80,6 +80,12 @@ function observedFixture() {
 test("trust revocation preserves retained runtime ownership", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
   try {
+    controller.trustRepository(repoPath, [
+      {
+        fingerprint: snapshot.trustFingerprint,
+      },
+    ]);
+    expect(controller.inspect(repoPath).trusted).toBe(true);
     const instanceId = snapshot.worktrees[0].appGroups[0].instance.id;
     state.saveRun(
       { repoPath, instanceId },
@@ -95,6 +101,7 @@ test("trust revocation preserves retained runtime ownership", async () => {
     );
     expect(() => controller.revokeTrust(repoPath)).toThrow("Stop App groups");
     expect(state.run({ repoPath, instanceId })).not.toBeNull();
+    expect(controller.inspect(repoPath).trusted).toBe(true);
   } finally {
     await controller.close();
   }

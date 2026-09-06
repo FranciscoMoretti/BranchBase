@@ -500,13 +500,17 @@ export class WorkspaceController {
 
   revokeTrust(repoPath: string): void {
     const workspace = this.inspect(repoPath);
+    const resources = this.state.repositoryResources(workspace.repoPath);
+    const hasPendingLifecycle = resources.worktreePaths.some((worktreePath) =>
+      this.appGroups.hasPendingLifecycle(worktreePath)
+    );
     if (
-      this.state.repositoryResources(workspace.repoPath).hasRetainedRuns ||
+      resources.hasRetainedRuns ||
+      hasPendingLifecycle ||
       workspace.worktrees.some(
         (worktree) =>
           worktreeHasRunningAppGroups(worktree) ||
-          worktree.setupState === "running" ||
-          this.appGroups.hasPendingLifecycle(worktree.path)
+          worktree.setupState === "running"
       )
     ) {
       throw new Error(

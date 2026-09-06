@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BranchBaseConfigSchema } from "./branchbase-schema";
@@ -63,6 +63,40 @@ describe("repository trust fingerprint", () => {
 
       expect(repositoryIsTrusted(repoPath, primary, directory)).toBe(true);
       expect(repositoryIsTrusted(repoPath, experiment, directory)).toBe(true);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("serializes concurrent updates from separate processes", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
+    try {
+      const modulePath = join(process.cwd(), "src/config/repository-trust.ts");
+      const child = `
+        import { trustRepository } from ${JSON.stringify(modulePath)};
+        trustRepository(process.env.BRANCHBASE_TEST_REPO!, { setup: { argv: ["true"] }, appGroups: {} }, process.env.BRANCHBASE_TEST_DIR);
+      `;
+      const processes = Array.from({ length: 8 }, (_, index) =>
+        // biome-ignore lint/correctness/noUndeclaredVariables: Bun is the test runtime.
+        Bun.spawn(["bun", "-e", child], {
+          env: {
+            ...process.env,
+            BRANCHBASE_TEST_DIR: directory,
+            BRANCHBASE_TEST_REPO: `/code/concurrent-${index}`,
+          },
+          stdout: "ignore",
+          stderr: "pipe",
+        })
+      );
+      const results = await Promise.all(
+        processes.map((process) => process.exited)
+      );
+      expect(results.every((exitCode) => exitCode === 0)).toBe(true);
+
+      const store = JSON.parse(
+        readFileSync(join(directory, "trusted-repositories.json"), "utf8")
+      ) as Record<string, unknown>;
+      expect(Object.keys(store)).toHaveLength(8);
     } finally {
       rmSync(directory, { force: true, recursive: true });
     }
