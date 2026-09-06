@@ -97,6 +97,7 @@ function observedFixture() {
       setup: { argv: ["true"] },
       appGroups: {
         service: {
+          category: "infrastructure",
           instances: { mode: "selectable" },
           start: { argv: ["true"] },
           stop: "process",

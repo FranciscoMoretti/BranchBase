@@ -29,6 +29,7 @@ export const AppEndpointSnapshotSchema = z.strictObject({
 });
 
 export const AppGroupSnapshotSchema = z.strictObject({
+  category: z.enum(["application", "infrastructure"]).optional(),
   resources: ProcessUsageSchema.nullable().optional(),
   apps: z.array(AppEndpointSnapshotSchema),
   cleanupOnly: z.boolean().optional(),

@@ -191,6 +191,7 @@ export class AppGroupRuntime {
     });
     return {
       apps,
+      category: group.category ?? "application",
       health: groupHealth(apps),
       id: target.groupId,
       instance: {
