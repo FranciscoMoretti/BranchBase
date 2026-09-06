@@ -97,6 +97,26 @@ function descendants(samples: ProcessSample[] | null, roots: number[]) {
   }
   return owned;
 }
+function evictProbes(
+  probes: Map<string, { at: number; url: string | null }>,
+  now: number
+) {
+  if (probes.size <= 1024) {
+    return;
+  }
+  for (const [probeKey, probe] of probes) {
+    const ttl = probe.url ? POSITIVE_PROBE_TTL : NEGATIVE_PROBE_TTL;
+    if (now - probe.at >= ttl) {
+      probes.delete(probeKey);
+    }
+  }
+  while (probes.size > 1024) {
+    const oldest = [...probes.entries()].reduce((candidate, entry) =>
+      entry[1].at < candidate[1].at ? entry : candidate
+    );
+    probes.delete(oldest[0]);
+  }
+}
 /** Observation only. These PIDs are never authority to terminate a process. */
 export class DetectedServices {
   private cached: {
@@ -138,7 +158,8 @@ export class DetectedServices {
           "Could not inspect local listeners. Check process inspection permissions.",
       };
     }
-    const rows = parseListeners(listeners.stdout).slice(0, 256);
+    const parsedRows = parseListeners(listeners.stdout);
+    const rows = parsedRows.slice(0, 256);
     if (!rows.length) {
       this.cached = { at: Date.now(), services: [], warning: null };
       return this.cached;
@@ -178,7 +199,7 @@ export class DetectedServices {
     if (paths.size < new Set(rows.map((row) => row.pid)).size) {
       warning = "Some process working directories are unavailable.";
     }
-    if (rows.length === 256) {
+    if (parsedRows.length > rows.length) {
       const limitWarning = "Showing the first 256 listeners.";
       warning = [warning, limitWarning].filter(Boolean).join(" ") || null;
     }
@@ -228,9 +249,7 @@ export class DetectedServices {
       .finally(() => {
         this.activeProbes--;
       });
-    if (this.probes.size > 1024) {
-      this.probes.clear();
-    }
+    evictProbes(this.probes, Date.now());
     return cached?.url ?? null;
   }
 }

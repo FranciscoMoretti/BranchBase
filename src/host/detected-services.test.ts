@@ -55,8 +55,14 @@ test("HTTP detection requires a response, including non-2xx responses", async ()
       managed: false,
     };
     expect(detector.webUrl(service)).toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(detector.webUrl(service)).toBe(`http://127.0.0.1:${server.port}`);
+    const expectedUrl = `http://127.0.0.1:${server.port}`;
+    const deadline = Date.now() + 1000;
+    let detectedUrl = detector.webUrl(service);
+    while (detectedUrl !== expectedUrl && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      detectedUrl = detector.webUrl(service);
+    }
+    expect(detectedUrl).toBe(expectedUrl);
   } finally {
     server.stop(true);
   }

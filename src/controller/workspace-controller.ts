@@ -567,9 +567,7 @@ export class WorkspaceController {
 
     const globalProcesses = this.processes.listManagedProcesses();
     const samples = inspectProcessSamples();
-    const projectOwners = new Set(
-      worktrees.map((worktree) => setupProcessId(worktree.id))
-    );
+    const projectOwners = new Set(worktrees.map((worktree) => worktree.id));
     for (const worktree of worktrees) {
       for (const group of worktree.appGroups) {
         const ownerId = appGroupInstanceProcessId(group.instance.id);

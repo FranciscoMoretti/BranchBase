@@ -1,23 +1,19 @@
 import { z } from "zod";
+import { ProcessUsageSchema } from "./workspace-snapshot";
 
-const Usage = z.object({
-  cpuPercent: z.number(),
-  memoryBytes: z.number(),
-  processCount: z.number(),
-});
 export const DetectedServiceSchema = z.object({
-  pid: z.number(),
-  port: z.number(),
+  pid: z.number().int().positive(),
+  port: z.number().int().min(1).max(65_535),
   command: z.string(),
   cwd: z.string(),
   startedAt: z.string().nullable(),
   url: z.string().nullable(),
   address: z.string(),
-  resources: Usage.nullable(),
+  resources: ProcessUsageSchema.nullable(),
   managed: z.boolean(),
 });
 export const ObservationSchema = z.object({
-  resources: Usage.nullable().optional(),
+  resources: ProcessUsageSchema.nullable().optional(),
   repoPath: z.string(),
   configured: z.boolean(),
   updatedAt: z.string(),
