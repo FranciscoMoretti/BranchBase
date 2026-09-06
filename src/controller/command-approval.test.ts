@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -261,6 +262,24 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
     const persistedProcesses = new ProcessSupervisor(
       processes.controlDirectory
     );
+    const persistedRecordPath = join(
+      processes.controlDirectory,
+      `${processId}.pid`
+    );
+    const persistedRecord = JSON.parse(
+      readFileSync(persistedRecordPath, "utf8")
+    ) as Record<string, unknown>;
+    persistedRecord.ownerId = undefined;
+    writeFileSync(persistedRecordPath, JSON.stringify(persistedRecord));
+    expect(persistedProcesses.managedPidByIdentity(processId, worktreeId)).toBe(
+      pid
+    );
+    expect(
+      persistedProcesses.managedPidByIdentity(
+        processId,
+        `${worktreeId}-mismatch`
+      )
+    ).toBe(null);
     (controller as unknown as { processes: ProcessSupervisor }).processes =
       persistedProcesses;
     expect(() => controller.revokeTrust(repoPath)).toThrow(

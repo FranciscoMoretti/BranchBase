@@ -151,9 +151,14 @@ export class ProcessSupervisor {
       return tracked.child.pid;
     }
     const record = this.persistedRecord(processId);
+    const ownerMatches = record
+      ? record.ownerId === ownerId ||
+        (record.ownerId === undefined && processId === setupProcessId(ownerId))
+      : false;
+    if (!(record && ownerMatches)) {
+      return null;
+    }
     if (
-      !record ||
-      record.ownerId !== ownerId ||
       !this.processTargetIsLive({ id: record.pid, kind: "process" }) ||
       processStartMarker(record.pid) !== record.startMarker
     ) {
