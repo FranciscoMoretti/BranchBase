@@ -6,7 +6,6 @@ import {
   type ServerResponse,
 } from "node:http";
 import { extname, join } from "node:path";
-
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { createCodexHookCapability } from "../codex/codex-hook-capability";
 import {
@@ -15,6 +14,7 @@ import {
 } from "../codex/codex-integration";
 import { AppGroupLifecycleError } from "../controller/app-group-lifecycle-error";
 import { isBranchBaseCommandName } from "../controller/command-contract";
+import { ProjectsResponseSchema } from "../controller/product-contract";
 import {
   MissingWorktreeConfigError,
   WorkspaceController,
@@ -40,7 +40,8 @@ const CONTENT_TYPES: Record<string, string> = {
 export type BranchBaseServerController = Pick<
   WorkspaceController,
   "close" | "execute" | "handleCodexHook" | "inspect" | "inspectCodex" | "logs"
->;
+> &
+  Partial<Pick<WorkspaceController, "projects">>;
 
 export interface BranchBaseServerOptions {
   appRoot: string;
@@ -137,6 +138,16 @@ export async function createBranchBaseServer(
     url: URL,
     response: ServerResponse
   ): Promise<boolean> {
+    if (url.pathname === "/api/projects") {
+      sendJson(
+        response,
+        200,
+        ProjectsResponseSchema.parse({
+          projects: controller.projects?.() ?? [],
+        })
+      );
+      return true;
+    }
     if (url.pathname === "/api/health") {
       sendJson(response, 200, {
         ok: true,

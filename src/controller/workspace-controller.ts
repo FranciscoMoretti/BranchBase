@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { CodexContextStore } from "../codex/branchbase-context";
 import {
   CodexHookActivityStore,
@@ -73,6 +73,8 @@ import {
   parseCommandInput,
   parseCommandResult,
 } from "./command-contract";
+import type { AppPin, ProjectOverview } from "./product-contract";
+import { ProductStore } from "./product-store";
 import { initializeRepository as initializeRepositoryConfig } from "./repository-initializer";
 import {
   type WorkspaceSnapshot,
@@ -86,6 +88,22 @@ type CommandHandler = (
 ) => unknown;
 
 const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
+  "save-project": (controller, input) => {
+    controller.saveProject(
+      String(input.repoPath),
+      input.name as string | undefined,
+      input.pins as AppPin[] | undefined
+    );
+    return { ok: true, command: "save-project", message: "Project saved" };
+  },
+  "remove-project": (controller, input) => {
+    controller.removeProject(String(input.repoPath));
+    return {
+      ok: true,
+      command: "remove-project",
+      message: "Project removed; files kept on disk",
+    };
+  },
   "revoke-trust": (controller, input) => {
     controller.revokeTrust(String(input.repoPath));
     return {
@@ -224,6 +242,7 @@ export interface CodexHookResult {
 }
 
 export class WorkspaceController {
+  private readonly product: ProductStore;
   private readonly appGroups: AppGroupRuntime;
   private readonly codexAdapter: CodexIntegrationAdapter;
   private readonly codexActivity: CodexHookActivityStore;
@@ -252,6 +271,7 @@ export class WorkspaceController {
     this.processes = runtime.processes ?? new ProcessSupervisor();
     this.routing = runtime.routing ?? new PortlessRoutingEngine();
     this.state = runtime.state ?? new FileBranchBaseStateStore();
+    this.product = new ProductStore(dirname(this.state.path));
     this.appGroups = new AppGroupRuntime(
       this.processes,
       this.routing,
@@ -496,6 +516,66 @@ export class WorkspaceController {
       updatedAt: new Date().toISOString(),
       worktrees,
     };
+  }
+
+  saveProject(repoPath: string, name?: string, pins?: AppPin[]): void {
+    const root = resolveWorktrees(
+      git(repoPath, ["rev-parse", "--show-toplevel"])
+    )[0]?.path;
+    if (!root) {
+      throw new Error("No Git worktrees found");
+    }
+    const existing = this.product
+      .projects()
+      .find((project) => project.path === root);
+    this.product.saveProject(
+      root,
+      name ?? existing?.name ?? basename(root),
+      pins
+    );
+  }
+
+  projects(): ProjectOverview[] {
+    return this.product.projects().map((project) => {
+      try {
+        return {
+          ...project,
+          error: null,
+          workspace: this.inspect(project.path),
+        };
+      } catch (error) {
+        return {
+          ...project,
+          error: error instanceof Error ? error.message : String(error),
+          workspace: null,
+        };
+      }
+    });
+  }
+
+  removeProject(repoPath: string): void {
+    const saved = this.product
+      .projects()
+      .find((project) => project.path === repoPath);
+    if (!saved) {
+      throw new Error("This project is not saved in BranchBase.");
+    }
+    const resources = this.state.repositoryResources(saved.path);
+    const paths = new Set([saved.path, ...resources.worktreePaths]);
+    if (
+      resources.hasRetainedRuns ||
+      [...paths].some((path) => this.appGroups.hasPendingLifecycle(path)) ||
+      this.processes
+        .listManagedProcesses()
+        .some((process) =>
+          [...paths].some((path) => pathInside(process.cwd, path))
+        )
+    ) {
+      throw new Error(
+        "Stop this project's App groups and setup processes before removing it. Retained runs must be cleaned up first."
+      );
+    }
+    this.product.removeProject(saved.path);
   }
 
   revokeTrust(repoPath: string): void {

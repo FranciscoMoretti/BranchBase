@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BranchBaseConfigSchema } from "../config/branchbase-schema";
 import { RepositoryTrustApprovalSchema } from "../config/repository-trust-approval";
 import { WorktreeConfigSourceSchema } from "../config/worktree-config-source";
+import { AppPinSchema } from "./product-contract";
 
 const RepositoryPathSchema = z.object({
   repoPath: z.string().min(1),
@@ -35,6 +36,11 @@ export const RepositoryInitializationPlanSchema = z.object({
 });
 
 const INPUT_SCHEMAS = {
+  "save-project": RepositoryPathSchema.extend({
+    name: z.string().trim().min(1).max(100).optional(),
+    pins: z.array(AppPinSchema).max(24).optional(),
+  }),
+  "remove-project": RepositoryPathSchema,
   "revoke-trust": RepositoryPathSchema,
   "clear-logs": StartStopSchema,
   "create-app-group-instance": StartStopSchema.extend({
@@ -74,6 +80,8 @@ const INPUT_SCHEMAS = {
 } as const;
 
 const RESULT_SCHEMAS = {
+  "save-project": CommandReceiptSchema,
+  "remove-project": CommandReceiptSchema,
   "revoke-trust": CommandReceiptSchema,
   "clear-logs": CommandReceiptSchema,
   "create-app-group-instance": CommandReceiptSchema,
