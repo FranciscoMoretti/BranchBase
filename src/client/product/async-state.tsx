@@ -1,5 +1,5 @@
 import { AlertCircleIcon, RefreshCwIcon, XIcon } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";
 import { errorDescription, isConnectionError } from "../request-error";
@@ -175,26 +175,29 @@ export function QueryContent({
   resetKey?: string;
 }) {
   const hasData = query.data !== undefined;
-  const [lastFailure, setLastFailure] = useState<Error | null>(null);
-  const previousResetKey = useRef(resetKey);
-  useEffect(() => {
-    if (previousResetKey.current !== resetKey) {
-      previousResetKey.current = resetKey;
-      setLastFailure(null);
-    }
-  }, [resetKey]);
+  const [lastFailure, setLastFailure] = useState<{
+    error: Error;
+    key?: string;
+  } | null>(null);
   useEffect(() => {
     if (query.error) {
-      setLastFailure(query.error);
+      setLastFailure({ error: query.error, key: resetKey });
     } else if (query.data !== undefined) {
       setLastFailure(null);
     }
-  }, [query.error, query.data]);
+  }, [query.error, query.data, resetKey]);
   // TanStack clears an initial error while retrying. Keep the recovery panel in
   // place until data arrives instead of swapping it back to skeleton rows.
   const displayed = hasData
     ? query
-    : { ...query, error: query.error ?? lastFailure };
+    : {
+        ...query,
+        error:
+          query.error ??
+          (lastFailure && lastFailure.key === resetKey
+            ? lastFailure.error
+            : null),
+      };
   return (
     <section
       aria-label={label}

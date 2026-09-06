@@ -1,8 +1,16 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Window } from "happy-dom";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ActivityPage } from "./activity-page";
-import { ActionFeedback, QueryContent, type QueryState } from "./async-state";
+import {
+  ActionFeedback,
+  FormFeedback,
+  QueryContent,
+  type QueryState,
+} from "./async-state";
 import { ProjectsPage } from "./projects-page";
 
 const base: QueryState = {
@@ -12,6 +20,54 @@ const base: QueryState = {
   isFetching: true,
   refetch: () => undefined,
 };
+let activeRoot: Root | null = null;
+let activeDom: Window | null = null;
+const globalNames = [
+  "document",
+  "Element",
+  "HTMLElement",
+  "IS_REACT_ACT_ENVIRONMENT",
+  "navigator",
+  "Node",
+  "window",
+] as const;
+const previousGlobals = new Map(
+  globalNames.map((name) => [
+    name,
+    Object.getOwnPropertyDescriptor(globalThis, name),
+  ])
+);
+function mountDom() {
+  activeDom = new Window({ url: "http://localhost/" });
+  Object.assign(globalThis, {
+    document: activeDom.document,
+    Element: activeDom.Element,
+    HTMLElement: activeDom.HTMLElement,
+    navigator: activeDom.navigator,
+    Node: activeDom.Node,
+    window: activeDom,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const container = activeDom.document.createElement("div");
+  activeDom.document.body.append(container);
+  activeRoot = createRoot(container as unknown as HTMLElement);
+  return container;
+}
+afterEach(async () => {
+  if (activeRoot) {
+    await act(async () => activeRoot?.unmount());
+  }
+  activeRoot = null;
+  activeDom = null;
+  for (const name of globalNames) {
+    const descriptor = previousGlobals.get(name);
+    if (descriptor) {
+      Object.defineProperty(globalThis, name, descriptor);
+    } else {
+      Reflect.deleteProperty(globalThis, name);
+    }
+  }
+});
 function region(overrides: Partial<QueryState>) {
   return renderToStaticMarkup(
     <QueryContent label="Projects" query={{ ...base, ...overrides }}>
@@ -58,6 +114,65 @@ test("retry stays in the failure panel and disables duplicate retry clicks", () 
   expect(html).toContain("Retrying…");
   expect(html).toContain("disabled");
   expect(html).not.toContain("product-skeleton-row");
+});
+test("retry recovery stays visible until data arrives and resets for a new query", async () => {
+  const container = mountDom();
+  const query = {
+    ...base,
+    error: new Error("Failed to fetch"),
+    isFetching: false,
+    isPending: false,
+  };
+  await act(() => {
+    activeRoot?.render(
+      <QueryContent label="Projects" query={query} resetKey="observation">
+        <p>Saved project</p>
+      </QueryContent>
+    );
+  });
+  expect(container.textContent).toContain("Try again");
+  await act(() => {
+    activeRoot?.render(
+      <QueryContent
+        label="Projects"
+        query={{ ...query, error: null, isFetching: true }}
+        resetKey="observation"
+      >
+        <p>Saved project</p>
+      </QueryContent>
+    );
+  });
+  expect(container.textContent).toContain("Retrying…");
+  await act(() => {
+    activeRoot?.render(
+      <QueryContent
+        label="Projects"
+        query={{ ...query, error: null, isFetching: true }}
+        resetKey="workspace"
+      >
+        <p>Saved project</p>
+      </QueryContent>
+    );
+  });
+  expect(container.textContent).toContain("Loading projects");
+  expect(container.textContent).not.toContain("Try again");
+});
+test("DOM feedback exposes loading and mutation failure states", async () => {
+  const container = mountDom();
+  await act(() => {
+    activeRoot?.render(
+      <>
+        <QueryContent label="Projects" query={base}>
+          <p>Saved project</p>
+        </QueryContent>
+        <FormFeedback error={new Error("Save failed")} title="Could not save" />
+      </>
+    );
+  });
+  expect(container.querySelector('[role="status"]')).not.toBeNull();
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "Could not save"
+  );
 });
 test("action connection failure explains uncertain outcome and has no automatic replay", () => {
   const html = renderToStaticMarkup(
