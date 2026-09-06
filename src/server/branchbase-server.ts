@@ -15,6 +15,7 @@ import {
 import { AppGroupLifecycleError } from "../controller/app-group-lifecycle-error";
 import { isBranchBaseCommandName } from "../controller/command-contract";
 import { ProjectsResponseSchema } from "../controller/product-contract";
+import { ProductCatalogError } from "../controller/product-store";
 import {
   MissingWorktreeConfigError,
   WorkspaceController,
@@ -67,6 +68,9 @@ function sendJson(response: ServerResponse, status: number, value: unknown) {
 }
 
 function errorBody(error: unknown) {
+  if (error instanceof ProductCatalogError) {
+    return { code: error.code, error: error.message };
+  }
   if (error instanceof CodexIntegrationUnavailableError) {
     return { code: error.code, error: error.message };
   }

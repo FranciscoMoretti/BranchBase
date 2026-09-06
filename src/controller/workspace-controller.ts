@@ -189,9 +189,29 @@ function projectAliasPaths(repoPath: string): Set<string> {
   }
   try {
     const root = git(repoPath, ["rev-parse", "--show-toplevel"]);
-    const mainWorktree = resolveWorktrees(root)[0]?.path;
-    if (mainWorktree) {
-      aliases.add(mainWorktree);
+    aliases.add(resolve(root));
+    for (const worktree of parseWorktreeList(
+      git(repoPath, ["worktree", "list", "--porcelain"])
+    )) {
+      aliases.add(resolve(worktree.path));
+      if (existsSync(worktree.path)) {
+        try {
+          aliases.add(realpathSync(worktree.path));
+        } catch {
+          // A concurrently removed worktree is still covered by its saved path.
+        }
+      }
+    }
+    try {
+      const commonDirectory = resolve(
+        repoPath,
+        git(repoPath, ["rev-parse", "--git-common-dir"])
+      );
+      if (basename(commonDirectory) === ".git") {
+        aliases.add(resolve(commonDirectory, ".."));
+      }
+    } catch {
+      // The top-level root remains useful when common-dir discovery is unavailable.
     }
   } catch {
     // Removal must still work by the exact saved path when Git is unavailable.

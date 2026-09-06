@@ -56,8 +56,8 @@ export class ProductStore {
   private write(value: z.infer<typeof StoreSchema>): void {
     mkdirSync(this.directory, { recursive: true });
     const temporary = `${this.file}.${randomUUID()}.tmp`;
-    writeFileSync(temporary, `${JSON.stringify(value)}\n`, { mode: 0o600 });
     try {
+      writeFileSync(temporary, `${JSON.stringify(value)}\n`, { mode: 0o600 });
       renameSync(temporary, this.file);
     } catch (error) {
       rmSync(temporary, { force: true });
