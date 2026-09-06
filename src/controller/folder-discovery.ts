@@ -10,7 +10,11 @@ const EXCLUDED = new Set([
   "coverage",
   "Pods",
 ]);
-/** Bounded directory discovery, never follows symlinks or executes repository commands. */
+/**
+ * Bounded directory discovery from an explicitly selected root, canonicalized
+ * before traversal. Nested symlinks are skipped and repository commands are
+ * never executed.
+ */
 export function scanRepositories(root: string, maxDepth = 3, limit = 2000) {
   const canonical = realpathSync(root);
   if (!statSync(canonical).isDirectory()) {
@@ -57,7 +61,8 @@ export function scanRepositories(root: string, maxDepth = 3, limit = 2000) {
     warning = `${unreadable} folders could not be read.`;
   }
   if (queue.length) {
-    warning = `Scan limited to ${limit} folders. Add a more specific folder to discover the rest.`;
+    const limitWarning = `Scan limited to ${limit} folders. Add a more specific folder to discover the rest.`;
+    warning = [warning, limitWarning].filter(Boolean).join(" ") || null;
   }
   return { repositories, warning };
 }

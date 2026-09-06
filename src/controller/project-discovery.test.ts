@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -66,8 +67,47 @@ test("folder scans are bounded and skip symlinks, dependencies and repository co
   repository(join(root, "node_modules", "ignored"));
   repository(join(root, "a", "b", "c", "too-deep"));
   symlinkSync(repo, join(root, "linked"));
+  symlinkSync(root, join(root, "selected-alias"));
   expect(scanRepositories(root).repositories).toEqual([repo]);
+  expect(scanRepositories(join(root, "selected-alias")).repositories).toEqual([
+    repo,
+  ]);
   expect(scanRepositories(root, 3, 1).warning).toContain("limited");
+});
+test("canonicalizes a selected symlink alias before scanning", async () => {
+  const root = temporary();
+  const selected = join(root, "selected");
+  const alias = join(root, "alias");
+  mkdirSync(selected);
+  repository(join(selected, "app"));
+  symlinkSync(selected, alias);
+  const workspace = controller(join(root, "state"));
+  try {
+    workspace.addDevelopmentFolder(alias);
+    expect(workspace.developmentFolders().map((folder) => folder.path)).toEqual(
+      [realpathSync(selected)]
+    );
+    expect(workspace.projects().map((project) => project.path)).toEqual([
+      realpathSync(join(selected, "app")),
+    ]);
+  } finally {
+    await workspace.close();
+  }
+});
+test("preserves unreadable-folder and scan-limit warnings together", () => {
+  const root = temporary();
+  const unreadable = join(root, "aaa-unreadable");
+  mkdirSync(unreadable);
+  mkdirSync(join(root, "bbb-queued"));
+  const originalMode = 0o755;
+  chmodSync(unreadable, 0o000);
+  try {
+    const result = scanRepositories(root, 2, 2);
+    expect(result.warning).toContain("folders could not be read");
+    expect(result.warning).toContain("Scan limited to 2 folders");
+  } finally {
+    chmodSync(unreadable, originalMode);
+  }
 });
 test("watch folders persist, deduplicate linked worktrees and respect manual removal", async () => {
   const root = temporary();
