@@ -22,7 +22,7 @@ describe("repository initialization", () => {
         })
       );
       const preview = planRepositoryInitialization(root);
-      expect(preview.detectedRuntime).toBe("Node.js · npm");
+      expect(preview.detectedRuntime).toBe("Node.js");
       expect(preview.config.version).toBe(1);
       expect(preview.config.setup.argv).toEqual(["bun", "install"]);
       expect(preview.config.appGroups.Apps.start.argv).toEqual([
@@ -39,27 +39,24 @@ describe("repository initialization", () => {
       });
       expect(() => readFileSync(preview.configPath)).toThrow();
 
-      const options = { controlDirectory: join(root, ".control") };
-      const created = initializeRepository(root, options);
+      const created = initializeRepository(root);
       expect(JSON.parse(readFileSync(created.configPath, "utf8"))).toEqual(
         created.config
       );
-      expect(() => initializeRepository(root, options)).toThrow(
-        "already exists"
-      );
+      expect(() => initializeRepository(root)).toThrow("already exists");
     } finally {
       rmSync(root, { force: true, recursive: true });
     }
   });
 
-  it("uses safe command defaults when project detection has no commands", () => {
+  it("does not present fallback commands as detected commands", () => {
     const root = mkdtempSync(join(tmpdir(), "branchbase-django-"));
     try {
       spawnSync("git", ["init", "-q"], { cwd: root });
       writeFileSync(join(root, "manage.py"), "");
       const preview = planRepositoryInitialization(root);
-      expect(preview.detectedSetupCommand).toBe("bun install");
-      expect(preview.detectedStartCommand).toBe("bun run dev");
+      expect(preview.detectedSetupCommand).toBeNull();
+      expect(preview.detectedStartCommand).toBeNull();
     } finally {
       rmSync(root, { force: true, recursive: true });
     }

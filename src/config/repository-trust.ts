@@ -133,3 +133,19 @@ export function trustRepository(
   );
   renameSync(temporary, file);
 }
+
+export function revokeRepositoryTrust(
+  repoPath: string,
+  controlDirectory?: string
+): void {
+  const directory = controlDirectory ?? defaultControlDirectory();
+  const store = trustStore(directory);
+  delete store[repoPath];
+  mkdirSync(directory, { recursive: true });
+  const file = trustFile(directory);
+  const temporary = `${file}.${process.pid}`;
+  writeFileSync(temporary, `${JSON.stringify(store, null, 2)}\n`, {
+    mode: 0o600,
+  });
+  renameSync(temporary, file);
+}

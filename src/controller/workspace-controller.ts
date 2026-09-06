@@ -46,6 +46,7 @@ import {
   repositoryCommandFingerprint,
   repositoryIsTrusted,
   repositoryRequiresTrust,
+  revokeRepositoryTrust,
   trustRepository as saveRepositoryTrust,
 } from "../config/repository-trust";
 import type { RepositoryTrustApproval } from "../config/repository-trust-approval";
@@ -85,6 +86,14 @@ type CommandHandler = (
 ) => unknown;
 
 const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
+  "revoke-trust": (controller, input) => {
+    controller.revokeTrust(String(input.repoPath));
+    return {
+      ok: true,
+      command: "revoke-trust",
+      message: "Command approvals revoked",
+    };
+  },
   "clear-logs": clearLogs,
   "create-app-group-instance": createAppGroupInstance,
   "create-worktree": createWorktree,
@@ -118,7 +127,10 @@ export class MissingWorktreeConfigError extends Error {
 }
 
 function git(cwd: string, args: string[]): string {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+  });
   if (result.status !== 0) {
     throw new Error(
       (result.stderr || result.stdout || "Git command failed").trim()
@@ -486,6 +498,24 @@ export class WorkspaceController {
     };
   }
 
+  revokeTrust(repoPath: string): void {
+    const workspace = this.inspect(repoPath);
+    if (
+      this.state.repositoryResources(workspace.repoPath).hasRetainedRuns ||
+      workspace.worktrees.some(
+        (worktree) =>
+          worktreeHasRunningAppGroups(worktree) ||
+          worktree.setupState === "running" ||
+          this.appGroups.hasPendingLifecycle(worktree.path)
+      )
+    ) {
+      throw new Error(
+        "Stop App groups before revoking approval so their Stop commands remain available."
+      );
+    }
+    revokeRepositoryTrust(workspace.repoPath, this.processes.controlDirectory);
+  }
+
   startAppGroup(
     repoPath: string,
     worktreeIdValue: string,
@@ -616,9 +646,7 @@ export class WorkspaceController {
   }
 
   initializeRepository(repoPath: string) {
-    return initializeRepositoryConfig(repoPath, {
-      controlDirectory: this.processes.controlDirectory,
-    });
+    return initializeRepositoryConfig(repoPath);
   }
 
   worktree(repoPath: string, id: string) {

@@ -35,6 +35,7 @@ export const RepositoryInitializationPlanSchema = z.object({
 });
 
 const INPUT_SCHEMAS = {
+  "revoke-trust": RepositoryPathSchema,
   "clear-logs": StartStopSchema,
   "create-app-group-instance": StartStopSchema.extend({
     name: z.string().trim().min(1),
@@ -73,6 +74,7 @@ const INPUT_SCHEMAS = {
 } as const;
 
 const RESULT_SCHEMAS = {
+  "revoke-trust": CommandReceiptSchema,
   "clear-logs": CommandReceiptSchema,
   "create-app-group-instance": CommandReceiptSchema,
   "create-worktree": CommandReceiptSchema,
