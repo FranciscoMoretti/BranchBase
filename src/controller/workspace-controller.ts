@@ -55,6 +55,7 @@ import {
   type DiscoveredWorktree,
   parseWorktreeList,
 } from "../git/discover-worktrees";
+import { inspectProcessSamples, processTreeUsage } from "../host/process-usage";
 import {
   type LocalRoutingEngine,
   PortlessRoutingEngine,
@@ -62,6 +63,7 @@ import {
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { inspectListeningPorts, pathInside } from "../runtime/ports";
 import {
+  appGroupInstanceProcessId,
   ProcessSupervisor,
   setupProcessId,
 } from "../runtime/process-supervisor";
@@ -342,8 +344,11 @@ export class WorkspaceController {
     this.routing = runtime.routing ?? new PortlessRoutingEngine();
     this.state = runtime.state ?? new FileBranchBaseStateStore();
     this.product = new ProductStore(dirname(this.state.path));
-    this.discovery = new ProjectDiscovery(this.product, (path) =>
-      resolveWorktrees(git(path, ["rev-parse", "--show-toplevel"]))
+    this.discovery = new ProjectDiscovery(
+      this.product,
+      (path) => resolveWorktrees(git(path, ["rev-parse", "--show-toplevel"])),
+      (path) => git(path, ["rev-parse", "--show-toplevel"]),
+      () => this.processes.listManagedProcesses().map((process) => process.pid)
     );
     this.appGroups = new AppGroupRuntime(
       this.processes,
@@ -561,8 +566,34 @@ export class WorkspaceController {
     });
 
     const globalProcesses = this.processes.listManagedProcesses();
-    return {
+    const samples = inspectProcessSamples();
+    const projectOwners = new Set(
+      worktrees.map((worktree) => setupProcessId(worktree.id))
+    );
+    for (const worktree of worktrees) {
+      for (const group of worktree.appGroups) {
+        const ownerId = appGroupInstanceProcessId(group.instance.id);
+        projectOwners.add(ownerId);
+        const owned = globalProcesses.filter(
+          (process) => process.ownerId === ownerId
+        );
+        group.resources = owned.length
+          ? processTreeUsage(
+              samples,
+              owned.map((process) => process.pid)
+            )
+          : null;
+      }
+    }
+
+    const snapshot: WorkspaceSnapshot = {
       globalProcesses,
+      resources: processTreeUsage(
+        samples,
+        globalProcesses
+          .filter((process) => projectOwners.has(process.ownerId))
+          .map((process) => process.pid)
+      ),
       globalRunningCount: new Set(
         worktrees.flatMap((worktree) =>
           worktree.appGroups.flatMap((group) =>
@@ -590,6 +621,7 @@ export class WorkspaceController {
       updatedAt: new Date().toISOString(),
       worktrees,
     };
+    return snapshot;
   }
 
   saveProject(repoPath: string, name?: string, pins?: AppPin[]): void {

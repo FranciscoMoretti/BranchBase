@@ -1,6 +1,9 @@
 import { realpathSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { findBranchBaseConfig } from "../config/branchbase-config";
+import { DetectedServices } from "../host/detected-services";
+import { processTreeUsage } from "../host/process-usage";
+import { pathInside } from "../runtime/ports";
 import type { Observation } from "./discovery-contract";
 import { scanRepositories } from "./folder-discovery";
 import type { ProductStore } from "./product-store";
@@ -17,13 +20,32 @@ interface Scan {
 }
 /** Discovery has no command execution or lifecycle authority. */
 export class ProjectDiscovery {
+  private readonly services: Pick<DetectedServices, "inspect" | "webUrl">;
   private readonly scans = new Map<string, Scan>();
+  private readonly cwdRoots = new Map<
+    string,
+    { at: number; root: string | null }
+  >();
   private scannedAt = 0;
   private readonly store: ProductStore;
   private readonly worktrees: (path: string) => Worktree[];
-  constructor(store: ProductStore, worktrees: (path: string) => Worktree[]) {
+  private readonly gitRoot: (path: string) => string;
+  private readonly managedPids: () => number[];
+  constructor(
+    store: ProductStore,
+    worktrees: (path: string) => Worktree[],
+    gitRoot: (path: string) => string,
+    managedPids: () => number[],
+    services: Pick<
+      DetectedServices,
+      "inspect" | "webUrl"
+    > = new DetectedServices()
+  ) {
+    this.services = services;
     this.store = store;
     this.worktrees = worktrees;
+    this.gitRoot = gitRoot;
+    this.managedPids = managedPids;
   }
 
   addFolder(path: string) {
@@ -109,23 +131,57 @@ export class ProjectDiscovery {
       warning,
     });
   }
+  private rootFor(cwd: string) {
+    const cached = this.cwdRoots.get(cwd);
+    if (cached && Date.now() - cached.at < 10_000) {
+      return cached.root;
+    }
+    let root: string | null = null;
+    try {
+      root = realpathSync(this.gitRoot(cwd));
+    } catch {
+      /* Unrelated or exiting process. */
+    }
+    if (this.cwdRoots.size > 512) {
+      this.cwdRoots.clear();
+    }
+    this.cwdRoots.set(cwd, { at: Date.now(), root });
+    return root;
+  }
   observe(path: string): Observation {
     const worktrees = this.worktrees(path);
     const repoPath = worktrees[0]?.path;
     if (!repoPath) {
       throw new Error("No Git worktrees found.");
     }
+    const inspected = this.services.inspect(this.managedPids());
     const result: Observation = {
       repoPath,
       configured: findBranchBaseConfig(repoPath) !== null,
       updatedAt: new Date().toISOString(),
-      warning: null,
+      warning: inspected.warning,
       worktrees: worktrees.map((worktree, index) => ({
         ...worktree,
         branch: worktree.branch ?? "Detached HEAD",
         isMain: index === 0,
+        services: inspected.services
+          .filter(
+            (service) =>
+              pathInside(service.cwd, worktree.path) &&
+              this.rootFor(service.cwd) === worktree.path
+          )
+          .map((service) => ({
+            ...service,
+            url: this.services.webUrl(service),
+          })),
       })),
     };
+    result.resources = processTreeUsage(
+      inspected.samples ?? null,
+      result.worktrees.flatMap((worktree) =>
+        worktree.services.map((service) => service.pid)
+      )
+    );
     return result;
   }
 }

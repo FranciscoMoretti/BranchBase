@@ -1,6 +1,23 @@
 import { z } from "zod";
 
+const Usage = z.object({
+  cpuPercent: z.number(),
+  memoryBytes: z.number(),
+  processCount: z.number(),
+});
+export const DetectedServiceSchema = z.object({
+  pid: z.number(),
+  port: z.number(),
+  command: z.string(),
+  cwd: z.string(),
+  startedAt: z.string().nullable(),
+  url: z.string().nullable(),
+  address: z.string(),
+  resources: Usage.nullable(),
+  managed: z.boolean(),
+});
 export const ObservationSchema = z.object({
+  resources: Usage.nullable().optional(),
   repoPath: z.string(),
   configured: z.boolean(),
   updatedAt: z.string(),
@@ -11,6 +28,7 @@ export const ObservationSchema = z.object({
       path: z.string(),
       branch: z.string(),
       isMain: z.boolean(),
+      services: z.array(DetectedServiceSchema),
     })
   ),
 });
@@ -27,3 +45,4 @@ export const FoldersResponseSchema = z.object({
   folders: z.array(FolderScanSchema),
 });
 export type Observation = z.infer<typeof ObservationSchema>;
+export type DetectedService = z.infer<typeof DetectedServiceSchema>;

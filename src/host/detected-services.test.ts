@@ -1,0 +1,63 @@
+import { expect, test } from "bun:test";
+import { serve } from "bun";
+import {
+  DetectedServices,
+  parseCwds,
+  parseListeners,
+} from "./detected-services";
+
+test("listener parsing deduplicates IPv4/IPv6 and rejects invalid identities and ports", () => {
+  expect(
+    parseListeners(
+      "p42\ncnode\nn*:3000\nn[::1]:3000\np7\ncpostgres\nn127.0.0.1:5432\npNaN\nn*:80\np2\nn*:99999\nn*:0"
+    )
+  ).toEqual([
+    { pid: 42, command: "node", port: 3000, address: "[::1]:3000" },
+    { pid: 7, command: "postgres", port: 5432, address: "127.0.0.1:5432" },
+  ]);
+  expect(
+    parseCwds("p42\nn/Users/test/Code/app\np7\nn/private/tmp/db").get(42)
+  ).toBe("/Users/test/Code/app");
+});
+test("HTTP detection does not invent a loopback URL for a network-only listener", () => {
+  const detector = new DetectedServices();
+  expect(
+    detector.webUrl({
+      pid: 42,
+      command: "server",
+      port: 3000,
+      address: "192.168.1.5:3000",
+      cwd: "/repo",
+      startedAt: null,
+      url: null,
+      resources: null,
+      managed: false,
+    })
+  ).toBeNull();
+});
+test("HTTP detection requires a response, including non-2xx responses", async () => {
+  const server = serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch: () => new Response("Auth", { status: 401 }),
+  });
+  try {
+    const detector = new DetectedServices();
+    const service = {
+      pid: process.pid,
+      command: "bun",
+      port: server.port ?? 0,
+      address: `127.0.0.1:${server.port}`,
+      cwd: "/repo",
+      startedAt: null,
+      url: null,
+      resources: null,
+      managed: false,
+    };
+    expect(detector.webUrl(service)).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(detector.webUrl(service)).toBe(`http://127.0.0.1:${server.port}`);
+  } finally {
+    server.stop(true);
+  }
+});

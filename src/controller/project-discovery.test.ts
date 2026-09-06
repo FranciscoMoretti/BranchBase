@@ -13,10 +13,13 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawn } from "bun";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
+import type { DetectedService } from "./discovery-contract";
 import { scanRepositories } from "./folder-discovery";
 import { ProductStore } from "./product-store";
+import { ProjectDiscovery } from "./project-discovery";
 import { WorkspaceController } from "./workspace-controller";
 
 const cleanup: (() => void)[] = [];
@@ -198,6 +201,49 @@ test("configuring an observed project does not approve or execute its commands",
     await workspace.close();
   }
 });
+test("associated services exclude nested Git repositories and unrelated paths", () => {
+  const root = temporary();
+  const repo = repository(join(root, "app"));
+  const nested = repository(join(repo, "nested"));
+  const inside = join(repo, "packages", "web");
+  mkdirSync(inside, { recursive: true });
+  const store = new ProductStore(join(root, "state"));
+  const service = (cwd: string, pid: number): DetectedService => ({
+    cwd,
+    pid,
+    port: pid,
+    command: "bun",
+    address: `127.0.0.1:${pid}`,
+    startedAt: null,
+    url: null,
+    resources: null,
+    managed: false,
+  });
+  const services = [
+    service(inside, 1001),
+    service(nested, 1002),
+    service(`${repo}-other`, 1003),
+  ];
+  const probed: number[] = [];
+  const warning: string | null = null;
+  const discovery = new ProjectDiscovery(
+    store,
+    () => [{ id: "main", path: repo, branch: "main" }],
+    (path) => git(path, "rev-parse", "--show-toplevel"),
+    () => [],
+    {
+      inspect: () => ({ at: Date.now(), services, warning }),
+      webUrl: (item) => {
+        probed.push(item.pid);
+        return null;
+      },
+    }
+  );
+  expect(
+    discovery.observe(repo).worktrees[0]?.services.map((item) => item.pid)
+  ).toEqual([1001]);
+  expect(probed).toEqual([1001]);
+});
 test("version one metadata loads with no discovery fields", () => {
   const root = temporary();
   writeFileSync(
@@ -208,3 +254,47 @@ test("version one metadata loads with no discovery fields", () => {
   expect(store.folders()).toEqual([]);
   expect(store.excludedPaths()).toEqual([]);
 });
+
+(process.platform === "darwin" ? test : test.skip)(
+  "a real listener in an external linked worktree is associated and its process usage is observed",
+  async () => {
+    const root = temporary();
+    const repo = repository(join(root, "app"));
+    const linked = join(root, "external");
+    git(repo, "worktree", "add", "-qb", "feature", linked);
+    const child = spawn(
+      [
+        process.execPath,
+        "-e",
+        "const server = Bun.serve({port:0,hostname:'127.0.0.1',fetch:()=>new Response('test')}); console.log(server.port);",
+      ],
+      { cwd: linked, stdout: "pipe", stderr: "pipe" }
+    );
+    const workspace = controller(join(root, "state"));
+    try {
+      const line = await child.stdout.getReader().read();
+      const port = Number(new TextDecoder().decode(line.value).trim());
+      expect(port).toBeGreaterThan(0);
+      const first = workspace.observeRepository(repo);
+      const service = first.worktrees
+        .find((item) => item.path === linked)
+        ?.services.find((item) => item.pid === child.pid);
+      expect(service?.port).toBe(port);
+      expect(service?.managed).toBe(false);
+      expect(service?.resources?.processCount).toBeGreaterThan(0);
+      expect(first.worktrees[0]?.services).toEqual([]);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const next = workspace.observeRepository(repo);
+      expect(
+        next.worktrees
+          .find((item) => item.path === linked)
+          ?.services.find((item) => item.pid === child.pid)?.url
+      ).toBe(`http://127.0.0.1:${port}`);
+    } finally {
+      child.kill();
+      await child.exited;
+      await workspace.close();
+    }
+  },
+  10_000
+);
