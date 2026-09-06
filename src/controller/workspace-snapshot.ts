@@ -33,12 +33,12 @@ export const AppGroupSnapshotSchema = z.strictObject({
   pending: z.boolean().optional(),
   resources: ProcessUsageSchema.nullable().optional(),
   run: z
-    .object({ startedAt: z.string(), worktreePath: z.string() })
+    .strictObject({ startedAt: z.string(), worktreePath: z.string() })
     .nullable()
     .optional(),
   dependencies: z
     .array(
-      z.object({
+      z.strictObject({
         groupId: z.string(),
         instanceId: z.string(),
         name: z.string(),
