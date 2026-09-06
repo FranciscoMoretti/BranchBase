@@ -253,7 +253,12 @@ test("activity history initializes when upgrading a project-only catalog", () =>
     join(directory, "product.json"),
     JSON.stringify({
       projects: [
-        { addedAt: "2026-09-06", name: "App", path: "/repo", pins: [] },
+        {
+          addedAt: "2026-09-06T00:00:00.000Z",
+          name: "App",
+          path: "/repo",
+          pins: [],
+        },
       ],
       version: 1,
     })
