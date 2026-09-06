@@ -30,7 +30,16 @@ export class BranchBaseApiError extends Error {
 }
 
 async function responseJson(response: Response): Promise<unknown> {
-  const body = (await response.json()) as unknown;
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new BranchBaseApiError(
+      `Invalid server response (${response.status})`,
+      "INVALID_RESPONSE",
+      null
+    );
+  }
   if (!response.ok) {
     const value =
       body && typeof body === "object"
@@ -51,10 +60,36 @@ async function responseJson(response: Response): Promise<unknown> {
   return body;
 }
 
+export async function request(
+  path: string,
+  init?: RequestInit
+): Promise<Response> {
+  try {
+    return await fetch(path, {
+      ...init,
+      signal:
+        init?.signal ??
+        (init?.method === "POST" ? undefined : AbortSignal.timeout(15_000)),
+    });
+  } catch {
+    throw new BranchBaseApiError(
+      "Connection to BranchBase is unavailable",
+      "CONNECTION_UNAVAILABLE",
+      null
+    );
+  }
+}
+export async function getJson(path: string): Promise<unknown> {
+  return responseJson(await request(path));
+}
 function token(): Promise<string> {
-  sessionToken ??= fetch("/api/session")
+  sessionToken ??= request("/api/session")
     .then(responseJson)
-    .then((body) => SessionResponseSchema.parse(body).token);
+    .then((body) => SessionResponseSchema.parse(body).token)
+    .catch((error: unknown) => {
+      sessionToken = null;
+      throw error;
+    });
   return sessionToken;
 }
 
@@ -63,7 +98,7 @@ export async function fetchWorkspace(
 ): Promise<WorkspaceSnapshot> {
   const query = new URLSearchParams({ repoPath });
   return WorkspaceSnapshotSchema.parse(
-    await responseJson(await fetch(`/api/workspace?${query}`))
+    await responseJson(await request(`/api/workspace?${query}`))
   );
 }
 
@@ -72,7 +107,7 @@ export async function fetchCodexIntegration(
 ): Promise<CodexIntegrationSnapshot> {
   const query = new URLSearchParams({ repoPath });
   return CodexIntegrationSnapshotSchema.parse(
-    await responseJson(await fetch(`/api/codex?${query}`))
+    await responseJson(await request(`/api/codex?${query}`))
   );
 }
 
@@ -83,7 +118,7 @@ export async function fetchLogs(
 ): Promise<string[]> {
   const query = new URLSearchParams({ appGroupName, repoPath, worktreeId });
   const body = LogsResponseSchema.parse(
-    await responseJson(await fetch(`/api/logs?${query}`))
+    await responseJson(await request(`/api/logs?${query}`))
   );
   return body.lines;
 }
@@ -100,8 +135,8 @@ async function postCommand<T>(
   input: Record<string, unknown>,
   schema: ZodType<T>
 ): Promise<T> {
-  async function request(): Promise<Response> {
-    return fetch(`/api/commands/${command}`, {
+  async function send(): Promise<Response> {
+    return request(`/api/commands/${command}`, {
       body: JSON.stringify(input),
       headers: {
         "content-type": "application/json",
@@ -110,10 +145,10 @@ async function postCommand<T>(
       method: "POST",
     });
   }
-  let response = await request();
+  let response = await send();
   if (response.status === 403) {
     sessionToken = null;
-    response = await request();
+    response = await send();
   }
   return schema.parse(await responseJson(response));
 }

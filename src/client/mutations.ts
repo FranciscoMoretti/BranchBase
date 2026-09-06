@@ -72,8 +72,18 @@ export function useCommands(repoPath: string) {
     trustRepository,
     updateRepositoryConfig,
   };
-  const errors = Object.values(mutations)
-    .map((mutation) => mutation.error)
-    .filter(Boolean);
-  return { ...mutations, error: errors.at(-1) ?? null };
+  // Dialogs present their own errors next to the submitted fields.
+  const latest = Object.entries(mutations)
+    .filter(
+      ([name]) =>
+        ![
+          "createWorktree",
+          "deleteWorktree",
+          "trustRepository",
+          "updateRepositoryConfig",
+        ].includes(name)
+    )
+    .map(([, mutation]) => mutation)
+    .sort((a, b) => b.submittedAt - a.submittedAt)[0];
+  return { ...mutations, error: latest?.error ?? null };
 }
