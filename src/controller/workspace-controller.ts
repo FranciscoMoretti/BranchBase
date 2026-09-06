@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { CodexContextStore } from "../codex/branchbase-context";
 import {
   CodexHookActivityStore,
@@ -46,6 +46,7 @@ import {
   repositoryCommandFingerprint,
   repositoryIsTrusted,
   repositoryRequiresTrust,
+  revokeRepositoryTrust,
   trustRepository as saveRepositoryTrust,
 } from "../config/repository-trust";
 import type { RepositoryTrustApproval } from "../config/repository-trust-approval";
@@ -54,13 +55,15 @@ import {
   type DiscoveredWorktree,
   parseWorktreeList,
 } from "../git/discover-worktrees";
+import { inspectProcessSamples, processTreeUsage } from "../host/process-usage";
 import {
   type LocalRoutingEngine,
   PortlessRoutingEngine,
 } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
-import { inspectListeningPorts } from "../runtime/ports";
+import { inspectListeningPorts, pathInside } from "../runtime/ports";
 import {
+  appGroupInstanceProcessId,
   ProcessSupervisor,
   setupProcessId,
 } from "../runtime/process-supervisor";
@@ -72,6 +75,10 @@ import {
   parseCommandInput,
   parseCommandResult,
 } from "./command-contract";
+import type { Observation } from "./discovery-contract";
+import type { AppPin, ProjectOverview } from "./product-contract";
+import { ProductStore } from "./product-store";
+import { ProjectDiscovery } from "./project-discovery";
 import { initializeRepository as initializeRepositoryConfig } from "./repository-initializer";
 import {
   type WorkspaceSnapshot,
@@ -85,6 +92,54 @@ type CommandHandler = (
 ) => unknown;
 
 const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
+  "add-development-folder": (controller, input) => {
+    controller.addDevelopmentFolder(String(input.repoPath));
+    return {
+      ok: true,
+      command: "add-development-folder",
+      message: "Development folder added",
+    };
+  },
+  "remove-development-folder": (controller, input) => {
+    controller.removeDevelopmentFolder(String(input.repoPath));
+    return {
+      ok: true,
+      command: "remove-development-folder",
+      message: "Folder removed; projects kept",
+    };
+  },
+  "scan-development-folders": (controller) => {
+    controller.scanDevelopmentFolders();
+    return {
+      ok: true,
+      command: "scan-development-folders",
+      message: "Folder scan complete",
+    };
+  },
+  "save-project": (controller, input) => {
+    controller.saveProject(
+      String(input.repoPath),
+      input.name as string | undefined,
+      input.pins as AppPin[] | undefined
+    );
+    return { ok: true, command: "save-project", message: "Project saved" };
+  },
+  "remove-project": (controller, input) => {
+    controller.removeProject(String(input.repoPath));
+    return {
+      ok: true,
+      command: "remove-project",
+      message: "Project removed; files kept on disk",
+    };
+  },
+  "revoke-trust": (controller, input) => {
+    controller.revokeTrust(String(input.repoPath));
+    return {
+      ok: true,
+      command: "revoke-trust",
+      message: "Command approvals revoked",
+    };
+  },
   "clear-logs": clearLogs,
   "create-app-group-instance": createAppGroupInstance,
   "create-worktree": createWorktree,
@@ -118,7 +173,11 @@ export class MissingWorktreeConfigError extends Error {
 }
 
 function git(cwd: string, args: string[]): string {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    timeout: 3000,
+  });
   if (result.status !== 0) {
     throw new Error(
       (result.stderr || result.stdout || "Git command failed").trim()
@@ -212,6 +271,7 @@ export interface CodexHookResult {
 }
 
 export class WorkspaceController {
+  private readonly product: ProductStore;
   private readonly appGroups: AppGroupRuntime;
   private readonly codexAdapter: CodexIntegrationAdapter;
   private readonly codexActivity: CodexHookActivityStore;
@@ -225,6 +285,7 @@ export class WorkspaceController {
     string,
     Map<string, { cwd: string; sessionId: string }>
   >();
+  private readonly discovery: ProjectDiscovery;
   private readonly processes: ProcessSupervisor;
   private readonly routing: LocalRoutingEngine;
   private readonly state: FileBranchBaseStateStore;
@@ -240,6 +301,13 @@ export class WorkspaceController {
     this.processes = runtime.processes ?? new ProcessSupervisor();
     this.routing = runtime.routing ?? new PortlessRoutingEngine();
     this.state = runtime.state ?? new FileBranchBaseStateStore();
+    this.product = new ProductStore(dirname(this.state.path));
+    this.discovery = new ProjectDiscovery(
+      this.product,
+      (path) => resolveWorktrees(git(path, ["rev-parse", "--show-toplevel"])),
+      (path) => git(path, ["rev-parse", "--show-toplevel"]),
+      () => this.processes.listManagedProcesses().map((process) => process.pid)
+    );
     this.appGroups = new AppGroupRuntime(
       this.processes,
       this.routing,
@@ -255,8 +323,9 @@ export class WorkspaceController {
     repoPath: string,
     options?: CodexIntegrationLoadOptions
   ): Promise<CodexIntegrationSnapshot> {
-    const workspace = this.inspect(repoPath);
-    const worktrees = workspace.worktrees.map(({ id, path }) => ({ id, path }));
+    const worktrees = resolveWorktrees(
+      git(repoPath, ["rev-parse", "--show-toplevel"])
+    ).map(({ id, path }) => ({ id, path }));
     const discovered = await this.codexAdapter.loadAssociatedTasks(
       worktrees,
       options
@@ -338,11 +407,69 @@ export class WorkspaceController {
   ): Promise<BranchBaseCommandResult<Name>> {
     const handler = COMMAND_HANDLERS[command];
     const parsed = parseCommandInput(command, input);
-    const result = await handler(
-      this,
-      parsed as BranchBaseCommandInput<Name> & Record<string, unknown>
-    );
-    return parseCommandResult(command, result);
+    const values = parsed as BranchBaseCommandInput<Name> &
+      Record<string, unknown>;
+    const repoPath =
+      typeof values.repoPath === "string" ? values.repoPath : null;
+    const record = (
+      severity: "info" | "success" | "warning",
+      message: string
+    ) => {
+      if (!repoPath || command === "preview-repository-config") {
+        return;
+      }
+      let canonicalPath = repoPath;
+      let worktreeName: string | undefined;
+      try {
+        const worktrees = resolveWorktrees(
+          git(repoPath, ["rev-parse", "--show-toplevel"])
+        );
+        canonicalPath = worktrees[0]?.path ?? repoPath;
+        worktreeName =
+          worktrees.find((worktree) => worktree.id === values.worktreeId)
+            ?.branch ?? undefined;
+      } catch {
+        // Failed discovery commands retain the supplied path as their context.
+      }
+      try {
+        this.product.append({
+          kind:
+            command.includes("config") || command.includes("trust")
+              ? "configuration"
+              : "command",
+          message,
+          repoPath: canonicalPath,
+          severity,
+          ...(worktreeName ? { worktreeName } : {}),
+          ...(typeof values.worktreeId === "string"
+            ? { worktreeId: values.worktreeId }
+            : {}),
+          ...(typeof values.appGroupName === "string"
+            ? { groupId: values.appGroupName }
+            : {}),
+        });
+      } catch {
+        process.stderr.write(
+          "BranchBase could not persist an activity event.\n"
+        );
+      }
+    };
+    try {
+      const result = await handler(this, values);
+      const parsedResult = parseCommandResult(command, result);
+      const message =
+        typeof parsedResult === "object" &&
+        parsedResult !== null &&
+        "message" in parsedResult &&
+        typeof parsedResult.message === "string"
+          ? parsedResult.message
+          : `${command.replaceAll("-", " ")}: completed`;
+      record("success", message);
+      return parsedResult;
+    } catch (error) {
+      record("warning", `${command.replaceAll("-", " ")}: failed`);
+      throw error;
+    }
   }
 
   inspect(repoPath: string): WorkspaceSnapshot {
@@ -455,8 +582,34 @@ export class WorkspaceController {
     });
 
     const globalProcesses = this.processes.listManagedProcesses();
-    return {
+    const samples = inspectProcessSamples();
+    const projectOwners = new Set(
+      worktrees.map((worktree) => setupProcessId(worktree.id))
+    );
+    for (const worktree of worktrees) {
+      for (const group of worktree.appGroups) {
+        const ownerId = appGroupInstanceProcessId(group.instance.id);
+        projectOwners.add(ownerId);
+        const owned = globalProcesses.filter(
+          (process) => process.ownerId === ownerId
+        );
+        group.resources = owned.length
+          ? processTreeUsage(
+              samples,
+              owned.map((process) => process.pid)
+            )
+          : null;
+      }
+    }
+
+    const snapshot: WorkspaceSnapshot = {
       globalProcesses,
+      resources: processTreeUsage(
+        samples,
+        globalProcesses
+          .filter((process) => projectOwners.has(process.ownerId))
+          .map((process) => process.pid)
+      ),
       globalRunningCount: new Set(
         worktrees.flatMap((worktree) =>
           worktree.appGroups.flatMap((group) =>
@@ -484,6 +637,110 @@ export class WorkspaceController {
       updatedAt: new Date().toISOString(),
       worktrees,
     };
+    this.product.observe(snapshot);
+    return snapshot;
+  }
+
+  saveProject(repoPath: string, name?: string, pins?: AppPin[]): void {
+    const root = resolveWorktrees(
+      git(repoPath, ["rev-parse", "--show-toplevel"])
+    )[0]?.path;
+    if (!root) {
+      throw new Error("No Git worktrees found");
+    }
+    const existing = this.product
+      .projects()
+      .find((project) => project.path === root);
+    this.product.saveProject(
+      root,
+      name ?? existing?.name ?? basename(root),
+      pins
+    );
+  }
+
+  addDevelopmentFolder(path: string) {
+    this.discovery.addFolder(path);
+  }
+  removeDevelopmentFolder(path: string) {
+    this.discovery.removeFolder(path);
+  }
+  scanDevelopmentFolders() {
+    this.discovery.scan(true);
+  }
+  developmentFolders() {
+    return this.discovery.folders();
+  }
+  observeRepository(path: string) {
+    return this.discovery.observe(path);
+  }
+  projects(): ProjectOverview[] {
+    this.discovery.scan();
+    return this.product.projects().map((project) => {
+      let observation: Observation | null = null;
+      try {
+        observation = this.observeRepository(project.path);
+        return {
+          ...project,
+          observation,
+          error: null,
+          workspace: observation.configured ? this.inspect(project.path) : null,
+        };
+      } catch (error) {
+        return {
+          ...project,
+          observation,
+          error: error instanceof Error ? error.message : String(error),
+          workspace: null,
+        };
+      }
+    });
+  }
+
+  activity(repoPath?: string) {
+    return this.product.events(repoPath);
+  }
+
+  removeProject(repoPath: string): void {
+    const saved = this.product
+      .projects()
+      .find((project) => project.path === repoPath);
+    if (!saved) {
+      throw new Error("This project is not saved in BranchBase.");
+    }
+    const resources = this.state.repositoryResources(saved.path);
+    const paths = new Set([saved.path, ...resources.worktreePaths]);
+    if (
+      resources.hasRetainedRuns ||
+      [...paths].some((path) => this.appGroups.hasPendingLifecycle(path)) ||
+      this.processes
+        .listManagedProcesses()
+        .some((process) =>
+          [...paths].some((path) => pathInside(process.cwd, path))
+        )
+    ) {
+      throw new Error(
+        "Stop this project's App groups and setup processes before removing it. Retained runs must be cleaned up first."
+      );
+    }
+    this.product.removeProject(saved.path);
+  }
+
+  revokeTrust(repoPath: string): void {
+    const workspace = this.inspect(repoPath);
+    if (
+      this.state.repositoryResources(workspace.repoPath).hasRetainedRuns ||
+      workspace.worktrees.some(
+        (worktree) =>
+          worktreeHasRunningAppGroups(worktree) ||
+          worktree.setupState === "running" ||
+          this.appGroups.hasPendingLifecycle(worktree.path)
+      )
+    ) {
+      throw new Error(
+        "Stop App groups before revoking approval so their Stop commands remain available."
+      );
+    }
+    revokeRepositoryTrust(workspace.repoPath, this.processes.controlDirectory);
   }
 
   startAppGroup(
@@ -616,9 +873,7 @@ export class WorkspaceController {
   }
 
   initializeRepository(repoPath: string) {
-    return initializeRepositoryConfig(repoPath, {
-      controlDirectory: this.processes.controlDirectory,
-    });
+    return initializeRepositoryConfig(repoPath);
   }
 
   worktree(repoPath: string, id: string) {

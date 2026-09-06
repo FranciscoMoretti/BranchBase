@@ -37,6 +37,10 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
+          "category": {
+            "type": "string",
+            "enum": ["application", "infrastructure"]
+          },
           "instances": {
             "default": {
               "mode": "per-worktree"

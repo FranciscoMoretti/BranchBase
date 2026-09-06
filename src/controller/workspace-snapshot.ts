@@ -6,6 +6,12 @@ import type { CommandReceiptSchema } from "./command-contract";
 
 export type { WorktreeConfigSource } from "../config/worktree-config-source";
 
+export const ProcessUsageSchema = z.object({
+  memoryBytes: z.number().nonnegative(),
+  cpuPercent: z.number().nonnegative(),
+  processCount: z.number().int().nonnegative(),
+});
+
 const AppHealthSchema = z.enum(["not-running", "partially-running", "running"]);
 
 export const AppEndpointSnapshotSchema = z.strictObject({
@@ -23,6 +29,22 @@ export const AppEndpointSnapshotSchema = z.strictObject({
 });
 
 export const AppGroupSnapshotSchema = z.strictObject({
+  category: z.enum(["application", "infrastructure"]).optional(),
+  pending: z.boolean().optional(),
+  resources: ProcessUsageSchema.nullable().optional(),
+  run: z
+    .object({ startedAt: z.string(), worktreePath: z.string() })
+    .nullable()
+    .optional(),
+  dependencies: z
+    .array(
+      z.object({
+        groupId: z.string(),
+        instanceId: z.string(),
+        name: z.string(),
+      })
+    )
+    .optional(),
   apps: z.array(AppEndpointSnapshotSchema),
   cleanupOnly: z.boolean().optional(),
   health: AppHealthSchema,
@@ -82,6 +104,7 @@ export const WorkspaceSnapshotSchema = z.strictObject({
     })
   ),
   globalRunningCount: z.number().int().nonnegative(),
+  resources: ProcessUsageSchema.nullable().optional(),
   mainWorktreePath: z.string(),
   projectDefaultConfig: BranchBaseConfigSchema,
   projectDefaultConfigPath: z.string(),

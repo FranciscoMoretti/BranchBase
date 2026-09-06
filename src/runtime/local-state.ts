@@ -525,6 +525,21 @@ export class FileBranchBaseStateStore {
     this.write(state);
   }
 
+  repositoryResources(repoPath: string): {
+    hasRetainedRuns: boolean;
+    worktreePaths: string[];
+  } {
+    const repository = this.read().repositories[repoPath];
+    return {
+      hasRetainedRuns: Object.values(repository?.instances ?? {}).some(
+        (instance) => instance.run !== null
+      ),
+      worktreePaths: Object.values(repository?.worktrees ?? {}).map(
+        (worktree) => worktree.path
+      ),
+    };
+  }
+
   hasRunForWorktree(repoPath: string, worktreePath: string): boolean {
     const repository = this.read().repositories[repoPath];
     return repository

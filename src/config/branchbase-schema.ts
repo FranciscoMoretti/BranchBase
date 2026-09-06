@@ -56,6 +56,7 @@ export const BranchBaseAppGroupInstancesSchema = z.discriminatedUnion("mode", [
 ]);
 
 export const BranchBaseAppGroupSchema = z.strictObject({
+  category: z.enum(["application", "infrastructure"]).optional(),
   instances: BranchBaseAppGroupInstancesSchema.default({
     mode: "per-worktree",
   }),

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BranchBaseConfigSchema } from "../config/branchbase-schema";
 import { RepositoryTrustApprovalSchema } from "../config/repository-trust-approval";
 import { WorktreeConfigSourceSchema } from "../config/worktree-config-source";
+import { AppPinSchema } from "./product-contract";
 
 const RepositoryPathSchema = z.object({
   repoPath: z.string().min(1),
@@ -35,6 +36,15 @@ export const RepositoryInitializationPlanSchema = z.object({
 });
 
 const INPUT_SCHEMAS = {
+  "add-development-folder": RepositoryPathSchema,
+  "remove-development-folder": RepositoryPathSchema,
+  "scan-development-folders": z.object({}),
+  "save-project": RepositoryPathSchema.extend({
+    name: z.string().trim().min(1).max(100).optional(),
+    pins: z.array(AppPinSchema).max(24).optional(),
+  }),
+  "remove-project": RepositoryPathSchema,
+  "revoke-trust": RepositoryPathSchema,
   "clear-logs": StartStopSchema,
   "create-app-group-instance": StartStopSchema.extend({
     name: z.string().trim().min(1),
@@ -73,6 +83,12 @@ const INPUT_SCHEMAS = {
 } as const;
 
 const RESULT_SCHEMAS = {
+  "add-development-folder": CommandReceiptSchema,
+  "remove-development-folder": CommandReceiptSchema,
+  "scan-development-folders": CommandReceiptSchema,
+  "save-project": CommandReceiptSchema,
+  "remove-project": CommandReceiptSchema,
+  "revoke-trust": CommandReceiptSchema,
   "clear-logs": CommandReceiptSchema,
   "create-app-group-instance": CommandReceiptSchema,
   "create-worktree": CommandReceiptSchema,

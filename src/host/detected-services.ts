@@ -1,0 +1,232 @@
+import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
+import type { DetectedService } from "../controller/discovery-contract";
+import {
+  inspectProcessSamples,
+  type ProcessSample,
+  processTreeUsage,
+} from "./process-usage";
+
+const LINES = /\r?\n/;
+const END_PORT = /:(\d+)$/;
+const WHITESPACE = /\s+/;
+export function parseListeners(output: string) {
+  let pid = 0,
+    command = "Process";
+  const rows: {
+    pid: number;
+    command: string;
+    port: number;
+    address: string;
+  }[] = [];
+  for (const line of output.split(LINES)) {
+    if (line.startsWith("p")) {
+      pid = Number(line.slice(1));
+    }
+    if (line.startsWith("c")) {
+      command = line.slice(1);
+    }
+    if (line.startsWith("n")) {
+      const match = line.match(END_PORT);
+      if (
+        match &&
+        Number.isSafeInteger(pid) &&
+        pid > 0 &&
+        Number(match[1]) > 0 &&
+        Number(match[1]) <= 65_535
+      ) {
+        rows.push({
+          pid,
+          command,
+          port: Number(match[1]),
+          address: line.slice(1),
+        });
+      }
+    }
+  }
+  return [
+    ...new Map(rows.map((row) => [`${row.pid}:${row.port}`, row])).values(),
+  ];
+}
+export function parseCwds(output: string) {
+  let pid = 0;
+  const result = new Map<number, string>();
+  for (const line of output.split(LINES)) {
+    if (line.startsWith("p")) {
+      pid = Number(line.slice(1));
+    }
+    if (line.startsWith("n") && pid > 0) {
+      result.set(pid, line.slice(1));
+    }
+  }
+  return result;
+}
+function run(program: string, args: string[]) {
+  return spawnSync(program, args, {
+    encoding: "utf8",
+    timeout: 3000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+}
+function startedTimes() {
+  const result = new Map<number, string>();
+  for (const line of run("ps", ["-axo", "pid=,lstart="])
+    .stdout?.trim()
+    .split(LINES) ?? []) {
+    const [pid, ...date] = line.trim().split(WHITESPACE);
+    const time = Date.parse(date.join(" "));
+    if (Number.isFinite(time)) {
+      result.set(Number(pid), new Date(time).toISOString());
+    }
+  }
+  return result;
+}
+function descendants(samples: ProcessSample[] | null, roots: number[]) {
+  const owned = new Set(roots);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const sample of samples ?? []) {
+      if (owned.has(sample.parentPid) && !owned.has(sample.pid)) {
+        owned.add(sample.pid);
+        changed = true;
+      }
+    }
+  }
+  return owned;
+}
+/** Observation only. These PIDs are never authority to terminate a process. */
+export class DetectedServices {
+  private cached: {
+    at: number;
+    samples?: ProcessSample[] | null;
+    services: DetectedService[];
+    warning: string | null;
+  } = { at: 0, services: [], warning: null };
+  private readonly probes = new Map<
+    string,
+    { at: number; url: string | null }
+  >();
+  private activeProbes = 0;
+  private managedKey = "";
+  inspect(managedPids: number[]): {
+    at: number;
+    services: DetectedService[];
+    warning: string | null;
+    samples?: ProcessSample[] | null;
+  } {
+    const managedKey = managedPids.toSorted((a, b) => a - b).join(",");
+    if (managedKey === this.managedKey && Date.now() - this.cached.at < 4000) {
+      return this.cached;
+    }
+    this.managedKey = managedKey;
+    if (process.platform !== "darwin") {
+      return {
+        at: Date.now(),
+        services: [],
+        warning: "Detected services are currently supported on macOS.",
+      };
+    }
+    const listeners = run("lsof", ["-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn"]);
+    if (listeners.error || (listeners.status !== 0 && listeners.status !== 1)) {
+      return {
+        at: Date.now(),
+        services: [],
+        warning:
+          "Could not inspect local listeners. Check process inspection permissions.",
+      };
+    }
+    const rows = parseListeners(listeners.stdout).slice(0, 256);
+    if (!rows.length) {
+      this.cached = { at: Date.now(), services: [], warning: null };
+      return this.cached;
+    }
+    const cwds = run("lsof", [
+      "-a",
+      "-p",
+      [...new Set(rows.map((row) => row.pid))].join(","),
+      "-d",
+      "cwd",
+      "-Fn",
+    ]);
+    const paths = parseCwds(cwds.stdout ?? "");
+    const samples = inspectProcessSamples();
+    const times = startedTimes();
+    const owned = descendants(samples, managedPids);
+    const services: DetectedService[] = [];
+    for (const row of rows) {
+      const cwd = paths.get(row.pid);
+      if (!cwd) {
+        continue;
+      }
+      try {
+        services.push({
+          ...row,
+          cwd: realpathSync(cwd),
+          startedAt: times.get(row.pid) ?? null,
+          resources: processTreeUsage(samples, [row.pid]),
+          managed: owned.has(row.pid),
+          url: null,
+        });
+      } catch {
+        /* Process may exit during inspection. */
+      }
+    }
+    let warning: string | null = null;
+    if (paths.size < new Set(rows.map((row) => row.pid)).size) {
+      warning = "Some process working directories are unavailable.";
+    }
+    if (rows.length === 256) {
+      warning = "Showing the first 256 listeners.";
+    }
+    this.cached = { at: Date.now(), services, warning, samples };
+    return this.cached;
+  }
+  webUrl(service: DetectedService): string | null {
+    const { pid, port, cwd, address, command } = service;
+    if (
+      !(
+        address.startsWith("*:") ||
+        address.startsWith("127.0.0.1:") ||
+        address.startsWith("[::1]:")
+      )
+    ) {
+      return null;
+    }
+    const key = `${pid}:${port}:${cwd}:${command}:${service.startedAt}:${address}`;
+    const cached = this.probes.get(key);
+    if (cached && Date.now() - cached.at < 30_000) {
+      return cached.url;
+    }
+    if (this.activeProbes >= 4) {
+      return cached?.url ?? null;
+    }
+    this.activeProbes++;
+    this.probes.set(key, { at: Date.now(), url: cached?.url ?? null });
+    const url = address.startsWith("[::1]:")
+      ? `http://[::1]:${port}`
+      : `http://127.0.0.1:${port}`;
+    fetch(url, {
+      method: "HEAD",
+      redirect: "manual",
+      signal: AbortSignal.timeout(700),
+    })
+      .then((response) => {
+        this.probes.set(key, {
+          at: Date.now(),
+          url: response.status > 0 ? url : null,
+        });
+        response.body?.cancel().catch(() => undefined);
+      })
+      .catch(() => {
+        this.probes.set(key, { at: Date.now(), url: null });
+      })
+      .finally(() => {
+        this.activeProbes--;
+      });
+    if (this.probes.size > 1024) {
+      this.probes.clear();
+    }
+    return cached?.url ?? null;
+  }
+}

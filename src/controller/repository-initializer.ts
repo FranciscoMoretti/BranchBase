@@ -7,7 +7,6 @@ import {
   defaultBranchBaseStartCommand,
 } from "../config/branchbase-command";
 import type { WorktreeEnvConfig } from "../config/branchbase-config";
-import { trustRepository } from "../config/repository-trust";
 
 const FASTAPI_DEPENDENCY = /\bfastapi\b/i;
 const COMPOSE_FILES = [
@@ -53,7 +52,7 @@ function projectDefaults(root: string): ProjectDefaults {
   }
   if (existsSync(join(root, "package.json"))) {
     return {
-      label: "Node.js · npm",
+      label: "Node.js",
       setup: defaultBranchBaseSetupCommand(),
       start: defaultBranchBaseStartCommand(),
     };
@@ -125,20 +124,18 @@ export function planRepositoryInitialization(
     config,
     configPath,
     detectedRuntime: defaults.label,
-    detectedSetupCommand: setup.argv.join(" "),
-    detectedStartCommand: start.argv.join(" "),
+    detectedSetupCommand: defaults.setup?.argv.join(" ") ?? null,
+    detectedStartCommand: defaults.start?.argv.join(" ") ?? null,
     repoPath: root,
   };
 }
 
 export function initializeRepository(
-  repoPath: string,
-  options: { controlDirectory?: string } = {}
+  repoPath: string
 ): RepositoryInitializationPlan {
   const plan = planRepositoryInitialization(repoPath);
   writeFileSync(plan.configPath, `${JSON.stringify(plan.config, null, 2)}\n`, {
     flag: "wx",
   });
-  trustRepository(plan.repoPath, plan.config, options.controlDirectory);
   return plan;
 }
