@@ -7,7 +7,7 @@ export const AppPinSchema = z.strictObject({
   worktreeId: z.string().min(1),
 });
 export const ProjectRecordSchema = z.strictObject({
-  addedAt: z.string(),
+  addedAt: z.iso.datetime({ offset: true }),
   name: z.string().trim().min(1).max(100),
   path: z.string().min(1),
   pins: z.array(AppPinSchema).max(24),

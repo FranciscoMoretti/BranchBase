@@ -137,6 +137,58 @@ describe("BranchBase HTTP server", () => {
     expect(closeCalls).toBe(1);
   });
 
+  it("returns project errors with a null workspace", async () => {
+    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-projects-"));
+    const controller = {
+      close: () => Promise.resolve(),
+      execute: () => Promise.reject(new Error("not used")),
+      handleCodexHook: () => ({ accepted: false }),
+      inspect: () => {
+        throw new Error("not used");
+      },
+      inspectCodex: () => Promise.reject(new Error("not used")),
+      logs: () => [],
+      projects: () => [
+        {
+          addedAt: "2026-09-06T00:00:00.000Z",
+          error: "Repository is unavailable",
+          name: "Unavailable project",
+          path: "/code/unavailable",
+          pins: [],
+          workspace: null,
+        },
+      ],
+    } as unknown as BranchBaseServerController;
+    const server = await createBranchBaseServer({
+      appRoot,
+      controller,
+      development: false,
+      enableCodexHooks: false,
+      port: 0,
+    });
+
+    try {
+      const url = await server.listen();
+      const response = await fetch(new URL("/api/projects", url));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        projects: [
+          {
+            addedAt: "2026-09-06T00:00:00.000Z",
+            error: "Repository is unavailable",
+            name: "Unavailable project",
+            path: "/code/unavailable",
+            pins: [],
+            workspace: null,
+          },
+        ],
+      });
+    } finally {
+      await server.close();
+      rmSync(appRoot, { force: true, recursive: true });
+    }
+  });
+
   it("formats IPv6 hosts as valid origins", async () => {
     const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-ipv6-"));
     const controller = {

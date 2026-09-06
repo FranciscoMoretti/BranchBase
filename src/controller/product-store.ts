@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -56,7 +57,12 @@ export class ProductStore {
     mkdirSync(this.directory, { recursive: true });
     const temporary = `${this.file}.${randomUUID()}.tmp`;
     writeFileSync(temporary, `${JSON.stringify(value)}\n`, { mode: 0o600 });
-    renameSync(temporary, this.file);
+    try {
+      renameSync(temporary, this.file);
+    } catch (error) {
+      rmSync(temporary, { force: true });
+      throw error;
+    }
   }
   projects() {
     return this.read().projects;

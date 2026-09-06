@@ -51,6 +51,21 @@ test("pin limits reject invalid metadata without losing the prior record", () =>
   expect(product.projects()[0]?.name).toBe("App");
 });
 
+test("addedAt must be an ISO timestamp", () => {
+  const { directory, product } = store();
+  writeFileSync(
+    join(directory, "product.json"),
+    JSON.stringify({
+      projects: [
+        { addedAt: "2026-09-06", name: "App", path: "/repo", pins: [] },
+      ],
+      version: 1,
+    })
+  );
+
+  expect(() => product.projects()).toThrow(ProductCatalogError);
+});
+
 test("invalid project catalogs fail with recovery guidance without overwriting the file", () => {
   const { directory, product } = store();
   const contents = '{"projects": [}';
