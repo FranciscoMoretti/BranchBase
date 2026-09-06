@@ -11,7 +11,8 @@ const LINES = /\r?\n/;
 const END_PORT = /:(\d+)$/;
 const WHITESPACE = /\s+/;
 const POSITIVE_PROBE_TTL = 30_000;
-const NEGATIVE_PROBE_TTL = 1000;
+export const NEGATIVE_PROBE_TTL_MS = 1000;
+export const PROBE_TIMEOUT_MS = 700;
 export function parseListeners(output: string) {
   let pid = 0,
     command = "Process";
@@ -105,7 +106,7 @@ function evictProbes(
     return;
   }
   for (const [probeKey, probe] of probes) {
-    const ttl = probe.url ? POSITIVE_PROBE_TTL : NEGATIVE_PROBE_TTL;
+    const ttl = probe.url ? POSITIVE_PROBE_TTL : NEGATIVE_PROBE_TTL_MS;
     if (now - probe.at >= ttl) {
       probes.delete(probeKey);
     }
@@ -230,7 +231,7 @@ export class DetectedServices {
     }
     const key = `${pid}:${port}:${cwd}:${command}:${service.startedAt}:${address}`;
     const cached = this.probes.get(key);
-    const cacheTtl = cached?.url ? POSITIVE_PROBE_TTL : NEGATIVE_PROBE_TTL;
+    const cacheTtl = cached?.url ? POSITIVE_PROBE_TTL : NEGATIVE_PROBE_TTL_MS;
     if (cached && Date.now() - cached.at < cacheTtl) {
       return cached.url;
     }
@@ -245,7 +246,7 @@ export class DetectedServices {
     fetch(url, {
       method: "HEAD",
       redirect: "manual",
-      signal: AbortSignal.timeout(700),
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     })
       .then((response) => {
         this.probes.set(key, {

@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { serve } from "bun";
 import {
   DetectedServices,
+  NEGATIVE_PROBE_TTL_MS,
+  PROBE_TIMEOUT_MS,
   parseCwds,
   parseListeners,
 } from "./detected-services";
@@ -91,7 +93,6 @@ test("HTTP detection retries a failed probe after the short negative cache", asy
     managed: false,
   };
   expect(detector.webUrl(service)).toBeNull();
-  await new Promise((resolve) => setTimeout(resolve, 1100));
   const server = serve({
     port,
     hostname: "127.0.0.1",
@@ -99,8 +100,14 @@ test("HTTP detection retries a failed probe after the short negative cache", asy
   });
   try {
     expect(detector.webUrl(service)).toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(detector.webUrl(service)).toBe(`http://127.0.0.1:${port}`);
+    const expectedUrl = `http://127.0.0.1:${port}`;
+    const deadline = Date.now() + NEGATIVE_PROBE_TTL_MS + PROBE_TIMEOUT_MS;
+    let detectedUrl = detector.webUrl(service);
+    while (detectedUrl !== expectedUrl && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      detectedUrl = detector.webUrl(service);
+    }
+    expect(detectedUrl).toBe(expectedUrl);
   } finally {
     server.stop(true);
   }
