@@ -16,6 +16,7 @@ import {
   ProcessSupervisor,
   setupProcessId,
 } from "../runtime/process-supervisor";
+import { AppGroupLifecycleError } from "./app-group-lifecycle-error";
 import type { AppGroupTarget } from "./app-group-runtime";
 import { WorkspaceController } from "./workspace-controller";
 
@@ -123,7 +124,13 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
     mkdirSync(persistedWorktreePath);
     const config = loadBranchBaseConfig(join(repoPath, ".branchbase.json"));
     config.appGroups.service.start = {
-      argv: ["bun", "-e", "setTimeout(() => {}, 5000)"],
+      argv: ["sleep", "2"],
+    };
+    config.appGroups.service.apps.api.readiness = {
+      path: "/",
+      statuses: "200-399",
+      timeoutSeconds: 1,
+      type: "http",
     };
     state.instance({
       configFingerprint: repositoryCommandFingerprint(config),
@@ -136,7 +143,10 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
     });
     const appGroups = (
       controller as unknown as {
-        appGroups: { start: (target: AppGroupTarget) => Promise<unknown> };
+        appGroups: {
+          hasPendingLifecycle: (worktreePath: string) => boolean;
+          start: (target: AppGroupTarget) => Promise<unknown>;
+        };
       }
     ).appGroups;
     const pending = appGroups.start({
@@ -150,8 +160,14 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
       },
     });
 
+    expect(appGroups.hasPendingLifecycle(persistedWorktreePath)).toBe(true);
     expect(() => controller.revokeTrust(repoPath)).toThrow("Stop App groups");
-    await pending.catch(() => undefined);
+    const pendingError = await pending.then(
+      () => null,
+      (error) => error
+    );
+    expect(pendingError).toBeInstanceOf(AppGroupLifecycleError);
+    expect(pendingError.code).toBe("readiness-failed");
     expect(controller.inspect(repoPath).trusted).toBe(true);
     expect(
       snapshot.worktrees.some(({ path }) => path === persistedWorktreePath)
