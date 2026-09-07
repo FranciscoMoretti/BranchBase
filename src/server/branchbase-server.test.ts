@@ -4,12 +4,51 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { AppGroupLifecycleError } from "../controller/app-group-lifecycle-error";
+import { ProductCatalogError } from "../controller/product-store";
 import {
   type BranchBaseServerController,
   createBranchBaseServer,
 } from "./branchbase-server";
 
 describe("BranchBase HTTP server", () => {
+  it("preserves the product catalog error code for API callers", async () => {
+    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-catalog-"));
+    const catalogFile = join(appRoot, "product.json");
+    const controller = {
+      close: () => Promise.resolve(),
+      execute: () => Promise.reject(new Error("not used")),
+      handleCodexHook: () => ({ accepted: false }),
+      inspect: () => {
+        throw new Error("not used");
+      },
+      inspectCodex: () => Promise.reject(new Error("not used")),
+      logs: () => [],
+      projects: () => {
+        throw new ProductCatalogError(catalogFile, new Error("invalid JSON"));
+      },
+    } as unknown as BranchBaseServerController;
+    const server = await createBranchBaseServer({
+      appRoot,
+      controller,
+      development: false,
+      enableCodexHooks: false,
+      port: 0,
+    });
+
+    try {
+      const url = await server.listen();
+      const response = await fetch(new URL("/api/projects", url));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        code: "invalid_product_catalog",
+        error: `BranchBase could not read a valid project catalog at ${catalogFile}. The file was left unchanged; repair or restore it before retrying.`,
+      });
+    } finally {
+      await server.close();
+      rmSync(appRoot, { force: true, recursive: true });
+    }
+  });
+
   it("preserves stable App-group lifecycle error codes", async () => {
     const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-error-"));
     const controller = {
@@ -135,6 +174,96 @@ describe("BranchBase HTTP server", () => {
       rmSync(appRoot, { force: true, recursive: true });
     }
     expect(closeCalls).toBe(1);
+  });
+
+  it("returns project errors with a null workspace", async () => {
+    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-projects-"));
+    const controller = {
+      close: () => Promise.resolve(),
+      execute: () => Promise.reject(new Error("not used")),
+      handleCodexHook: () => ({ accepted: false }),
+      inspect: () => {
+        throw new Error("not used");
+      },
+      inspectCodex: () => Promise.reject(new Error("not used")),
+      logs: () => [],
+      projects: () => [
+        {
+          addedAt: "2026-09-06T00:00:00.000Z",
+          error: "Repository is unavailable",
+          name: "Unavailable project",
+          path: "/code/unavailable",
+          pins: [],
+          workspace: null,
+        },
+      ],
+    } as unknown as BranchBaseServerController;
+    const server = await createBranchBaseServer({
+      appRoot,
+      controller,
+      development: false,
+      enableCodexHooks: false,
+      port: 0,
+    });
+
+    try {
+      const url = await server.listen();
+      const response = await fetch(new URL("/api/projects", url));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        projects: [
+          {
+            addedAt: "2026-09-06T00:00:00.000Z",
+            error: "Repository is unavailable",
+            name: "Unavailable project",
+            path: "/code/unavailable",
+            pins: [],
+            workspace: null,
+          },
+        ],
+      });
+    } finally {
+      await server.close();
+      rmSync(appRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("reports unavailable observation support instead of a schema error", async () => {
+    const appRoot = mkdtempSync(
+      join(tmpdir(), "branchbase-server-observation-")
+    );
+    const controller = {
+      close: () => Promise.resolve(),
+      execute: () => Promise.reject(new Error("not used")),
+      handleCodexHook: () => ({ accepted: false }),
+      inspect: () => {
+        throw new Error("not used");
+      },
+      inspectCodex: () => Promise.reject(new Error("not used")),
+      logs: () => [],
+    } as unknown as BranchBaseServerController;
+    const server = await createBranchBaseServer({
+      appRoot,
+      controller,
+      development: false,
+      enableCodexHooks: false,
+      port: 0,
+    });
+
+    try {
+      const url = await server.listen();
+      const response = await fetch(
+        new URL("/api/observation?repoPath=%2Fcode%2Frepo", url)
+      );
+      expect(response.status).toBe(501);
+      expect(await response.json()).toEqual({
+        code: "observation-unavailable",
+        error: "Repository observation is unavailable.",
+      });
+    } finally {
+      await server.close();
+      rmSync(appRoot, { force: true, recursive: true });
+    }
   });
 
   it("formats IPv6 hosts as valid origins", async () => {

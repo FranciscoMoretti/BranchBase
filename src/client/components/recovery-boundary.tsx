@@ -1,7 +1,6 @@
-import { AlertTriangleIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import { RotateCcwIcon, XIcon } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode } from "react";
-
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { ErrorDetails } from "../product/async-state";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -56,11 +55,7 @@ export class RecoveryBoundary extends Component<
             <CardDescription>{this.props.description}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Alert variant="destructive">
-              <AlertTriangleIcon />
-              <AlertTitle>Unexpected application error</AlertTitle>
-              <AlertDescription>{this.state.error.message}</AlertDescription>
-            </Alert>
+            <ErrorDetails error={this.state.error} />
           </CardContent>
           <CardFooter className="justify-end gap-2">
             {this.props.onDismiss ? (

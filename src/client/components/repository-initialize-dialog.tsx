@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { FilePlus2Icon } from "lucide-react";
-
 import { initializeRepository, previewRepositoryConfig } from "../api";
+import { FormFeedback } from "../product/async-state";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -54,7 +54,8 @@ export function RepositoryInitializeDialog({
               <strong>Create a starter worktree configuration</strong>
               <p>
                 BranchBase detected this repository and prepared a conservative
-                single-app configuration. Nothing is written until you confirm.
+                single-app configuration. Creating this file does not approve or
+                run its commands.
               </p>
             </div>
           </div>
@@ -76,8 +77,9 @@ export function RepositoryInitializeDialog({
               </dl>
               {preview.data.detectedStartCommand ? null : (
                 <p className="setup-warning">
-                  No safe start command was detected. Add the repository
-                  <code> start</code> command before using Start.
+                  No start command was detected. The preview contains starter
+                  commands; edit them in Settings before approving or running
+                  this project.
                 </p>
               )}
               <pre className="config-preview">
@@ -89,7 +91,7 @@ export function RepositoryInitializeDialog({
             </>
           ) : null}
           {preview.isLoading ? <p>Inspecting repository…</p> : null}
-          {error ? <p className="field-error">{error.message}</p> : null}
+          <FormFeedback error={error} title="Could not initialize project" />
         </div>
         <DialogFooter>
           <Button

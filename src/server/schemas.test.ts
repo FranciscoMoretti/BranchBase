@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
 import { CodexIntegrationSnapshotSchema } from "../codex/codex-integration";
-import { WorkspaceSnapshotSchema } from "../controller/workspace-snapshot";
+import {
+  AppGroupSnapshotSchema,
+  WorkspaceSnapshotSchema,
+} from "../controller/workspace-snapshot";
 
 describe("workspace snapshot transport schema", () => {
   it("preserves slot-free App groups and endpoint lifecycle state", () => {
@@ -95,6 +98,43 @@ describe("workspace snapshot transport schema", () => {
     expect(snapshot.worktrees[0]?.appGroups[0]?.instance.id).toBe(
       "product-main"
     );
+  });
+
+  it("rejects unexpected fields in runtime context objects", () => {
+    const appGroup = {
+      apps: [],
+      health: "not-running" as const,
+      id: "product",
+      instance: {
+        id: "product-main",
+        mode: "per-worktree" as const,
+        name: "main",
+      },
+      instances: [{ id: "product-main", name: "main", running: false }],
+      name: "Product Apps",
+      processRunning: false,
+      stop: "process" as const,
+    };
+
+    expect(
+      AppGroupSnapshotSchema.safeParse({
+        ...appGroup,
+        run: { startedAt: "now", worktreePath: "/repo", unexpected: true },
+      }).success
+    ).toBe(false);
+    expect(
+      AppGroupSnapshotSchema.safeParse({
+        ...appGroup,
+        dependencies: [
+          {
+            groupId: "infra",
+            instanceId: "main",
+            name: "Database",
+            extra: true,
+          },
+        ],
+      }).success
+    ).toBe(false);
   });
 });
 

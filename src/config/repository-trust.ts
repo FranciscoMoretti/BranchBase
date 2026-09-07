@@ -1,9 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
+  rmdirSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
@@ -25,8 +27,50 @@ const TrustStoreSchema = z.record(
   z.union([z.boolean(), z.string(), z.array(z.string())])
 );
 
+function withTrustStoreLock<T>(
+  controlDirectory: string,
+  action: (file: string) => T
+): T {
+  const file = trustFile(controlDirectory);
+  mkdirSync(controlDirectory, { recursive: true });
+  const lockDirectory = `${file}.write-lock`;
+  try {
+    mkdirSync(lockDirectory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(
+        `Repository trust store is busy; retry the approval change. If a writer was interrupted, stop BranchBase processes before removing ${lockDirectory}.`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
+  try {
+    return action(file);
+  } finally {
+    rmdirSync(lockDirectory);
+  }
+}
+
+function writeTrustStore(
+  file: string,
+  store: Record<string, boolean | string | string[]>
+): void {
+  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporary, `${JSON.stringify(store, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    renameSync(temporary, file);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
+
 function trustStore(
-  controlDirectory?: string
+  controlDirectory?: string,
+  failOnInvalid = false
 ): Record<string, boolean | string | string[]> {
   const file = trustFile(controlDirectory);
   if (!existsSync(file)) {
@@ -34,7 +78,13 @@ function trustStore(
   }
   try {
     return TrustStoreSchema.parse(JSON.parse(readFileSync(file, "utf8")));
-  } catch {
+  } catch (error) {
+    if (failOnInvalid) {
+      throw new Error(
+        "Repository trust store is invalid; refusing to overwrite it.",
+        { cause: error }
+      );
+    }
     return {};
   }
 }
@@ -107,29 +157,31 @@ export function trustRepository(
   controlDirectory?: string
 ): void {
   const directory = controlDirectory ?? defaultControlDirectory();
-  const file = trustFile(directory);
-  const store = trustStore(directory);
-  const existing = store[repoPath];
-  let fingerprints: string[] = [];
-  if (Array.isArray(existing)) {
-    fingerprints = existing;
-  } else if (typeof existing === "string") {
-    fingerprints = [existing];
-  }
   const fingerprint = repositoryCommandFingerprint(config);
-  mkdirSync(directory, { recursive: true });
-  const temporary = `${file}.${process.pid}`;
-  writeFileSync(
-    temporary,
-    `${JSON.stringify(
-      {
-        ...store,
-        [repoPath]: [...new Set([...fingerprints, fingerprint])],
-      },
-      null,
-      2
-    )}\n`,
-    { mode: 0o600 }
-  );
-  renameSync(temporary, file);
+  withTrustStoreLock(directory, (file) => {
+    const store = trustStore(directory, true);
+    const existing = store[repoPath];
+    let fingerprints: string[] = [];
+    if (Array.isArray(existing)) {
+      fingerprints = existing;
+    } else if (typeof existing === "string") {
+      fingerprints = [existing];
+    }
+    writeTrustStore(file, {
+      ...store,
+      [repoPath]: [...new Set([...fingerprints, fingerprint])],
+    });
+  });
+}
+
+export function revokeRepositoryTrust(
+  repoPath: string,
+  controlDirectory?: string
+): void {
+  const directory = controlDirectory ?? defaultControlDirectory();
+  withTrustStoreLock(directory, (file) => {
+    const store = trustStore(directory, true);
+    delete store[repoPath];
+    writeTrustStore(file, store);
+  });
 }

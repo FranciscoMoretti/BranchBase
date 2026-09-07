@@ -1,6 +1,5 @@
-import { ArrowLeftIcon, CircleAlertIcon } from "lucide-react";
+import { ArrowLeftIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-
 import {
   type BranchBaseConfig,
   BranchBaseConfigSchema,
@@ -10,7 +9,7 @@ import {
   loadConfigDraft,
   saveConfigDraft,
 } from "../config-draft";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { FormFeedback } from "../product/async-state";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 
@@ -96,8 +95,12 @@ export function RepositoryConfigPage({
     if (!parsed.success) {
       return;
     }
-    await onSave(parsed.data);
-    clearConfigDraft(configPath);
+    try {
+      await onSave(parsed.data);
+      clearConfigDraft(configPath);
+    } catch {
+      // The parent presents the save error; retain the editable draft.
+    }
   }
 
   function discardChanges(): void {
@@ -106,11 +109,11 @@ export function RepositoryConfigPage({
   }
 
   return (
-    <main className="flex h-screen min-w-0 flex-col bg-background">
+    <section className="flex min-w-0 flex-col bg-background">
       <header className="shrink-0 border-b bg-background">
         <div className="mx-auto flex w-full max-w-5xl items-start gap-3 px-6 py-5">
           <Button
-            aria-label="Back to worktrees"
+            aria-label="Back to project settings"
             onClick={requestClose}
             size="icon"
             variant="ghost"
@@ -118,9 +121,7 @@ export function RepositoryConfigPage({
             <ArrowLeftIcon />
           </Button>
           <div>
-            <h1 className="font-heading font-medium text-xl">
-              Repository settings
-            </h1>
+            <h1 className="font-heading font-medium text-xl">Configuration</h1>
             <p className="text-muted-foreground text-sm">
               Checked-in App groups, lifecycle commands, environment templates,
               and readiness.
@@ -135,7 +136,9 @@ export function RepositoryConfigPage({
             <p className="text-muted-foreground text-sm">
               HTTP Apps receive stable Friendly URLs and dynamic backing ports.
               Use tokens such as {"{apps.web.port}"} and {"{apps.web.url}"} in
-              group environment variables.
+              group environment variables. Set an app group's category to
+              "infrastructure" to include its instances in the Infrastructure
+              tab.
             </p>
           </div>
           <Textarea
@@ -145,20 +148,14 @@ export function RepositoryConfigPage({
             spellCheck={false}
             value={source}
           />
-          {validationMessage ? (
-            <Alert variant="destructive">
-              <CircleAlertIcon />
-              <AlertTitle>Configuration needs attention</AlertTitle>
-              <AlertDescription>{validationMessage}</AlertDescription>
-            </Alert>
-          ) : null}
-          {error ? (
-            <Alert variant="destructive">
-              <CircleAlertIcon />
-              <AlertTitle>Could not save configuration</AlertTitle>
-              <AlertDescription>{error.message}</AlertDescription>
-            </Alert>
-          ) : null}
+          <FormFeedback
+            error={validationMessage ? new Error(validationMessage) : error}
+            title={
+              validationMessage
+                ? "Configuration needs attention"
+                : "Could not save configuration"
+            }
+          />
         </div>
       </div>
       <footer className="shrink-0 border-t bg-background">
@@ -190,6 +187,6 @@ export function RepositoryConfigPage({
           )}
         </div>
       </footer>
-    </main>
+    </section>
   );
 }

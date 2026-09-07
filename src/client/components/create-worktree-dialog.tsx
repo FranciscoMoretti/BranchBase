@@ -1,8 +1,8 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { useState } from "react";
-
 import type { CommandReceipt } from "../../controller/workspace-snapshot";
+import { FormFeedback } from "../product/async-state";
 import type { RequestRepositoryTrust } from "../use-repository-trust";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -14,13 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "./ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "./ui/field";
 import { Input } from "./ui/input";
 
 type CreateWorktreeInput = Record<string, unknown> & { repoPath: string };
@@ -120,7 +114,10 @@ export function CreateWorktreeDialog({
                 Choose the sibling folder where Git will create the worktree.
               </FieldDescription>
             </Field>
-            {error ? <FieldError>{error}</FieldError> : null}
+            <FormFeedback
+              error={error ? new Error(error) : null}
+              title="Could not create worktree"
+            />
           </FieldGroup>
           <DialogFooter>
             <Button

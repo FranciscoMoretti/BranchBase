@@ -1,10 +1,10 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
-
 import type {
   CommandReceipt,
   WorktreeSnapshot,
 } from "../../controller/workspace-snapshot";
+import { FormFeedback } from "../product/async-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +64,10 @@ export function DeleteWorktreeDialog({
           Git will refuse if the worktree has uncommitted changes. BranchBase
           never forces removal.
         </p>
-        {error ? <p className="field-error">{error}</p> : null}
+        <FormFeedback
+          error={error ? new Error(error) : null}
+          title="Could not remove worktree"
+        />
         <AlertDialogFooter>
           <AlertDialogCancel disabled={mutation.isPending}>
             Cancel

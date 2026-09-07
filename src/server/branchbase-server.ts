@@ -6,7 +6,6 @@ import {
   type ServerResponse,
 } from "node:http";
 import { extname, join } from "node:path";
-
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { createCodexHookCapability } from "../codex/codex-hook-capability";
 import {
@@ -15,6 +14,15 @@ import {
 } from "../codex/codex-integration";
 import { AppGroupLifecycleError } from "../controller/app-group-lifecycle-error";
 import { isBranchBaseCommandName } from "../controller/command-contract";
+import {
+  FoldersResponseSchema,
+  ObservationSchema,
+} from "../controller/discovery-contract";
+import {
+  ActivityResponseSchema,
+  ProjectsResponseSchema,
+} from "../controller/product-contract";
+import { ProductCatalogError } from "../controller/product-store";
 import {
   MissingWorktreeConfigError,
   WorkspaceController,
@@ -40,7 +48,13 @@ const CONTENT_TYPES: Record<string, string> = {
 export type BranchBaseServerController = Pick<
   WorkspaceController,
   "close" | "execute" | "handleCodexHook" | "inspect" | "inspectCodex" | "logs"
->;
+> &
+  Partial<
+    Pick<
+      WorkspaceController,
+      "projects" | "activity" | "observeRepository" | "developmentFolders"
+    >
+  >;
 
 export interface BranchBaseServerOptions {
   appRoot: string;
@@ -66,6 +80,9 @@ function sendJson(response: ServerResponse, status: number, value: unknown) {
 }
 
 function errorBody(error: unknown) {
+  if (error instanceof ProductCatalogError) {
+    return { code: error.code, error: error.message };
+  }
   if (error instanceof CodexIntegrationUnavailableError) {
     return { code: error.code, error: error.message };
   }
@@ -133,10 +150,66 @@ export async function createBranchBaseServer(
     );
   }
 
+  function handleDiscoveryGet(url: URL, response: ServerResponse): boolean {
+    if (url.pathname === "/api/observation") {
+      if (!controller.observeRepository) {
+        sendJson(response, 501, {
+          code: "observation-unavailable",
+          error: "Repository observation is unavailable.",
+        });
+        return true;
+      }
+      sendJson(
+        response,
+        200,
+        ObservationSchema.parse(
+          controller.observeRepository(url.searchParams.get("repoPath") ?? "")
+        )
+      );
+      return true;
+    }
+    if (url.pathname === "/api/development-folders") {
+      sendJson(
+        response,
+        200,
+        FoldersResponseSchema.parse({
+          folders: controller.developmentFolders?.() ?? [],
+        })
+      );
+      return true;
+    }
+    return false;
+  }
   async function handleGetApi(
     url: URL,
     response: ServerResponse
   ): Promise<boolean> {
+    if (handleDiscoveryGet(url, response)) {
+      return true;
+    }
+    if (url.pathname === "/api/projects") {
+      sendJson(
+        response,
+        200,
+        ProjectsResponseSchema.parse({
+          projects: controller.projects?.() ?? [],
+        })
+      );
+      return true;
+    }
+    if (url.pathname === "/api/activity") {
+      sendJson(
+        response,
+        200,
+        ActivityResponseSchema.parse({
+          events:
+            controller.activity?.(
+              url.searchParams.get("repoPath") ?? undefined
+            ) ?? [],
+        })
+      );
+      return true;
+    }
     if (url.pathname === "/api/health") {
       sendJson(response, 200, {
         ok: true,

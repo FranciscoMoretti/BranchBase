@@ -120,6 +120,30 @@ See the official [Codex plugin](https://learn.chatgpt.com/docs/plugins) and
 [hook](https://learn.chatgpt.com/docs/hooks) documentation for the underlying
 installation and trust model.
 
+## Discover projects without configuration
+
+Use **Add project → Development folder** to watch a folder containing Git
+repositories, or choose **Single project** to add one repository. BranchBase
+includes linked worktrees even when their checkouts live outside that folder.
+No `.branchbase.json` is needed for observation.
+
+On macOS, observed projects show associated TCP listeners, process start times,
+and sampled CPU and memory. Verified HTTP listeners have Open links; other
+listeners have copyable addresses. Processes are associated by working directory
+and Git root. BranchBase does not infer app groups, claim who launched a process,
+retrieve an external process's logs, or take control of it.
+
+Development-folder scans run every 30 seconds while the dashboard is active;
+**Development folders → Scan now** refreshes them immediately. Scans go three
+levels deep, skip hidden and dependency directories and symlinks, and stop
+traversing once a repository is found. Each folder scan is limited to 2,000
+visited directories and 100 repositories; up to 20 development folders can be
+watched. Removing a folder keeps discovered projects. Removing a project
+suppresses its rediscovery until it is explicitly added again.
+
+**Configure app groups** creates a reviewed starter configuration. Command
+approval remains a separate step before Start or Setup can execute anything.
+
 ## Repository configuration
 
 Commit `.branchbase.json` at the repository root. The setup command prepares one
@@ -149,6 +173,7 @@ worktree; each app group can then be started and stopped independently.
       }
     },
     "Local Infrastructure": {
+      "category": "infrastructure",
       "instances": { "mode": "selectable" },
       "start": { "argv": ["docker", "compose", "up", "-d"] },
       "stop": { "argv": ["docker", "compose", "down"] },
@@ -168,7 +193,7 @@ Important configuration behavior:
 
 - The Primary worktree's `.branchbase.json` is the Project default. Every
   worktree inherits it unless **This worktree** is selected as its Configuration
-  source in the inspector.
+  source in App-group details → Configuration.
 - A worktree-specific selection reads `.branchbase.json` from that worktree, so
   a branch can test different commands or App groups without changing its
   siblings. If the selected file is missing or invalid, BranchBase visibly falls
@@ -178,6 +203,9 @@ Important configuration behavior:
   that process and terminates it on Stop.
 - A command-based Stop is useful for detached infrastructure such as Docker
   Compose.
+- Set `"category": "infrastructure"` on an App group to include its instances in
+  the Infrastructure tab. The default is `"application"`; names do not determine
+  category. Shared instances appear once, with their selecting worktrees.
 - App groups default to `"instances": { "mode": "per-worktree" }`, which gives
   every worktree its own stable endpoints without any slot or port setup.
 - `"mode": "selectable"` creates a shared Default instance and lets each
@@ -192,9 +220,10 @@ Important configuration behavior:
   reference another selected instance's host, port, direct URL, or Friendly URL
   with tokens such as `{appGroups.Local Infrastructure.apps.Postgres.port}`.
 
-If a repository has no configuration, BranchBase can suggest conservative setup
-and start commands for Node.js, Django, FastAPI, Rust, Go, and Docker Compose.
-You still review and trust the resulting command fingerprint before it runs.
+For a repository without configuration, BranchBase can prepare a starter file
+based on common runtime markers. Undetected commands are clearly labeled and
+require editing for the project. Creating the file does not approve commands;
+you review and trust the resulting fingerprint before anything runs.
 
 ### Repository tooling API
 

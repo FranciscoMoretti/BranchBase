@@ -1,7 +1,7 @@
 import { FolderGit2Icon, FolderOpenIcon } from "lucide-react";
 import type { FormEvent } from "react";
-
 import type { WorkspaceSnapshot } from "../../controller/workspace-snapshot";
+import { FormFeedback } from "../product/async-state";
 import { useRepositoryOpen } from "../use-repository-open";
 import { useRepositoryPicker } from "../use-repository-picker";
 import { useRepositorySetup } from "../use-repository-setup";
@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { EmptyMedia } from "./ui/empty";
-import { Field, FieldError, FieldGroup, FieldLabel } from "./ui/field";
+import { Field, FieldGroup, FieldLabel } from "./ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "./ui/input-group";
 
 export function Onboarding({
@@ -61,8 +61,12 @@ export function Onboarding({
     if (setup.active) {
       return setup.notice();
     }
-    const message = opener.error?.message ?? picker.error;
-    return message ? <FieldError>{message}</FieldError> : null;
+    return (
+      <FormFeedback
+        error={opener.error ?? (picker.error ? new Error(picker.error) : null)}
+        title="Could not open project"
+      />
+    );
   }
   return (
     <main className="onboarding-shell brand-canvas min-h-screen">

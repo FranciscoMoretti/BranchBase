@@ -2,16 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchCodexIntegration, fetchLogs, fetchWorkspace } from "./api";
 
-export const REFRESH_INTERVAL = 30_000;
+export const REFRESH_INTERVAL = 5000;
 const CODEX_REFRESH_INTERVAL = 2500;
 
-export function useWorkspace(repoPath: string) {
+export function useWorkspace(repoPath: string, enabled = true) {
   return useQuery({
-    enabled: repoPath !== "",
+    enabled: repoPath !== "" && enabled,
     queryFn: () => fetchWorkspace(repoPath),
     queryKey: ["workspace", repoPath],
-    refetchInterval: (query) =>
-      query.state.status === "error" ? false : REFRESH_INTERVAL,
+    refetchInterval: REFRESH_INTERVAL,
     retry: false,
     staleTime: REFRESH_INTERVAL,
   });

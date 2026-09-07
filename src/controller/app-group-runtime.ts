@@ -191,6 +191,14 @@ export class AppGroupRuntime {
     });
     return {
       apps,
+      category: group.category ?? "application",
+      run: run
+        ? { startedAt: run.createdAt, worktreePath: run.worktreePath }
+        : null,
+      dependencies: this.inspectDependencies(target, group, run),
+      pending: this.lifecycleOperations.has(
+        this.lifecycleKey(target.repoPath, instance.id)
+      ),
       health: groupHealth(apps),
       id: target.groupId,
       instance: {
@@ -222,6 +230,31 @@ export class AppGroupRuntime {
       processRunning,
       stop: group.stop === "process" ? "process" : "command",
     };
+  }
+
+  private inspectDependencies(
+    target: AppGroupTarget,
+    group: BranchBaseAppGroup,
+    run: AppGroupRun | null
+  ) {
+    const templates = [...Object.values(group.env ?? {}), ...group.start.argv];
+    return Object.keys(target.config.appGroups)
+      .filter(
+        (groupId) =>
+          groupId !== target.groupId &&
+          templates.some((value) =>
+            value.includes(`{appGroups.${groupId}.apps.`)
+          )
+      )
+      .flatMap((groupId) => {
+        const instanceId = run?.instanceIdsByGroup[groupId];
+        const instance = instanceId
+          ? this.state.instanceById(target.repoPath, instanceId)
+          : this.state.instance(this.instanceRequest({ ...target, groupId }));
+        return instance
+          ? [{ groupId, instanceId: instance.id, name: instance.name }]
+          : [];
+      });
   }
 
   start(target: AppGroupTarget): Promise<"already-running" | "started"> {
