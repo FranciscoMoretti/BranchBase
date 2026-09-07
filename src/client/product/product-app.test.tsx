@@ -67,7 +67,7 @@ const mount = async () => {
 
 afterEach(async () => {
   if (root) {
-    await act(async () => root?.unmount());
+    await act(() => root?.unmount());
   }
   root = null;
   dom = null;
@@ -123,7 +123,7 @@ test("dirty Back cancel then discard preserves indexed history", async () => {
   }
   const appDom = dom;
   await settleHistory();
-  const history = appDom.window.history;
+  const { history } = appDom.window;
   const anchor = appDom.document.createElement("a");
   anchor.href = "/?view=machine&section=configuration";
   anchor.textContent = "Settings";

@@ -77,7 +77,7 @@ test("HTTP detection retries a failed probe after the short negative cache", asy
     hostname: "127.0.0.1",
     port: 0,
   });
-  const port = reservation.port;
+  const { port } = reservation;
   if (port === undefined) {
     throw new Error("Expected a reserved port.");
   }

@@ -5,15 +5,15 @@ import type { DetectedService } from "../controller/discovery-contract";
 import { inspectProcessSamples, processTreeUsage } from "./process-usage";
 import type { ProcessSample } from "./process-usage";
 
-const LINES = /\r?\n/;
-const END_PORT = /:(\d+)$/;
-const WHITESPACE = /\s+/;
+const LINES = /\r?\n/u;
+const END_PORT = /:(?<port>\d+)$/u;
+const WHITESPACE = /\s+/u;
 const POSITIVE_PROBE_TTL = 30_000;
 export const NEGATIVE_PROBE_TTL_MS = 1000;
 export const PROBE_TIMEOUT_MS = 700;
 export const parseListeners = (output: string) => {
-  let pid = 0,
-    command = "Process";
+  let command = "Process";
+  let pid = 0;
   const rows: {
     pid: number;
     command: string;
@@ -109,10 +109,21 @@ const evictProbes = (
     }
   }
   while (probes.size > 1024) {
-    const oldest = [...probes.entries()].reduce((candidate, entry) =>
-      entry[1].at < candidate[1].at ? entry : candidate
-    );
-    probes.delete(oldest[0]);
+    const entries = [...probes.entries()];
+    const [first] = entries;
+    if (!first) {
+      return;
+    }
+    let oldest = first;
+    for (const entry of entries.slice(1)) {
+      const [, probe] = entry;
+      const [, oldestProbe] = oldest;
+      if (probe.at < oldestProbe.at) {
+        oldest = entry;
+      }
+    }
+    const [oldestKey] = oldest;
+    probes.delete(oldestKey);
   }
 };
 /** Observation only. These PIDs are never authority to terminate a process. */
@@ -235,7 +246,7 @@ export class DetectedServices {
     if (this.activeProbes >= 4) {
       return cached?.url ?? null;
     }
-    this.activeProbes++;
+    this.activeProbes += 1;
     this.probes.set(key, { at: Date.now(), url: cached?.url ?? null });
     const url = address.startsWith("[::1]:")
       ? `http://[::1]:${port}`
@@ -250,13 +261,15 @@ export class DetectedServices {
           at: Date.now(),
           url: response.status > 0 ? url : null,
         });
-        response.body?.cancel().catch(() => undefined);
+        response.body?.cancel().catch(() => {
+          // Probe body cleanup is best effort.
+        });
       })
       .catch(() => {
         this.probes.set(key, { at: Date.now(), url: null });
       })
       .finally(() => {
-        this.activeProbes--;
+        this.activeProbes -= 1;
       });
     evictProbes(this.probes, Date.now());
     return cached?.url ?? null;

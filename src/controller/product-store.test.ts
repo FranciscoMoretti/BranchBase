@@ -153,7 +153,7 @@ const observedFixture = () => {
 test("observed shared runtime transitions are durable, deduplicated, and include route failures", async () => {
   const { product, directory, snapshot, controller } = observedFixture();
   try {
-    const worktree = snapshot.worktrees[0];
+    const [worktree] = snapshot.worktrees;
     snapshot.worktrees.push({
       ...structuredClone(worktree),
       branch: "second",
@@ -162,7 +162,7 @@ test("observed shared runtime transitions are durable, deduplicated, and include
     product.observe(snapshot);
     expect(product.events()).toHaveLength(0);
     for (const item of snapshot.worktrees) {
-      const group = item.appGroups[0];
+      const [group] = item.appGroups;
       group.health = "running";
       group.processRunning = true;
       group.apps[0].readiness = "ready";

@@ -11,8 +11,8 @@ export interface ProcessSample {
   parentPid: number;
   pid: number;
 }
-const WHITESPACE = /\s+/;
-const LINE_BREAK = /\r?\n/;
+const WHITESPACE = /\s+/u;
+const LINE_BREAK = /\r?\n/u;
 const SAMPLE_CACHE_TTL = 250;
 let cachedSamples: { at: number; samples: ProcessSample[] | null } | null =
   null;

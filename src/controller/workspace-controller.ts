@@ -511,7 +511,7 @@ export class WorkspaceController {
       );
     }
     const configDocument = loadBranchBaseConfigDocument(configPath);
-    const config = configDocument.config;
+    const { config } = configDocument;
     const primaryGroupId = primaryAppGroup(config);
     const ports = inspectListeningPorts();
     const worktrees = discovered.map((item, index) => {
@@ -1132,8 +1132,12 @@ export class WorkspaceController {
       return;
     }
     const refresh = this.inspectCodex(root, { force: true })
-      .then(() => undefined)
-      .catch(() => undefined)
+      .then(() => {
+        // Refresh completion is intentionally ignored.
+      })
+      .catch(() => {
+        // Refresh failures are handled by the next observation.
+      })
       .finally(() => {
         this.discardUnmatchedCodexObservations(root);
         if (this.codexRefreshes.get(root) === refresh) {

@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 
-const TRAILING_SLASH = /\/$/;
+const TRAILING_SLASH = /\/$/u;
 
 export interface HostAdapter {
   openUrl: (url: string) => void;
@@ -10,7 +10,9 @@ export interface HostAdapter {
 export class MacOSHostAdapter implements HostAdapter {
   openUrl(url: string): void {
     const child = spawn("open", [url], { detached: true, stdio: "ignore" });
-    child.on("error", () => undefined);
+    child.on("error", () => {
+      // Opening a URL is best effort.
+    });
     child.unref();
   }
 

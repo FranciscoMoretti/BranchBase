@@ -23,7 +23,7 @@ const APP_ROOT = pathModule.dirname(import.meta.dirname);
 const CONTROL_DIR = pathModule.join(homedir(), ".branchbase");
 const PID_FILE = pathModule.join(CONTROL_DIR, "server.pid");
 const LOG_FILE = pathModule.join(CONTROL_DIR, "server.log");
-const command = process.argv[2];
+const [command] = process.argv.slice(2);
 const selectedRepoPath = repositoryPathFromArgs(
   process.argv.slice(3),
   process.env.INIT_CWD

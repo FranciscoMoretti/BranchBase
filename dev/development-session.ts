@@ -71,7 +71,7 @@ const acquireDevelopmentOwnership = (
     );
   } catch (error) {
     if (error instanceof ExclusiveFileLockBusyError) {
-      throw new Error(
+      throw new TypeError(
         "BranchBase development is already running for this checkout",
         { cause: error }
       );
@@ -139,7 +139,7 @@ const openDevelopmentRouting = async (
   const conflictingPorts = new Set<number>();
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const reservation = await reserveBackingPort(conflictingPorts);
-    const port = reservation.port;
+    const { port } = reservation;
     await reservation.release();
     try {
       return await prepareDevelopmentRouting(stateDirectory, port);

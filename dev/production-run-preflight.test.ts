@@ -100,7 +100,7 @@ it("rejects a worktree with a verified production run", async () => {
   const canonicalWorktreePath = realpathSync(worktreePath);
   const processes = new ProcessSupervisor(productionControlDirectory);
   const portReservation = await reserveBackingPort();
-  const port = portReservation.port;
+  const { port } = portReservation;
   const { instanceId } = recordProductionRun(
     productionControlDirectory,
     canonicalWorktreePath,
@@ -160,7 +160,7 @@ it("rejects an orphaned listener that still belongs to the worktree", async () =
   mkdirSync(worktreePath);
   const canonicalWorktreePath = realpathSync(worktreePath);
   const portReservation = await reserveBackingPort();
-  const port = portReservation.port;
+  const { port } = portReservation;
   recordProductionRun(productionControlDirectory, canonicalWorktreePath, port);
   await portReservation.release();
   const child = spawn(
@@ -217,7 +217,7 @@ it("rejects a claimed command-managed listener outside the worktree", async () =
   mkdirSync(worktreePath);
   const canonicalWorktreePath = realpathSync(worktreePath);
   const portReservation = await reserveBackingPort();
-  const port = portReservation.port;
+  const { port } = portReservation;
   recordProductionRun(productionControlDirectory, canonicalWorktreePath, port, {
     listenerClaimed: true,
   });

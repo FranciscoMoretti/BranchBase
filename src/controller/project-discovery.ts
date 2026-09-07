@@ -97,12 +97,13 @@ export class ProjectDiscovery {
     const roots = new Set<string>();
     try {
       const scan = scanRepositories(path);
-      warning = scan.warning;
-      if (scan.repositories.length > 100) {
+      const { repositories, warning: scanWarning } = scan;
+      warning = scanWarning;
+      if (repositories.length > 100) {
         warning =
           "Showing the first 100 repositories in this folder. Add more specific folders to discover the rest.";
       }
-      for (const candidate of scan.repositories.slice(0, 100)) {
+      for (const candidate of repositories.slice(0, 100)) {
         try {
           const root = this.worktrees(candidate)[0]?.path;
           if (root) {

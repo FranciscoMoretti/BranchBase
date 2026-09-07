@@ -168,12 +168,12 @@ const emptyState = (): BranchBaseLocalState => ({
 const routeLabel = (value: string): string => {
   const normalized = value
     .normalize("NFKD")
-    .replaceAll(/[\u0300-\u036F]/g, "")
+    .replaceAll(/[\u0300-\u036F]/gu, "")
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "")
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-+|-+$/gu, "")
     .slice(0, 48)
-    .replaceAll(/-+$/g, "");
+    .replaceAll(/-+$/gu, "");
   return normalized || "app";
 };
 
@@ -584,7 +584,8 @@ export class FileBranchBaseStateStore {
       return value;
     } catch (error) {
       throw new Error(
-        `Invalid BranchBase local state: ${error instanceof Error ? error.message : String(error)}`
+        `Invalid BranchBase local state: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   }

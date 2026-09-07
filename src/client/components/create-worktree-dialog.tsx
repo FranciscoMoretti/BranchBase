@@ -34,16 +34,16 @@ export const CreateWorktreeDialog = ({
   const [branch, setBranch] = useState("");
   const [createBranch, setCreateBranch] = useState(true);
   const [folderName, setFolderName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const create = async (input: CreateWorktreeInput) => {
     try {
-      setError(null);
+      setMessage(null);
       await mutation.mutateAsync(input);
       onClose();
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not create worktree"
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Could not create worktree"
       );
     }
   };
@@ -51,11 +51,11 @@ export const CreateWorktreeDialog = ({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!branch.trim()) {
-      setError("Branch is required.");
+      setMessage("Branch is required.");
       return;
     }
     if (!folderName.trim()) {
-      setError("Folder name is required.");
+      setMessage("Folder name is required.");
       return;
     }
     requestRepositoryTrust("Create this worktree and run setup", () =>
@@ -116,7 +116,7 @@ export const CreateWorktreeDialog = ({
               </FieldDescription>
             </Field>
             <FormFeedback
-              error={error ? new Error(error) : null}
+              error={message ? new Error(message) : null}
               title="Could not create worktree"
             />
           </FieldGroup>

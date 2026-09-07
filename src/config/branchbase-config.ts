@@ -158,7 +158,7 @@ export const resolveStopCommand = (
   groupId: string,
   appGroups: ResolvedBranchBaseAppGroups
 ): ResolvedBranchBaseCommand | null => {
-  const stop = group(config, groupId).stop;
+  const { stop } = group(config, groupId);
   return stop === "process"
     ? null
     : resolveCommand(config, groupId, stop, appGroups);

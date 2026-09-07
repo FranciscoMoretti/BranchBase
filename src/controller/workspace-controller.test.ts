@@ -31,7 +31,21 @@ import {
 } from "./workspace-snapshot";
 import { commandWorkingDirectory } from "./worktree-command";
 
-const CLEANUP_APP_GROUP = /^cleanup:/;
+const CLEANUP_APP_GROUP = /^cleanup:/u;
+
+const config = (groupId: string, startCommand = "true") => ({
+  appGroups: {
+    [groupId]: {
+      apps: {
+        web: { protocol: "http", readiness: "tcp" },
+      },
+      start: { argv: [startCommand] },
+      stop: "process",
+    },
+  },
+  setup: { argv: ["true"] },
+  version: 1,
+});
 
 class FakeRoutingEngine implements LocalRoutingEngine {
   async activate(_route: LocalRoute): Promise<void> {
@@ -118,19 +132,6 @@ describe("slot-free workspace inspection", () => {
     const experiment = pathModule.join(sandbox, "chat-js-experiment");
     const statePath = pathModule.join(sandbox, ".local", "state.json");
     const controlDirectory = pathModule.join(sandbox, ".control");
-    const config = (groupId: string, startCommand = "true") => ({
-      appGroups: {
-        [groupId]: {
-          apps: {
-            web: { protocol: "http", readiness: "tcp" },
-          },
-          start: { argv: [startCommand] },
-          stop: "process",
-        },
-      },
-      setup: { argv: ["true"] },
-      version: 1,
-    });
     try {
       mkdirSync(root);
       spawnSync("git", ["init", "-q"], { cwd: root });

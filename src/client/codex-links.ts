@@ -1,6 +1,6 @@
 const MAX_CODEX_TASK_ID_LENGTH = 512;
 const MAX_WORKTREE_PATH_LENGTH = 4096;
-const UNESCAPED_RFC_3986_CHARACTERS = /[!'()*]/g;
+const UNESCAPED_RFC_3986_CHARACTERS = /[!'()*]/gu;
 
 const hasControlCharacter = (value: string): boolean => {
   for (const character of value) {

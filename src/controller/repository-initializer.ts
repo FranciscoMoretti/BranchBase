@@ -9,7 +9,7 @@ import {
 import type { BranchBaseCommand } from "../config/branchbase-command";
 import type { WorktreeEnvConfig } from "../config/branchbase-config";
 
-const FASTAPI_DEPENDENCY = /\bfastapi\b/i;
+const FASTAPI_DEPENDENCY = /\bfastapi\b/iu;
 const COMPOSE_FILES = [
   "compose.yaml",
   "compose.yml",

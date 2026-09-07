@@ -83,9 +83,10 @@ export const ProductApp = () => {
     }
     historyInitialized.current = true;
   }, []);
-  const historyAction = useRef<
-    { kind: "restore" | "accept"; index: number } | undefined
-  >(undefined);
+  const historyAction = useRef<{
+    kind: "restore" | "accept";
+    index: number;
+  } | null>(null);
   const currentHref = useRef(window.location.href);
   const scrollPositions = useRef(new Map<string, number>());
   const [pendingHref, setPendingHref] = useState<string | null>(null);
@@ -120,7 +121,7 @@ export const ProductApp = () => {
   );
   useEffect(() => {
     const setDirty = (event: Event) => {
-      const detail = (event as CustomEvent<boolean>).detail;
+      const { detail } = event as CustomEvent<boolean>;
       if (typeof detail === "boolean") {
         dirty.current = detail;
       }
@@ -137,7 +138,7 @@ export const ProductApp = () => {
       const targetIndex = readHistoryIndex(window.history.state);
       const action = historyAction.current;
       if (action && targetIndex === action.index) {
-        historyAction.current = undefined;
+        historyAction.current = null;
         if (action.kind === "restore") {
           return;
         }
@@ -241,7 +242,9 @@ export const ProductApp = () => {
         localStorage.setItem("branchbase:projects-migrated", "1");
         return client.invalidateQueries({ queryKey: ["projects"] });
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // Migration failure is surfaced by the next project request.
+      });
   }, [client]);
   const inspectedPath = observation.data?.repoPath;
   useEffect(() => {
@@ -265,7 +268,9 @@ export const ProductApp = () => {
     }
     runCommand("save-project", { repoPath: inspectedPath })
       .then(() => client.invalidateQueries({ queryKey: ["projects"] }))
-      .catch(() => undefined);
+      .catch(() => {
+        // Project save failure is surfaced by the next observation.
+      });
   }, [inspectedPath, client, projects.data]);
   const project = projects.data?.find(
     (item) =>

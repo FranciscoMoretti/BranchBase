@@ -29,7 +29,7 @@ export const scanRepositories = (root: string, maxDepth = 3, limit = 2000) => {
     if (!current) {
       break;
     }
-    visited++;
+    visited += 1;
     if (existsSync(pathModule.join(current.path, ".git"))) {
       repositories.push(current.path);
       continue;
@@ -53,7 +53,7 @@ export const scanRepositories = (root: string, maxDepth = 3, limit = 2000) => {
         }
       }
     } catch {
-      unreadable++;
+      unreadable += 1;
     }
   }
   let warning: string | null = null;

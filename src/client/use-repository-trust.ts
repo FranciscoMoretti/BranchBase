@@ -60,7 +60,9 @@ export const useRepositoryTrust = ({
       if (!(required && !requestTrusted)) {
         Promise.resolve()
           .then(action)
-          .catch(() => undefined);
+          .catch(() => {
+            // The action's result is reflected by the next observation.
+          });
         return;
       }
       setRequest({

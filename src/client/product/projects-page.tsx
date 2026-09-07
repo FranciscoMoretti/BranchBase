@@ -119,7 +119,7 @@ const attentionNotice = (
   return null;
 };
 const ProjectRow = ({ project }: { project: ProjectOverview }) => {
-  const workspace = project.workspace;
+  const { workspace } = project;
   const detected =
     project.observation?.worktrees.flatMap((worktree) =>
       worktree.services

@@ -136,7 +136,7 @@ export class AppGroupRuntime {
     instance: AppGroupInstance,
     ports: ReturnType<typeof inspectListeningPorts>
   ): AppGroupSnapshot {
-    const run = instance.run;
+    const { run } = instance;
     if (!run) {
       throw new Error("Cleanup target has no persisted run");
     }
@@ -428,7 +428,7 @@ export class AppGroupRuntime {
     instance: AppGroupInstance,
     stopCommandTrusted: boolean
   ): Promise<"already-stopped" | "stopped"> {
-    const run = instance.run;
+    const { run } = instance;
     if (!run) {
       return "already-stopped";
     }
@@ -587,12 +587,14 @@ export class AppGroupRuntime {
     const operationKeys = [...new Set(keys)].toSorted();
     const predecessor = Promise.all(
       operationKeys.map((key) =>
-        (this.lifecycleOperations.get(key) ?? Promise.resolve()).catch(
-          () => undefined
-        )
+        (this.lifecycleOperations.get(key) ?? Promise.resolve()).catch(() => {
+          // A predecessor failure does not block the next operation.
+        })
       )
-    ).then(() => undefined);
-    let release: () => void = () => undefined;
+    ).then(() => {
+      // Predecessor completion only releases the operation queue.
+    });
+    let release: (() => void) | undefined;
     const completion = new Promise<void>((resolve) => {
       release = resolve;
     });
@@ -604,7 +606,7 @@ export class AppGroupRuntime {
     try {
       return await operation();
     } finally {
-      release();
+      release?.();
       for (const key of operationKeys) {
         if (this.lifecycleOperations.get(key) === tail) {
           this.lifecycleOperations.delete(key);
@@ -784,7 +786,7 @@ export class AppGroupRuntime {
     stop: BranchBaseAppGroup["stop"],
     ports: ReturnType<typeof inspectListeningPorts>
   ): boolean {
-    const run = instance.run;
+    const { run } = instance;
     if (!run) {
       return false;
     }
