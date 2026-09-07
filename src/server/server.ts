@@ -1,9 +1,8 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import pathModule from "node:path";
 
 import { createBranchBaseServer } from "./branchbase-server";
 
-const appRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+const appRoot = pathModule.dirname(pathModule.dirname(import.meta.dirname));
 const server = await createBranchBaseServer({
   appRoot,
   ...(process.env.BRANCHBASE_CODEX_CONTROL_DIR

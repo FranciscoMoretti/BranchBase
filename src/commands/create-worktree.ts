@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import pathModule from "node:path";
 
 import type { WorkspaceController } from "../controller/workspace-controller";
 import type { CommandReceipt } from "../controller/workspace-snapshot";
@@ -13,7 +13,7 @@ function run(argv: string[], cwd: string, env = process.env): string {
   const [command, ...args] = argv;
   const result = spawnSync(command, args, {
     cwd,
-    encoding: "utf8",
+    encoding: "utf-8",
     env,
     maxBuffer: 16 * 1024 * 1024,
   });
@@ -43,7 +43,10 @@ export function createWorktree(
       "Folder name can only contain letters, numbers, dot, underscore, and dash"
     );
   }
-  const target = join(dirname(workspace.mainWorktreePath), folderName);
+  const target = pathModule.join(
+    pathModule.dirname(workspace.mainWorktreePath),
+    folderName
+  );
   if (existsSync(target)) {
     throw new Error(`Target path already exists: ${target}`);
   }
@@ -56,7 +59,8 @@ export function createWorktree(
     .inspect(target)
     .worktrees.find(
       (worktree) =>
-        worktree.path === target || basename(worktree.path) === folderName
+        worktree.path === target ||
+        pathModule.basename(worktree.path) === folderName
     );
   if (!created) {
     throw new Error("Worktree was created but could not be rediscovered");

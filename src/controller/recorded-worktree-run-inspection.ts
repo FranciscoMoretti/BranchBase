@@ -1,10 +1,8 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import pathModule from "node:path";
 
-import {
-  type BranchBaseLocalState,
-  parseCurrentBranchBaseLocalState,
-} from "../runtime/local-state";
+import { parseCurrentBranchBaseLocalState } from "../runtime/local-state";
+import type { BranchBaseLocalState } from "../runtime/local-state";
 import {
   inspectListeningPorts,
   listeningPortPids,
@@ -72,12 +70,12 @@ export function findVerifiedWorktreeRun(
   controlDirectory: string,
   worktreePathValue: string
 ): VerifiedWorktreeRun | null {
-  const statePath = join(controlDirectory, "state.json");
+  const statePath = pathModule.join(controlDirectory, "state.json");
   if (!existsSync(statePath)) {
     return null;
   }
   const state = parseCurrentBranchBaseLocalState(
-    JSON.parse(readFileSync(statePath, "utf8"))
+    JSON.parse(readFileSync(statePath, "utf-8"))
   );
   const worktreePath = realpathSync(worktreePathValue);
   const processes = new ProcessSupervisor(controlDirectory);

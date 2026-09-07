@@ -74,7 +74,7 @@ function replaceKnownTokens(
   render: boolean
 ): { error: string | null; value: string } {
   let value = template;
-  const tokens = [...values.keys()].sort(
+  const tokens = [...values.keys()].toSorted(
     (left, right) => right.length - left.length
   );
   for (const token of tokens) {

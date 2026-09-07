@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { CodexHookActivityStore } from "./codex-hook-activity";
 import type { CodexIntegrationAdapterSnapshot } from "./codex-integration";
@@ -184,8 +184,10 @@ describe("Codex hook activity", () => {
   });
 
   it("persists only bounded activity metadata in a private file", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-hook-activity-"));
-    const file = join(directory, "codex", "activity.json");
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-hook-activity-")
+    );
+    const file = pathModule.join(directory, "codex", "activity.json");
     try {
       const writer = new CodexHookActivityStore({ file });
       writer.observe(
@@ -209,7 +211,9 @@ describe("Codex hook activity", () => {
         state: "ready",
         subagentCount: 1,
       });
-      expect(statSync(join(directory, "codex")).mode % 0o1000).toBe(0o700);
+      expect(statSync(pathModule.join(directory, "codex")).mode % 0o1000).toBe(
+        0o700
+      );
       expect(statSync(file).mode % 0o1000).toBe(0o600);
 
       writer.discard("/repo/worktree", "task-a");
@@ -223,12 +227,14 @@ describe("Codex hook activity", () => {
   });
 
   it("keeps live activity in memory when persistence is unavailable", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-hook-memory-"));
-    const blockedDirectory = join(directory, "blocked");
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-hook-memory-")
+    );
+    const blockedDirectory = pathModule.join(directory, "blocked");
     try {
       writeFileSync(blockedDirectory, "not a directory");
       const store = new CodexHookActivityStore({
-        file: join(blockedDirectory, "activity.json"),
+        file: pathModule.join(blockedDirectory, "activity.json"),
       });
 
       expect(() =>

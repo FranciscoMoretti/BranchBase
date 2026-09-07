@@ -1,7 +1,5 @@
-import {
-  type RepositoryTrustApproval,
-  RepositoryTrustApprovalSchema,
-} from "../config/repository-trust-approval";
+import { RepositoryTrustApprovalSchema } from "../config/repository-trust-approval";
+import type { RepositoryTrustApproval } from "../config/repository-trust-approval";
 import type { WorkspaceController } from "../controller/workspace-controller";
 import type { CommandReceipt } from "../controller/workspace-snapshot";
 import { requiredString } from "./command";

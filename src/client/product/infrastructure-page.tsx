@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { WorkspaceSnapshot } from "../../controller/workspace-snapshot";
 import { appGroupDisplayStatus } from "../components/app-group-status";
 import { Button } from "../components/ui/button";
-import { type GroupControls, GroupToggle } from "./environment-list";
+import { GroupToggle } from "./environment-list";
+import type { GroupControls } from "./environment-list";
 import {
   AppLink,
   Blank,

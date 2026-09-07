@@ -5,7 +5,8 @@ import {
   GitForkIcon,
   SettingsIcon,
 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import type { AppEndpointSnapshot } from "../../controller/workspace-snapshot";
 import { Button } from "../components/ui/button";
@@ -17,7 +18,8 @@ import {
 } from "../components/ui/empty";
 import { Input } from "../components/ui/input";
 import { ActionFeedback } from "./async-state";
-import { hrefFor, type ProductLocation, type ProductView } from "./data";
+import { hrefFor } from "./data";
+import type { ProductLocation, ProductView } from "./data";
 
 export function ErrorNotice({
   error,

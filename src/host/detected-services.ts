@@ -2,11 +2,8 @@ import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 
 import type { DetectedService } from "../controller/discovery-contract";
-import {
-  inspectProcessSamples,
-  type ProcessSample,
-  processTreeUsage,
-} from "./process-usage";
+import { inspectProcessSamples, processTreeUsage } from "./process-usage";
+import type { ProcessSample } from "./process-usage";
 
 const LINES = /\r?\n/;
 const END_PORT = /:(\d+)$/;
@@ -67,7 +64,7 @@ export function parseCwds(output: string) {
 }
 function run(program: string, args: string[]) {
   return spawnSync(program, args, {
-    encoding: "utf8",
+    encoding: "utf-8",
     timeout: 3000,
     maxBuffer: 8 * 1024 * 1024,
   });

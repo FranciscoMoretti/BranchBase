@@ -1,4 +1,5 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import {
   closeSync,
   existsSync,
@@ -10,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
@@ -81,7 +82,7 @@ export function appGroupInstanceProcessId(instanceId: string): string {
 }
 
 function safeId(processId: string): string {
-  return processId.replace(/[^A-Za-z0-9_-]/g, "_");
+  return processId.replaceAll(/[^A-Za-z0-9_-]/g, "_");
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -107,14 +108,14 @@ export class ProcessSupervisor {
 
   constructor(
     controlDirectory = process.env.BRANCHBASE_CONTROL_DIR ??
-      join(homedir(), ".branchbase")
+      pathModule.join(homedir(), ".branchbase")
   ) {
     this.controlDirectory = controlDirectory;
     mkdirSync(this.controlDirectory, { recursive: true });
   }
 
   logPath(processId: string): string {
-    return join(this.controlDirectory, `${safeId(processId)}.log`);
+    return pathModule.join(this.controlDirectory, `${safeId(processId)}.log`);
   }
 
   managedPid(processId: string, expectedWorktreePath: string): number | null {
@@ -319,7 +320,12 @@ export class ProcessSupervisor {
       .flatMap((name) => {
         try {
           const record = ProcessRecordSchema.parse(
-            JSON.parse(readFileSync(join(this.controlDirectory, name), "utf8"))
+            JSON.parse(
+              readFileSync(
+                pathModule.join(this.controlDirectory, name),
+                "utf-8"
+              )
+            )
           );
           if (
             !this.processTargetIsLive({ id: record.pid, kind: "process" }) ||
@@ -347,7 +353,7 @@ export class ProcessSupervisor {
   managedFailure(processId: string): ProcessFailure | null {
     try {
       return ProcessFailureSchema.parse(
-        JSON.parse(readFileSync(this.failurePath(processId), "utf8"))
+        JSON.parse(readFileSync(this.failurePath(processId), "utf-8"))
       );
     } catch {
       return null;
@@ -401,7 +407,10 @@ export class ProcessSupervisor {
     if (!existsSync(file)) {
       return [];
     }
-    const content = readFileSync(file, "utf8").replace(TRAILING_LINE_BREAK, "");
+    const content = readFileSync(file, "utf-8").replace(
+      TRAILING_LINE_BREAK,
+      ""
+    );
     return content === "" ? [] : content.split(LINE_BREAK).slice(-maxLines);
   }
 
@@ -410,11 +419,14 @@ export class ProcessSupervisor {
   }
 
   private pidPath(processId: string): string {
-    return join(this.controlDirectory, `${safeId(processId)}.pid`);
+    return pathModule.join(this.controlDirectory, `${safeId(processId)}.pid`);
   }
 
   private failurePath(processId: string): string {
-    return join(this.controlDirectory, `${safeId(processId)}.failure.json`);
+    return pathModule.join(
+      this.controlDirectory,
+      `${safeId(processId)}.failure.json`
+    );
   }
 
   private appendManagedLogIfAvailable(
@@ -453,7 +465,7 @@ export class ProcessSupervisor {
       return null;
     }
     try {
-      return ProcessRecordSchema.parse(JSON.parse(readFileSync(file, "utf8")));
+      return ProcessRecordSchema.parse(JSON.parse(readFileSync(file, "utf-8")));
     } catch {
       return null;
     }

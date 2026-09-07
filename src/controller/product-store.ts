@@ -7,20 +7,14 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
-import {
-  DevelopmentFolderSchema,
-  type Observation as RepositoryObservation,
-} from "./discovery-contract";
-import {
-  type ActivityEvent,
-  ActivityEventSchema,
-  type AppPin,
-  ProjectRecordSchema,
-} from "./product-contract";
+import { DevelopmentFolderSchema } from "./discovery-contract";
+import type { Observation as RepositoryObservation } from "./discovery-contract";
+import { ActivityEventSchema, ProjectRecordSchema } from "./product-contract";
+import type { ActivityEvent, AppPin } from "./product-contract";
 import type {
   AppGroupSnapshot,
   WorkspaceSnapshot,
@@ -80,7 +74,7 @@ export class ProductStore {
   private readonly directory: string;
   constructor(directory: string) {
     this.directory = directory;
-    this.file = join(directory, "product.json");
+    this.file = pathModule.join(directory, "product.json");
   }
   private read(): z.infer<typeof StoreSchema> {
     if (!existsSync(this.file)) {
@@ -92,7 +86,7 @@ export class ProductStore {
       });
     }
     try {
-      return StoreSchema.parse(JSON.parse(readFileSync(this.file, "utf8")));
+      return StoreSchema.parse(JSON.parse(readFileSync(this.file, "utf-8")));
     } catch (error) {
       throw new ProductCatalogError(this.file, error);
     }

@@ -12,8 +12,8 @@ interface ContextRecord {
 }
 
 interface BranchBaseContextSnapshot {
-  appGroups: Array<{
-    apps: Array<{
+  appGroups: {
+    apps: {
       label: string;
       listening: boolean;
       ownership: "foreign" | "none" | "owned";
@@ -21,11 +21,11 @@ interface BranchBaseContextSnapshot {
       readiness: WorktreeSnapshot["appGroups"][number]["apps"][number]["readiness"];
       routeState: WorktreeSnapshot["appGroups"][number]["apps"][number]["routeState"];
       url: string | null;
-    }>;
+    }[];
     health: WorktreeSnapshot["appGroups"][number]["health"];
     name: string;
     processRunning: boolean;
-  }>;
+  }[];
   branch: string;
   path: string;
 }

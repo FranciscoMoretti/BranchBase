@@ -2,11 +2,10 @@ import { MoreHorizontalIcon, Trash2Icon } from "lucide-react";
 
 import type { WorktreeSnapshot } from "../../controller/workspace-snapshot";
 import { appsAreRunning } from "../../controller/workspace-snapshot";
-import {
-  type WorktreeCommandActions,
-  worktreeCommandMenuItems,
-} from "../worktree-command-menu";
-import { type CommandMenuItem, CommandMenuItems } from "./command-menu-items";
+import { worktreeCommandMenuItems } from "../worktree-command-menu";
+import type { WorktreeCommandActions } from "../worktree-command-menu";
+import { CommandMenuItems } from "./command-menu-items";
+import type { CommandMenuItem } from "./command-menu-items";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,

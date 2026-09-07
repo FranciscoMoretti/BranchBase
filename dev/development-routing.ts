@@ -1,6 +1,7 @@
-import { type ChildProcess, fork } from "node:child_process";
+import { fork } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { RouteStore } from "portless";
@@ -42,8 +43,8 @@ function proxyMessage(message: unknown): ProxyMessage | null {
 }
 
 function packageFile(packageName: string, ...parts: string[]): string {
-  return join(
-    dirname(require.resolve(`${packageName}/package.json`)),
+  return pathModule.join(
+    pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
 }
@@ -101,7 +102,7 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     stateDirectory: string;
   }): Promise<DevelopmentRouting> {
     const child = fork(
-      fileURLToPath(new URL("./portless-proxy-child.ts", import.meta.url)),
+      fileURLToPath(new URL("portless-proxy-child.ts", import.meta.url)),
       [String(options.port), options.stateDirectory],
       {
         execPath: packageFile("node", "bin", "node"),

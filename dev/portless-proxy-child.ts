@@ -1,6 +1,7 @@
 import type { Socket } from "node:net";
 
-import { createProxyServer, type ProxyServer, RouteStore } from "portless";
+import { createProxyServer, RouteStore } from "portless";
+import type { ProxyServer } from "portless";
 
 const IPV6_UNAVAILABLE_CODES = new Set(["EADDRNOTAVAIL", "EAFNOSUPPORT"]);
 

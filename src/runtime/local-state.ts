@@ -8,14 +8,12 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
-import {
-  type WorktreeConfigSource,
-  WorktreeConfigSourceSchema,
-} from "../config/worktree-config-source";
+import { WorktreeConfigSourceSchema } from "../config/worktree-config-source";
+import type { WorktreeConfigSource } from "../config/worktree-config-source";
 
 const NonEmptyStringSchema = z.string().min(1);
 const PortSchema = z.number().int().min(1).max(65_535);
@@ -171,12 +169,12 @@ function emptyState(): BranchBaseLocalState {
 function routeLabel(value: string): string {
   const normalized = value
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replaceAll(/[\u0300-\u036F]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "")
     .slice(0, 48)
-    .replace(/-+$/g, "");
+    .replaceAll(/-+$/g, "");
   return normalized || "app";
 }
 
@@ -276,7 +274,7 @@ function migrateLegacyState(
 export class FileBranchBaseStateStore {
   readonly path: string;
 
-  constructor(path = join(homedir(), ".branchbase", "state.json")) {
+  constructor(path = pathModule.join(homedir(), ".branchbase", "state.json")) {
     this.path = path;
   }
 
@@ -582,7 +580,7 @@ export class FileBranchBaseStateStore {
     }
     try {
       const value = PersistedBranchBaseLocalStateSchema.parse(
-        JSON.parse(readFileSync(this.path, "utf8"))
+        JSON.parse(readFileSync(this.path, "utf-8"))
       );
       if (value.version === 1) {
         const migrated = migrateLegacyState(value);
@@ -737,7 +735,7 @@ export class FileBranchBaseStateStore {
   }
 
   private write(state: BranchBaseLocalState): void {
-    mkdirSync(dirname(this.path), { recursive: true });
+    mkdirSync(pathModule.dirname(this.path), { recursive: true });
     const temporary = `${this.path}.${process.pid}.${Date.now()}`;
     writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, {
       flag: "wx",

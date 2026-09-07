@@ -1,5 +1,6 @@
 import { RotateCcwIcon, XIcon } from "lucide-react";
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 
 import { ErrorDetails } from "../product/async-state";
 import { Button } from "./ui/button";

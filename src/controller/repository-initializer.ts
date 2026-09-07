@@ -1,12 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import {
-  type BranchBaseCommand,
   defaultBranchBaseSetupCommand,
   defaultBranchBaseStartCommand,
 } from "../config/branchbase-command";
+import type { BranchBaseCommand } from "../config/branchbase-command";
 import type { WorktreeEnvConfig } from "../config/branchbase-config";
 
 const FASTAPI_DEPENDENCY = /\bfastapi\b/i;
@@ -34,7 +34,7 @@ interface ProjectDefaults {
 function gitRoot(repoPath: string): string {
   const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
     cwd: repoPath,
-    encoding: "utf8",
+    encoding: "utf-8",
   });
   if (result.status !== 0) {
     throw new Error((result.stderr || "Not a Git repository").trim());
@@ -43,7 +43,7 @@ function gitRoot(repoPath: string): string {
 }
 
 function projectDefaults(root: string): ProjectDefaults {
-  if (COMPOSE_FILES.some((file) => existsSync(join(root, file)))) {
+  if (COMPOSE_FILES.some((file) => existsSync(pathModule.join(root, file)))) {
     return {
       label: "Docker Compose",
       start: {
@@ -51,20 +51,23 @@ function projectDefaults(root: string): ProjectDefaults {
       },
     };
   }
-  if (existsSync(join(root, "package.json"))) {
+  if (existsSync(pathModule.join(root, "package.json"))) {
     return {
       label: "Node.js",
       setup: defaultBranchBaseSetupCommand(),
       start: defaultBranchBaseStartCommand(),
     };
   }
-  if (existsSync(join(root, "manage.py"))) {
+  if (existsSync(pathModule.join(root, "manage.py"))) {
     return { label: "Python · Django" };
   }
-  if (existsSync(join(root, "pyproject.toml"))) {
-    const content = readFileSync(join(root, "pyproject.toml"), "utf8");
+  if (existsSync(pathModule.join(root, "pyproject.toml"))) {
+    const content = readFileSync(
+      pathModule.join(root, "pyproject.toml"),
+      "utf-8"
+    );
     if (FASTAPI_DEPENDENCY.test(content)) {
-      const usesUv = existsSync(join(root, "uv.lock"));
+      const usesUv = existsSync(pathModule.join(root, "uv.lock"));
       return {
         label: "Python · FastAPI",
         ...(usesUv ? { setup: { argv: ["uv", "sync"] } } : {}),
@@ -72,14 +75,14 @@ function projectDefaults(root: string): ProjectDefaults {
     }
     return { label: "Python" };
   }
-  if (existsSync(join(root, "Cargo.toml"))) {
+  if (existsSync(pathModule.join(root, "Cargo.toml"))) {
     return {
       label: "Rust · Cargo",
       setup: { argv: ["cargo", "fetch"] },
       start: { argv: ["cargo", "run"] },
     };
   }
-  if (existsSync(join(root, "go.mod"))) {
+  if (existsSync(pathModule.join(root, "go.mod"))) {
     return {
       label: "Go",
       start: { argv: ["go", "run", "."] },
@@ -92,7 +95,7 @@ export function planRepositoryInitialization(
   repoPath: string
 ): RepositoryInitializationPlan {
   const root = gitRoot(repoPath);
-  const configPath = join(root, ".branchbase.json");
+  const configPath = pathModule.join(root, ".branchbase.json");
   if (existsSync(configPath)) {
     throw new Error(
       `Worktree environment config already exists: ${configPath}`

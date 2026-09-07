@@ -85,6 +85,6 @@ export function useCommands(repoPath: string) {
     )
     .filter(([, mutation]) => mutation.error)
     .map(([, mutation]) => mutation)
-    .sort((a, b) => b.submittedAt - a.submittedAt)[0];
+    .toSorted((a, b) => b.submittedAt - a.submittedAt)[0];
   return { ...mutations, error: latest?.error ?? null };
 }

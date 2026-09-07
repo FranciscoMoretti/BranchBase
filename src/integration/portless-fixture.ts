@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import pathModule from "node:path";
 
 import { CodexHookActivityStore } from "../codex/codex-hook-activity";
 import { UnavailableCodexIntegrationAdapter } from "../codex/codex-integration";
@@ -53,14 +53,14 @@ export const integrationConfig: BranchBaseConfig = {
 };
 
 export function packageFile(packageName: string, ...parts: string[]): string {
-  return join(
-    dirname(require.resolve(`${packageName}/package.json`)),
+  return pathModule.join(
+    pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
 }
 
 function run(cwd: string, command: string, args: string[]): void {
-  const result = spawnSync(command, args, { cwd, encoding: "utf8" });
+  const result = spawnSync(command, args, { cwd, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(
       `${command} ${args.join(" ")} failed: ${result.stderr || result.stdout}`
@@ -121,12 +121,12 @@ export class PortlessIntegrationFixture {
 
   private constructor(input: { proxyPort: number; sandbox: string }) {
     this.sandbox = input.sandbox;
-    this.root = join(this.sandbox, "repo");
-    this.linkedPath = join(this.sandbox, "linked-worktree");
-    this.detachedPath = join(this.sandbox, "detached-worktree");
-    this.controlDirectory = join(this.sandbox, "control");
-    this.portlessState = join(this.sandbox, "portless");
-    this.statePath = join(this.sandbox, "state.json");
+    this.root = pathModule.join(this.sandbox, "repo");
+    this.linkedPath = pathModule.join(this.sandbox, "linked-worktree");
+    this.detachedPath = pathModule.join(this.sandbox, "detached-worktree");
+    this.controlDirectory = pathModule.join(this.sandbox, "control");
+    this.portlessState = pathModule.join(this.sandbox, "portless");
+    this.statePath = pathModule.join(this.sandbox, "state.json");
     this.proxyPort = input.proxyPort;
     this.routing = new PortlessRoutingEngine({
       port: this.proxyPort,
@@ -141,7 +141,9 @@ export class PortlessIntegrationFixture {
     );
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const sandbox = realpathSync(
-        mkdtempSync(join(tmpdir(), "branchbase-portless-integration-"))
+        mkdtempSync(
+          pathModule.join(tmpdir(), "branchbase-portless-integration-")
+        )
       );
       const reservation = await reserveBackingPort();
       const proxyPort = reservation.port;
@@ -212,11 +214,11 @@ export class PortlessIntegrationFixture {
       "BranchBase Integration Test",
     ]);
     writeFileSync(
-      join(this.root, ".branchbase.json"),
+      pathModule.join(this.root, ".branchbase.json"),
       `${JSON.stringify(integrationConfig, null, 2)}\n`
     );
     writeFileSync(
-      join(this.root, "integration-server.ts"),
+      pathModule.join(this.root, "integration-server.ts"),
       `const environment = {
   API_DIRECT_URL: process.env.API_DIRECT_URL,
   API_PORT: process.env.API_PORT,
@@ -237,7 +239,7 @@ console.log(JSON.stringify(environment));
 `
     );
     writeFileSync(
-      join(this.root, "integration-command-server.ts"),
+      pathModule.join(this.root, "integration-command-server.ts"),
       `import { writeFileSync } from "node:fs";
 writeFileSync("integration-command.pid", String(process.pid));
 Bun.serve({
@@ -248,7 +250,7 @@ Bun.serve({
 `
     );
     writeFileSync(
-      join(this.root, "integration-command-stop.ts"),
+      pathModule.join(this.root, "integration-command-stop.ts"),
       `import { readFileSync, writeFileSync } from "node:fs";
 const pid = Number(readFileSync("integration-command.pid", "utf8"));
 process.kill(pid, "SIGTERM");

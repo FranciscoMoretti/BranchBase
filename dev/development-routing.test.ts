@@ -1,10 +1,11 @@
 import { expect, it } from "bun:test";
-import { type ChildProcess, fork } from "node:child_process";
+import { fork } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, request } from "node:http";
 import { createConnection, createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { reserveBackingPort } from "../src/runtime/readiness";
@@ -14,7 +15,7 @@ import {
 } from "./development-routing";
 
 function listenBackend(port = 0): Promise<{
-  close(): Promise<void>;
+  close: () => Promise<void>;
   port: number;
 }> {
   const server = createHttpServer((_request, response) => {
@@ -59,7 +60,7 @@ function proxyResponse(
         response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
         response.once("end", () =>
           resolve({
-            body: Buffer.concat(chunks).toString("utf8"),
+            body: Buffer.concat(chunks).toString("utf-8"),
             status: response.statusCode ?? 0,
           })
         );
@@ -174,7 +175,9 @@ async function reopenAfterParentExit(
 }
 
 it("routes through the embedded development proxy", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-routing-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-routing-")
+  );
   const reservation = await reserveBackingPort();
   const port = reservation.port;
   const backend = await listenBackend();
@@ -227,7 +230,9 @@ it("routes through the embedded development proxy", async () => {
 });
 
 it("publishes a route before the backing app accepts traffic", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-routing-observe-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-routing-observe-")
+  );
   const proxyReservation = await reserveBackingPort();
   const backendReservation = await reserveBackingPort(
     new Set([proxyReservation.port])
@@ -265,7 +270,9 @@ it("publishes a route before the backing app accepts traffic", async () => {
 }, 10_000);
 
 it("restores persistent aliases when the embedded proxy reopens", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-routing-reopen-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-routing-reopen-")
+  );
   const reservation = await reserveBackingPort();
   const port = reservation.port;
   const backend = await listenBackend();
@@ -303,7 +310,9 @@ it("restores persistent aliases when the embedded proxy reopens", async () => {
 });
 
 it("keeps a published route active while its backend recovers", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-routing-recovery-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-routing-recovery-")
+  );
   const reservation = await reserveBackingPort();
   const port = reservation.port;
   const route = { hostname: "recovering.localhost", port: 0 };
@@ -354,7 +363,9 @@ it("keeps a published route active while its backend recovers", async () => {
 }, 10_000);
 
 it("rejects occupied ports and releases both loopback listeners", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-routing-port-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-routing-port-")
+  );
   const reservation = await reserveBackingPort();
   const port = reservation.port;
   let routing: DevelopmentRouting | undefined;
@@ -406,13 +417,15 @@ it("rejects occupied ports and releases both loopback listeners", async () => {
 });
 
 it("stops the proxy when its Bun parent is killed", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-routing-crash-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-routing-crash-")
+  );
   const reservation = await reserveBackingPort();
   const port = reservation.port;
   await reservation.release();
   const parent = fork(
     fileURLToPath(
-      new URL("./development-routing-crash-harness.ts", import.meta.url)
+      new URL("development-routing-crash-harness.ts", import.meta.url)
     ),
     [String(port), temporary],
     {

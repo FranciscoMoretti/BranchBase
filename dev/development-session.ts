@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { CodexHookActivityStore } from "../src/codex/codex-hook-activity";
 import type { WorkspaceControllerRuntimeOptions } from "../src/controller/workspace-controller";
@@ -30,7 +30,7 @@ export interface DevelopmentSessionProfile {
 }
 
 export interface DevelopmentSession {
-  close(): Promise<void>;
+  close: () => Promise<void>;
   controllerRuntime: WorkspaceControllerRuntimeOptions;
   profile: DevelopmentSessionProfile;
 }
@@ -69,7 +69,7 @@ function acquireDevelopmentOwnership(controlDirectory: string): () => void {
   mkdirSync(controlDirectory, { mode: 0o700, recursive: true });
   try {
     return acquireExclusiveFileLock(
-      join(controlDirectory, "server.lock.guard.sqlite")
+      pathModule.join(controlDirectory, "server.lock.guard.sqlite")
     );
   } catch (error) {
     if (error instanceof ExclusiveFileLockBusyError) {
@@ -89,7 +89,10 @@ async function prepareDevelopmentRouting(
   const routing = await DevelopmentRouting.open({ port, stateDirectory });
   try {
     mkdirSync(stateDirectory, { mode: 0o700, recursive: true });
-    writeFileSync(join(stateDirectory, "development-proxy-port"), `${port}\n`);
+    writeFileSync(
+      pathModule.join(stateDirectory, "development-proxy-port"),
+      `${port}\n`
+    );
     return routing;
   } catch (error) {
     await routing.close();
@@ -101,8 +104,8 @@ function rememberedDevelopmentProxyPort(stateDirectory: string): number | null {
   try {
     const port = Number(
       readFileSync(
-        join(stateDirectory, "development-proxy-port"),
-        "utf8"
+        pathModule.join(stateDirectory, "development-proxy-port"),
+        "utf-8"
       ).trim()
     );
     return Number.isInteger(port) && port >= 1 && port <= 65_535 ? port : null;
@@ -159,15 +162,15 @@ export async function openDevelopmentSession(
 ): Promise<DevelopmentSession> {
   const environment = options.environment ?? process.env;
   const homeDirectory = options.homeDirectory ?? homedir();
-  const controlDirectory = join(
+  const controlDirectory = pathModule.join(
     homeDirectory,
     ".branchbase",
     "development",
     developmentProfileId(options.appRoot)
   );
-  const statePath = join(controlDirectory, "state.json");
-  const portlessStateDirectory = join(controlDirectory, "portless");
-  const codexControlDirectory = join(controlDirectory, "codex");
+  const statePath = pathModule.join(controlDirectory, "state.json");
+  const portlessStateDirectory = pathModule.join(controlDirectory, "portless");
+  const codexControlDirectory = pathModule.join(controlDirectory, "codex");
   const dashboardPort = configuredPort(
     environment.BRANCHBASE_PORT,
     0,
@@ -210,13 +213,16 @@ export async function openDevelopmentSession(
       },
       controllerRuntime: {
         codexHooks: new CodexHookActivityStore({
-          file: join(codexControlDirectory, "activity.json"),
+          file: pathModule.join(codexControlDirectory, "activity.json"),
         }),
         processes: new ProcessSupervisor(controlDirectory),
         routing,
         developmentStartPreflight: (worktreePath) => {
           assertProductionWorktreeAvailable(worktreePath, {
-            productionControlDirectory: join(homeDirectory, ".branchbase"),
+            productionControlDirectory: pathModule.join(
+              homeDirectory,
+              ".branchbase"
+            ),
           });
         },
         state: new FileBranchBaseStateStore(statePath),

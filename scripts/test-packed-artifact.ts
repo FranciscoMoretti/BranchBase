@@ -10,10 +10,9 @@ import {
 } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import pathModule from "node:path";
 
-const PROJECT_ROOT = resolve(fileURLToPath(import.meta.url), "../..");
+const PROJECT_ROOT = pathModule.resolve(import.meta.filename, "../..");
 
 interface CommandOptions {
   allowFailure?: boolean;
@@ -28,7 +27,7 @@ function run(
 ): string {
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? PROJECT_ROOT,
-    encoding: "utf8",
+    encoding: "utf-8",
     env: { ...process.env, ...options.env },
   });
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
@@ -70,11 +69,13 @@ async function waitUntilStopped(url: string): Promise<void> {
   throw new Error("Packed BranchBase daemon did not stop");
 }
 
-const temporaryRoot = mkdtempSync(join(tmpdir(), "branchbase-pack-"));
-const packDirectory = join(temporaryRoot, "pack");
-const installDirectory = join(temporaryRoot, "consumer");
-const fixtureDirectory = join(temporaryRoot, "repository");
-const homeDirectory = join(temporaryRoot, "home");
+const temporaryRoot = mkdtempSync(
+  pathModule.join(tmpdir(), "branchbase-pack-")
+);
+const packDirectory = pathModule.join(temporaryRoot, "pack");
+const installDirectory = pathModule.join(temporaryRoot, "consumer");
+const fixtureDirectory = pathModule.join(temporaryRoot, "repository");
+const homeDirectory = pathModule.join(temporaryRoot, "home");
 let cliPath = "";
 let daemonEnvironment: Record<string, string> = {};
 
@@ -82,7 +83,7 @@ try {
   mkdirSync(installDirectory);
   const tarballName = "branchbase.tgz";
   mkdirSync(packDirectory);
-  const tarballPath = join(packDirectory, tarballName);
+  const tarballPath = pathModule.join(packDirectory, tarballName);
   run("bun", ["pm", "pack", "--filename", tarballPath, "--quiet"]);
   assert(existsSync(tarballPath), "bun pm pack did not create the tarball");
 
@@ -108,14 +109,19 @@ try {
   );
 
   writeFileSync(
-    join(installDirectory, "package.json"),
+    pathModule.join(installDirectory, "package.json"),
     '{"name":"branchbase-pack-consumer","private":true,"type":"module"}\n',
     { flag: "wx" }
   );
   run("bun", ["add", "--ignore-scripts", tarballPath], {
     cwd: installDirectory,
   });
-  cliPath = join(installDirectory, "node_modules", ".bin", "branchbase");
+  cliPath = pathModule.join(
+    installDirectory,
+    "node_modules",
+    ".bin",
+    "branchbase"
+  );
   assert(
     existsSync(cliPath),
     "Packed install did not expose the branchbase CLI"
@@ -136,9 +142,9 @@ try {
   run("git", ["config", "user.name", "BranchBase Pack Smoke"], {
     cwd: fixtureDirectory,
   });
-  writeFileSync(join(fixtureDirectory, "README.md"), "# Fixture\n");
+  writeFileSync(pathModule.join(fixtureDirectory, "README.md"), "# Fixture\n");
   writeFileSync(
-    join(fixtureDirectory, ".branchbase.json"),
+    pathModule.join(fixtureDirectory, ".branchbase.json"),
     `${JSON.stringify(
       {
         version: 1,
@@ -232,8 +238,8 @@ try {
   );
 
   const daemonLog = readFileSync(
-    join(homeDirectory, ".branchbase", "server.log"),
-    "utf8"
+    pathModule.join(homeDirectory, ".branchbase", "server.log"),
+    "utf-8"
   );
   assert(
     !daemonLog.includes("VITE"),

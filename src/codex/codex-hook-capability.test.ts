@@ -8,14 +8,16 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { createCodexHookCapability } from "./codex-hook-capability";
 
 describe("Codex hook capability", () => {
   it("rotates a private 256-bit token and removes only its own record", () => {
-    const root = mkdtempSync(join(tmpdir(), "branchbase-hook-capability-"));
-    const directory = join(root, "codex");
+    const root = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-hook-capability-")
+    );
+    const directory = pathModule.join(root, "codex");
     try {
       const capability = createCodexHookCapability({
         directory,
@@ -23,7 +25,7 @@ describe("Codex hook capability", () => {
         pid: 123,
         processStartMarker: "process-start",
       });
-      const record = JSON.parse(readFileSync(capability.file, "utf8"));
+      const record = JSON.parse(readFileSync(capability.file, "utf-8"));
 
       expect(record).toEqual(capability.record);
       expect(Buffer.from(record.token, "base64url")).toHaveLength(32);

@@ -20,7 +20,8 @@ import { useLogs } from "../queries";
 import { ActivityPage } from "./activity-page";
 import { QueryContent } from "./async-state";
 import { useProductCommand } from "./data";
-import { type GroupControls, GroupToggle } from "./environment-list";
+import { GroupToggle } from "./environment-list";
+import type { GroupControls } from "./environment-list";
 import {
   AppLink,
   Blank,

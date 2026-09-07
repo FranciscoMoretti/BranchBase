@@ -12,7 +12,7 @@ function delay(milliseconds: number): Promise<void> {
 
 export interface BackingPortLease {
   port: number;
-  release(): Promise<void>;
+  release: () => Promise<void>;
 }
 
 export async function reserveBackingPort(

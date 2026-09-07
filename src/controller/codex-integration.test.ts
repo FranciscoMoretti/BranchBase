@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { FakeCodexIntegrationAdapter } from "../codex/codex-integration";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
@@ -10,11 +10,13 @@ import { WorkspaceController } from "./workspace-controller";
 
 describe("WorkspaceController Codex projection", () => {
   it("loads Codex data asynchronously for the synchronously inspected worktrees", async () => {
-    const root = mkdtempSync(join(tmpdir(), "branchbase-codex-projection-"));
+    const root = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-codex-projection-")
+    );
     try {
       spawnSync("git", ["init", "-q"], { cwd: root });
       writeFileSync(
-        join(root, ".branchbase.json"),
+        pathModule.join(root, ".branchbase.json"),
         JSON.stringify({
           appGroups: {
             App: {
@@ -45,7 +47,9 @@ describe("WorkspaceController Codex projection", () => {
         updatedAt: "2026-07-18T13:00:00.000Z",
       });
       const controller = new WorkspaceController(fake, {
-        state: new FileBranchBaseStateStore(join(root, "state.json")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(root, "state.json")
+        ),
       });
 
       const workspace = controller.inspect(root);

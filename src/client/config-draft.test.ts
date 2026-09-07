@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
 import {
-  type ConfigDraftStorage,
   clearConfigDraft,
   loadConfigDraft,
   saveConfigDraft,
 } from "./config-draft";
+import type { ConfigDraftStorage } from "./config-draft";
 
 function createMemoryStorage(): ConfigDraftStorage {
   const values = new Map<string, string>();

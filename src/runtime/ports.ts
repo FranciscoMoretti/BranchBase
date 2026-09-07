@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { isAbsolute, relative } from "node:path";
+import pathModule from "node:path";
 
 const LINE_BREAK = /\r?\n/;
 const PORT_AT_END = /:(\d+)(?:\s|$)/;
@@ -11,7 +11,7 @@ interface PortSnapshot {
 
 function runLsof(args: string[]): string {
   const result = spawnSync("lsof", args, {
-    encoding: "utf8",
+    encoding: "utf-8",
     maxBuffer: 8 * 1024 * 1024,
   });
   return result.status === 0 ? (result.stdout ?? "") : "";
@@ -26,9 +26,10 @@ function canonical(path: string): string {
 }
 
 export function pathInside(path: string, root: string): boolean {
-  const candidate = relative(canonical(root), canonical(path));
+  const candidate = pathModule.relative(canonical(root), canonical(path));
   return (
-    candidate === "" || !(candidate.startsWith("..") || isAbsolute(candidate))
+    candidate === "" ||
+    !(candidate.startsWith("..") || pathModule.isAbsolute(candidate))
   );
 }
 

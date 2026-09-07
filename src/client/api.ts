@@ -1,9 +1,7 @@
 import type { ZodType } from "zod";
 
-import {
-  type CodexIntegrationSnapshot,
-  CodexIntegrationSnapshotSchema,
-} from "../codex/codex-integration";
+import { CodexIntegrationSnapshotSchema } from "../codex/codex-integration";
+import type { CodexIntegrationSnapshot } from "../codex/codex-integration";
 import {
   CommandReceiptSchema,
   PickRepositoryResultSchema,

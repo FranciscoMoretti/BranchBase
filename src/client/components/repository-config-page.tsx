@@ -1,10 +1,8 @@
 import { ArrowLeftIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  type BranchBaseConfig,
-  BranchBaseConfigSchema,
-} from "../../config/branchbase-schema";
+import { BranchBaseConfigSchema } from "../../config/branchbase-schema";
+import type { BranchBaseConfig } from "../../config/branchbase-schema";
 import {
   clearConfigDraft,
   loadConfigDraft,

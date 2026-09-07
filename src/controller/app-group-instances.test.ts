@@ -8,9 +8,10 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { createServer, type Server } from "node:net";
+import { createServer } from "node:net";
+import type { Server } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import {
   repositoryCommandFingerprint,
@@ -113,7 +114,7 @@ class TrustedWorkspaceController extends WorkspaceController {
 }
 
 function git(cwd: string, ...args: string[]): void {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout);
   }
@@ -134,10 +135,12 @@ function close(server: Server): Promise<void> {
 
 describe("App-group instance assignment", () => {
   it("uses an approved captured Stop command for a detached run", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-cleanup-stop-"));
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-cleanup-stop-")
+    );
     try {
-      const controlDirectory = join(temporary, "control");
-      const marker = join(temporary, "stopped");
+      const controlDirectory = pathModule.join(temporary, "control");
+      const marker = pathModule.join(temporary, "stopped");
       const config = {
         appGroups: {
           Services: {
@@ -150,7 +153,9 @@ describe("App-group instance assignment", () => {
         setup: { argv: ["true"] },
         version: 1 as const,
       };
-      const state = new FileBranchBaseStateStore(join(temporary, "state.json"));
+      const state = new FileBranchBaseStateStore(
+        pathModule.join(temporary, "state.json")
+      );
       const instance = state.instance({
         configFingerprint: repositoryCommandFingerprint(config),
         groupId: "Services",
@@ -192,7 +197,7 @@ describe("App-group instance assignment", () => {
         `cleanup:${instance.id}`
       );
 
-      expect(readFileSync(marker, "utf8")).toBe("stopped");
+      expect(readFileSync(marker, "utf-8")).toBe("stopped");
       expect(state.run({ instanceId: instance.id, repoPath: temporary })).toBe(
         null
       );
@@ -202,13 +207,15 @@ describe("App-group instance assignment", () => {
   });
 
   it("exposes in-flight lifecycle work before a run is persisted", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-pending-start-"));
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-pending-start-")
+    );
     try {
       const routing = new BlockingPrepareRoutingEngine();
       const runtime = new AppGroupRuntime(
-        new ProcessSupervisor(join(temporary, "control")),
+        new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing,
-        new FileBranchBaseStateStore(join(temporary, "state.json"))
+        new FileBranchBaseStateStore(pathModule.join(temporary, "state.json"))
       );
       const target = {
         config: {
@@ -245,16 +252,18 @@ describe("App-group instance assignment", () => {
   });
 
   it("shares selectable defaults and lets one worktree switch to an isolated instance", () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-instances-"));
-    const repository = join(temporary, "project");
-    const featureWorktree = join(temporary, "project-feature");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-instances-")
+    );
+    const repository = pathModule.join(temporary, "project");
+    const featureWorktree = pathModule.join(temporary, "project-feature");
     mkdirSync(repository);
     try {
       git(repository, "init", "-q");
       git(repository, "config", "user.email", "branchbase@example.test");
       git(repository, "config", "user.name", "BranchBase Test");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -279,8 +288,10 @@ describe("App-group instance assignment", () => {
 
       const controller = new WorkspaceController(undefined, {
         routing: new InMemoryRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       const initial = controller.inspect(repository);
       const main = initial.worktrees.find((worktree) => worktree.isMain);
@@ -342,9 +353,11 @@ describe("App-group instance assignment", () => {
   });
 
   it("serializes concurrent Starts of a shared instance across worktrees", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-shared-start-"));
-    const repository = join(temporary, "project");
-    const featureWorktree = join(temporary, "project-feature");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-shared-start-")
+    );
+    const repository = pathModule.join(temporary, "project");
+    const featureWorktree = pathModule.join(temporary, "project-feature");
     mkdirSync(repository);
     let controller: WorkspaceController | null = null;
     let mainId = "";
@@ -354,7 +367,7 @@ describe("App-group instance assignment", () => {
       git(repository, "config", "user.email", "branchbase@example.test");
       git(repository, "config", "user.name", "BranchBase Test");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -381,8 +394,10 @@ describe("App-group instance assignment", () => {
 
       controller = new TrustedWorkspaceController(undefined, {
         routing: new InMemoryRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       const initial = controller.inspect(repository);
       mainId = initial.worktrees.find((worktree) => worktree.isMain)?.id ?? "";
@@ -416,8 +431,10 @@ describe("App-group instance assignment", () => {
   }, 10_000);
 
   it("materializes cross-group ports before Start and keeps them stable across Restart", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-runtime-"));
-    const repository = join(temporary, "project");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-runtime-")
+    );
+    const repository = pathModule.join(temporary, "project");
     mkdirSync(repository);
     let controller: WorkspaceController | null = null;
     let worktreeId = "";
@@ -425,7 +442,7 @@ describe("App-group instance assignment", () => {
     try {
       git(repository, "init", "-q");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -469,8 +486,10 @@ describe("App-group instance assignment", () => {
       const routing = new InMemoryRoutingEngine();
       controller = new TrustedWorkspaceController(undefined, {
         routing,
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       worktreeId = controller.inspect(repository).worktrees[0]?.id ?? "";
 
@@ -509,7 +528,10 @@ describe("App-group instance assignment", () => {
       expect(webPort).toBeNumber();
       expect(databasePort).toBeNumber();
       expect(
-        readFileSync(join(repository, "resolved-env.txt"), "utf8").split("\n")
+        readFileSync(
+          pathModule.join(repository, "resolved-env.txt"),
+          "utf-8"
+        ).split("\n")
       ).toEqual([String(databasePort), String(webPort)]);
 
       blocker = createServer();
@@ -567,13 +589,15 @@ describe("App-group instance assignment", () => {
   }, 15_000);
 
   it("fails Portless preflight before executing repository code", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-preflight-"));
-    const repository = join(temporary, "project");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-preflight-")
+    );
+    const repository = pathModule.join(temporary, "project");
     mkdirSync(repository);
     try {
       git(repository, "init", "-q");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -594,8 +618,10 @@ describe("App-group instance assignment", () => {
       );
       const controller = new TrustedWorkspaceController(undefined, {
         routing: new FailingPrepareRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       const id = controller.inspect(repository).worktrees[0]?.id ?? "";
 
@@ -605,20 +631,24 @@ describe("App-group instance assignment", () => {
         code: "routing-unavailable",
         message: "Portless unavailable",
       });
-      expect(existsSync(join(repository, "started.txt"))).toBe(false);
+      expect(existsSync(pathModule.join(repository, "started.txt"))).toBe(
+        false
+      );
     } finally {
       rmSync(temporary, { force: true, recursive: true });
     }
   });
 
   it("reports a stable code when the Start command cannot launch", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-start-failure-"));
-    const repository = join(temporary, "project");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-start-failure-")
+    );
+    const repository = pathModule.join(temporary, "project");
     mkdirSync(repository);
     try {
       git(repository, "init", "-q");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -633,8 +663,10 @@ describe("App-group instance assignment", () => {
       );
       const controller = new TrustedWorkspaceController(undefined, {
         routing: new InMemoryRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       const id = controller.inspect(repository).worktrees[0]?.id ?? "";
 
@@ -647,15 +679,17 @@ describe("App-group instance assignment", () => {
   });
 
   it("keeps a ready process available for diagnostics when routing fails", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-routing-"));
-    const repository = join(temporary, "project");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-routing-")
+    );
+    const repository = pathModule.join(temporary, "project");
     mkdirSync(repository);
     let controller: WorkspaceController | null = null;
     let worktreeId = "";
     try {
       git(repository, "init", "-q");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -678,8 +712,10 @@ describe("App-group instance assignment", () => {
       const routing = new RecoverableActivationRoutingEngine();
       controller = new TrustedWorkspaceController(undefined, {
         routing,
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       worktreeId = controller.inspect(repository).worktrees[0]?.id ?? "";
 
@@ -716,15 +752,17 @@ describe("App-group instance assignment", () => {
   }, 10_000);
 
   it("retries readiness for a sibling that already owns its backing port", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-readiness-"));
-    const repository = join(temporary, "project");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-readiness-")
+    );
+    const repository = pathModule.join(temporary, "project");
     mkdirSync(repository);
     let controller: WorkspaceController | null = null;
     let worktreeId = "";
     try {
       git(repository, "init", "-q");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -760,8 +798,10 @@ describe("App-group instance assignment", () => {
       );
       controller = new TrustedWorkspaceController(undefined, {
         routing: new InMemoryRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       worktreeId = controller.inspect(repository).worktrees[0]?.id ?? "";
 
@@ -772,7 +812,7 @@ describe("App-group instance assignment", () => {
         controller.inspect(repository).worktrees[0]?.appGroups[0]?.health
       ).toBe("partially-running");
 
-      writeFileSync(join(repository, "delayed-ready"), "yes");
+      writeFileSync(pathModule.join(repository, "delayed-ready"), "yes");
       expect(
         await controller.startAppGroup(repository, worktreeId, "Apps")
       ).toBe("started");
@@ -794,16 +834,16 @@ describe("App-group instance assignment", () => {
 
   it("keeps an all-unready command App group stoppable and retryable", async () => {
     const temporary = mkdtempSync(
-      join(tmpdir(), "branchbase-unready-command-")
+      pathModule.join(tmpdir(), "branchbase-unready-command-")
     );
-    const repository = join(temporary, "project");
+    const repository = pathModule.join(temporary, "project");
     mkdirSync(repository);
     let controller: WorkspaceController | null = null;
     let worktreeId = "";
     try {
       git(repository, "init", "-q");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -835,8 +875,10 @@ describe("App-group instance assignment", () => {
       );
       controller = new TrustedWorkspaceController(undefined, {
         routing: new InMemoryRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       worktreeId = controller.inspect(repository).worktrees[0]?.id ?? "";
 
@@ -847,16 +889,20 @@ describe("App-group instance assignment", () => {
       expect(unready?.health).toBe("partially-running");
       expect(unready?.apps[0]?.listening).toBe(true);
       expect(unready?.instances[0]?.running).toBe(true);
-      expect(readFileSync(join(repository, "start-count"), "utf8")).toBe("1");
+      expect(
+        readFileSync(pathModule.join(repository, "start-count"), "utf-8")
+      ).toBe("1");
 
-      writeFileSync(join(repository, "service-ready"), "yes");
+      writeFileSync(pathModule.join(repository, "service-ready"), "yes");
       expect(
         await controller.retryAppGroup(repository, worktreeId, "Services")
       ).toBe("retried");
       expect(
         controller.inspect(repository).worktrees[0]?.appGroups[0]?.health
       ).toBe("running");
-      expect(readFileSync(join(repository, "start-count"), "utf8")).toBe("1");
+      expect(
+        readFileSync(pathModule.join(repository, "start-count"), "utf-8")
+      ).toBe("1");
     } finally {
       if (controller && worktreeId) {
         await controller
@@ -868,14 +914,16 @@ describe("App-group instance assignment", () => {
   }, 10_000);
 
   it("requires a durable ownership claim for a command listener", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-ownership-"));
-    const repository = join(temporary, "project");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-ownership-")
+    );
+    const repository = pathModule.join(temporary, "project");
     mkdirSync(repository);
     const listener = createServer();
     try {
       git(repository, "init", "-q");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -889,10 +937,12 @@ describe("App-group instance assignment", () => {
           },
         })
       );
-      const state = new FileBranchBaseStateStore(join(temporary, "state.json"));
+      const state = new FileBranchBaseStateStore(
+        pathModule.join(temporary, "state.json")
+      );
       const controller = new TrustedWorkspaceController(undefined, {
         routing: new InMemoryRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state,
       });
       const initial = controller.inspect(repository);
@@ -957,9 +1007,11 @@ describe("App-group instance assignment", () => {
   });
 
   it("stops a shared instance with its captured Start environment", async () => {
-    const temporary = mkdtempSync(join(tmpdir(), "branchbase-shared-stop-"));
-    const repository = join(temporary, "project");
-    const featureWorktree = join(temporary, "project-feature");
+    const temporary = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-shared-stop-")
+    );
+    const repository = pathModule.join(temporary, "project");
+    const featureWorktree = pathModule.join(temporary, "project-feature");
     mkdirSync(repository);
     let controller: WorkspaceController | null = null;
     let featureId = "";
@@ -968,7 +1020,7 @@ describe("App-group instance assignment", () => {
       git(repository, "config", "user.email", "branchbase@example.test");
       git(repository, "config", "user.name", "BranchBase Test");
       writeFileSync(
-        join(repository, ".branchbase.json"),
+        pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["true"] },
@@ -1009,8 +1061,10 @@ describe("App-group instance assignment", () => {
 
       controller = new TrustedWorkspaceController(undefined, {
         routing: new InMemoryRoutingEngine(),
-        processes: new ProcessSupervisor(join(temporary, "control")),
-        state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        state: new FileBranchBaseStateStore(
+          pathModule.join(temporary, "state.json")
+        ),
       });
       const initial = controller.inspect(repository);
       const main = initial.worktrees.find((worktree) => worktree.isMain);
@@ -1027,7 +1081,10 @@ describe("App-group instance assignment", () => {
 
       await controller.stopAppGroup(repository, featureId, "Services");
       expect(
-        readFileSync(join(repository, "stopped-with-port.txt"), "utf8")
+        readFileSync(
+          pathModule.join(repository, "stopped-with-port.txt"),
+          "utf-8"
+        )
       ).toBe(String(mainProductPort));
     } finally {
       if (controller && featureId) {

@@ -1,5 +1,5 @@
 import { realpathSync, statSync } from "node:fs";
-import { basename } from "node:path";
+import pathModule from "node:path";
 
 import { findBranchBaseConfig } from "../config/branchbase-config";
 import { DetectedServices } from "../host/detected-services";
@@ -119,7 +119,7 @@ export class ProjectDiscovery {
       const excluded = new Set(this.store.excludedPaths());
       for (const root of roots) {
         if (!(saved.has(root) || excluded.has(root))) {
-          this.store.saveProject(root, basename(root));
+          this.store.saveProject(root, pathModule.basename(root));
           this.store.append({
             repoPath: root,
             kind: "discovery",

@@ -1,5 +1,6 @@
 import { AlertCircleIcon, RefreshCwIcon, XIcon } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";

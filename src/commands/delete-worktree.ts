@@ -27,7 +27,7 @@ export function deleteWorktree(
   }
   const result = spawnSync("git", ["worktree", "remove", worktree.path], {
     cwd: workspace.mainWorktreePath,
-    encoding: "utf8",
+    encoding: "utf-8",
   });
   if (result.status !== 0) {
     throw new Error(

@@ -23,7 +23,12 @@ function encodeLinkValue(value: string, maxLength: number): string | null {
   try {
     return encodeURIComponent(value).replace(
       UNESCAPED_RFC_3986_CHARACTERS,
-      (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+      (character) => {
+        const codePoint = character.codePointAt(0);
+        return codePoint === undefined
+          ? character
+          : `%${codePoint.toString(16).toUpperCase()}`;
+      }
     );
   } catch {
     return null;

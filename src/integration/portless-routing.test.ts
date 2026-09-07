@@ -2,7 +2,7 @@ import { test } from "bun:test";
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { dirname, join } from "node:path";
+import pathModule from "node:path";
 
 import { repositoryCommandFingerprint } from "../config/repository-trust";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
@@ -19,7 +19,9 @@ test("serializes concurrent lifecycle requests and scopes trust to the fixture",
   const fixture = await PortlessIntegrationFixture.create();
   try {
     assert(
-      existsSync(join(fixture.controlDirectory, "trusted-repositories.json")),
+      existsSync(
+        pathModule.join(fixture.controlDirectory, "trusted-repositories.json")
+      ),
       "Fixture trust was not written to its isolated control directory"
     );
     const main = fixture.controller
@@ -202,17 +204,19 @@ test("re-adopts a surviving process and recovers routes after a proxy crash", as
       .inspect(fixture.root)
       .worktrees.find((worktree) => worktree.isMain);
     assert(main, "Main worktree disappeared");
-    const branchbaseRoot = dirname(dirname(import.meta.dir));
-    const harnessPath = join(fixture.sandbox, "recovery-harness.ts");
-    const readyMarker = join(fixture.sandbox, "recovery-ready.json");
+    const branchbaseRoot = pathModule.dirname(
+      pathModule.dirname(import.meta.dir)
+    );
+    const harnessPath = pathModule.join(fixture.sandbox, "recovery-harness.ts");
+    const readyMarker = pathModule.join(fixture.sandbox, "recovery-ready.json");
     writeFileSync(
       harnessPath,
-      `const { CodexHookActivityStore } = await import(${JSON.stringify(join(branchbaseRoot, "src/codex/codex-hook-activity.ts"))});
-const { UnavailableCodexIntegrationAdapter } = await import(${JSON.stringify(join(branchbaseRoot, "src/codex/codex-integration.ts"))});
-const { WorkspaceController } = await import(${JSON.stringify(join(branchbaseRoot, "src/controller/workspace-controller.ts"))});
-const { PortlessRoutingEngine } = await import(${JSON.stringify(join(branchbaseRoot, "src/runtime/local-routing.ts"))});
-const { FileBranchBaseStateStore } = await import(${JSON.stringify(join(branchbaseRoot, "src/runtime/local-state.ts"))});
-const { ProcessSupervisor } = await import(${JSON.stringify(join(branchbaseRoot, "src/runtime/process-supervisor.ts"))});
+      `const { CodexHookActivityStore } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/codex/codex-hook-activity.ts"))});
+const { UnavailableCodexIntegrationAdapter } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/codex/codex-integration.ts"))});
+const { WorkspaceController } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/controller/workspace-controller.ts"))});
+const { PortlessRoutingEngine } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/local-routing.ts"))});
+const { FileBranchBaseStateStore } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/local-state.ts"))});
+const { ProcessSupervisor } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/process-supervisor.ts"))});
 const { writeFileSync } = await import("node:fs");
 const controller = new WorkspaceController(new UnavailableCodexIntegrationAdapter(), {
   codexHooks: new CodexHookActivityStore({ persist: false }),
@@ -238,9 +242,10 @@ setInterval(() => {}, 1000);
       "Recovery harness did not start the App group",
       20_000
     );
-    const harnessProcesses = JSON.parse(
-      readFileSync(readyMarker, "utf8")
-    ) as Array<{ cwd: string; pid: number }>;
+    const harnessProcesses = JSON.parse(readFileSync(readyMarker, "utf-8")) as {
+      cwd: string;
+      pid: number;
+    }[];
     const survivingPid = harnessProcesses.find(
       (item) => item.cwd === fixture.root
     )?.pid;
@@ -284,7 +289,10 @@ setInterval(() => {}, 1000);
       beforeCrashGroup?.apps.map((app) => [app.id, app.url]) ?? []
     );
     const proxyPid = Number(
-      readFileSync(join(fixture.portlessState, "proxy.pid"), "utf8").trim()
+      readFileSync(
+        pathModule.join(fixture.portlessState, "proxy.pid"),
+        "utf-8"
+      ).trim()
     );
     process.kill(proxyPid, "SIGTERM");
     await waitUntil(
@@ -342,7 +350,7 @@ test("runs a configured Stop command for an external runtime", async () => {
     );
     await fixture.controller.stopAppGroup(fixture.root, main.id, "external");
     assert(
-      existsSync(join(fixture.root, "integration-command-stopped")),
+      existsSync(pathModule.join(fixture.root, "integration-command-stopped")),
       "Configured Stop command did not run"
     );
   } finally {

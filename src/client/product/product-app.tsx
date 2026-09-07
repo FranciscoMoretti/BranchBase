@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
   lazy,
-  type ReactNode,
   Suspense,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 
 import { runCommand } from "../api";
 import { Button } from "../components/ui/button";
@@ -22,13 +22,8 @@ import {
 import { useWorkspace } from "../queries";
 import { ActivityPage } from "./activity-page";
 import { QueryContent } from "./async-state";
-import {
-  hrefFor,
-  type ProductLocation,
-  readLocation,
-  useObservation,
-  useProjects,
-} from "./data";
+import { hrefFor, readLocation, useObservation, useProjects } from "./data";
+import type { ProductLocation } from "./data";
 import { ObservedProjectPage } from "./observed-project-page";
 import { Blank, Shell } from "./primitives";
 import { ProjectsPage } from "./projects-page";

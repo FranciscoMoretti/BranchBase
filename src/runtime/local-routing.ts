@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
@@ -26,11 +26,11 @@ export type LocalRouteState =
   | "unavailable";
 
 export interface LocalRoutingEngine {
-  activate(route: LocalRoute): Promise<void>;
-  deactivate(route: LocalRoute): Promise<void>;
-  observe(route: LocalRoute): LocalRouteState;
-  prepare?(): Promise<void>;
-  url(hostname: string): string;
+  activate: (route: LocalRoute) => Promise<void>;
+  deactivate: (route: LocalRoute) => Promise<void>;
+  observe: (route: LocalRoute) => LocalRouteState;
+  prepare?: () => Promise<void>;
+  url: (hostname: string) => string;
 }
 
 const PortlessRouteSchema = z.strictObject({
@@ -52,8 +52,8 @@ const OBSERVATION_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_MS = 50;
 
 function packageFile(packageName: string, ...parts: string[]): string {
-  return join(
-    dirname(require.resolve(`${packageName}/package.json`)),
+  return pathModule.join(
+    pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
 }
@@ -73,7 +73,8 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
     this.nodePath = packageFile("node", "bin", "node");
     this.port = options.port ?? DEFAULT_PROXY_PORT;
     this.stateDirectory =
-      options.stateDirectory ?? join(homedir(), ".branchbase", "portless");
+      options.stateDirectory ??
+      pathModule.join(homedir(), ".branchbase", "portless");
   }
 
   async activate(route: LocalRoute): Promise<void> {
@@ -167,22 +168,22 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
   }
 
   private proxyPid(): number | null {
-    const path = join(this.stateDirectory, "proxy.pid");
+    const path = pathModule.join(this.stateDirectory, "proxy.pid");
     if (!existsSync(path)) {
       return null;
     }
-    const pid = Number(readFileSync(path, "utf8").trim());
+    const pid = Number(readFileSync(path, "utf-8").trim());
     return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
   }
 
   private route(hostname: string): PortlessRoute | null {
-    const path = join(this.stateDirectory, "routes.json");
+    const path = pathModule.join(this.stateDirectory, "routes.json");
     if (!existsSync(path)) {
       return null;
     }
     try {
       const routes = PortlessRoutesSchema.parse(
-        JSON.parse(readFileSync(path, "utf8"))
+        JSON.parse(readFileSync(path, "utf-8"))
       );
       return routes.find((route) => route.hostname === hostname) ?? null;
     } catch {
@@ -198,7 +199,7 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
 
   private run(args: string[]): void {
     const result = spawnSync(this.nodePath, [this.cliPath, ...args], {
-      encoding: "utf8",
+      encoding: "utf-8",
       env: this.environment(),
       timeout: 10_000,
     });

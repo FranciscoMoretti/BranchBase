@@ -45,15 +45,15 @@ export function worktreeDisplayStatus(
   if (worktree.setupState === "running") {
     return "setting-up";
   }
-  const groupStatuses = worktree.appGroups.map(appGroupDisplayStatus);
+  const groupStatuses = new Set(worktree.appGroups.map(appGroupDisplayStatus));
   if (
     worktree.health === "partially-running" ||
-    groupStatuses.includes("partial") ||
+    groupStatuses.has("partial") ||
     (worktree.processRunning && worktree.health !== "running")
   ) {
     return "partial";
   }
-  if (worktree.health === "running" || groupStatuses.includes("running")) {
+  if (worktree.health === "running" || groupStatuses.has("running")) {
     return "running";
   }
   return "stopped";

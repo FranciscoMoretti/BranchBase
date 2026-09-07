@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import type {
   LocalRoute,
@@ -43,22 +43,24 @@ class InMemoryRoutingEngine implements LocalRoutingEngine {
 }
 
 function git(cwd: string, ...args: string[]): void {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout);
   }
 }
 
 it("runs the development Start preflight before local state or repository code", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-start-preflight-"));
-  const repository = join(temporary, "project");
-  const marker = join(temporary, "repository-command-ran");
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-start-preflight-")
+  );
+  const repository = pathModule.join(temporary, "project");
+  const marker = pathModule.join(temporary, "repository-command-ran");
   mkdirSync(repository);
   git(repository, "init", "-q");
   git(repository, "config", "user.email", "branchbase@example.test");
   git(repository, "config", "user.name", "BranchBase Test");
   writeFileSync(
-    join(repository, ".branchbase.json"),
+    pathModule.join(repository, ".branchbase.json"),
     JSON.stringify({
       version: 1,
       setup: { argv: ["true"] },
@@ -81,9 +83,9 @@ it("runs the development Start preflight before local state or repository code",
   git(repository, "add", ".branchbase.json");
   git(repository, "commit", "-qm", "test config");
 
-  const statePath = join(temporary, "state.json");
+  const statePath = pathModule.join(temporary, "state.json");
   const controller = new WorkspaceController(undefined, {
-    processes: new ProcessSupervisor(join(temporary, "processes")),
+    processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
     routing: new InMemoryRoutingEngine(),
     developmentStartPreflight: () => {
       throw new Error("Production BranchBase is already using this worktree");
@@ -113,16 +115,18 @@ it("runs the development Start preflight before local state or repository code",
 
 it("describes repository discovery failures before invoking the preflight", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-start-preflight-invalid-repository-")
+    pathModule.join(tmpdir(), "branchbase-start-preflight-invalid-repository-")
   );
   let preflightCalled = false;
   const controller = new WorkspaceController(undefined, {
     developmentStartPreflight: () => {
       preflightCalled = true;
     },
-    processes: new ProcessSupervisor(join(temporary, "processes")),
+    processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
     routing: new InMemoryRoutingEngine(),
-    state: new FileBranchBaseStateStore(join(temporary, "state.json")),
+    state: new FileBranchBaseStateStore(
+      pathModule.join(temporary, "state.json")
+    ),
   });
 
   try {

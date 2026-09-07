@@ -1,16 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { createServer, type Server } from "node:http";
+import { createServer } from "node:http";
+import type { Server } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { spawn } from "bun";
 
 import { processStartMarker } from "../host/process-inspection";
 import { createCodexHookCapability } from "./codex-hook-capability";
 
-const PLUGIN_ROOT = join(import.meta.dir, "..", "..", "plugins", "branchbase");
-const RUNNER = join(PLUGIN_ROOT, "hooks", "branchbase-hook");
+const PLUGIN_ROOT = pathModule.join(
+  import.meta.dir,
+  "..",
+  "..",
+  "plugins",
+  "branchbase"
+);
+const RUNNER = pathModule.join(PLUGIN_ROOT, "hooks", "branchbase-hook");
 
 describe("BranchBase Codex hook runner", () => {
   const requests: unknown[] = [];
@@ -23,14 +30,14 @@ describe("BranchBase Codex hook runner", () => {
     requests.length = 0;
     hookResponse = {};
     capabilityDirectory = mkdtempSync(
-      join(tmpdir(), "branchbase-hook-runner-")
+      pathModule.join(tmpdir(), "branchbase-hook-runner-")
     );
     server = createServer(async (request, response) => {
       const chunks: Buffer[] = [];
       for await (const chunk of request) {
         chunks.push(Buffer.from(chunk));
       }
-      requests.push(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      requests.push(JSON.parse(Buffer.concat(chunks).toString("utf-8")));
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(hookResponse));
     });
@@ -114,7 +121,7 @@ describe("BranchBase Codex hook runner", () => {
         hook_event_name: "Stop",
         session_id: "task-a",
       },
-      join(capabilityDirectory, "missing.json")
+      pathModule.join(capabilityDirectory, "missing.json")
     );
     expect(missing).toEqual({ exitCode: 0, stderr: "", stdout: "{}\n" });
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import pathModule from "node:path";
 
-const CLIENT_ROOT = join(import.meta.dir);
+const CLIENT_ROOT = pathModule.join(import.meta.dir);
 const FORBIDDEN_PRIMITIVES =
   /<(button|details|dialog|input|select|summary|textarea)\b/;
 const FORBIDDEN_PRIMITIVE_IMPORTS =
@@ -10,7 +10,7 @@ const FORBIDDEN_PRIMITIVE_IMPORTS =
 
 function componentFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
+    const path = pathModule.join(directory, entry.name);
     if (entry.isDirectory()) {
       return entry.name === "ui" ? [] : componentFiles(path);
     }
@@ -22,13 +22,13 @@ describe("client primitive boundary", () => {
   it("routes native interactive elements through components/ui", () => {
     const violations = componentFiles(CLIENT_ROOT)
       .filter((file) => {
-        const source = readFileSync(file, "utf8");
+        const source = readFileSync(file, "utf-8");
         return (
           FORBIDDEN_PRIMITIVES.test(source) ||
           FORBIDDEN_PRIMITIVE_IMPORTS.test(source)
         );
       })
-      .map((file) => relative(CLIENT_ROOT, file));
+      .map((file) => pathModule.relative(CLIENT_ROOT, file));
     expect(violations).toEqual([]);
   });
 });

@@ -1,12 +1,14 @@
 import { useId } from "react";
 import {
   Group,
-  type GroupProps,
   Panel,
-  type PanelProps,
   Separator,
-  type SeparatorProps,
   useDefaultLayout,
+} from "react-resizable-panels";
+import type {
+  GroupProps,
+  PanelProps,
+  SeparatorProps,
 } from "react-resizable-panels";
 
 import { cn } from "@/client/lib/utils";

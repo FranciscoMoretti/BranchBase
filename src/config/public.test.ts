@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  type BranchBaseConfig,
-  type ResolvedBranchBaseAppGroups,
-  resolveStartCommand,
+import { resolveStartCommand } from "branchbase/config";
+import type {
+  BranchBaseConfig,
+  ResolvedBranchBaseAppGroups,
 } from "branchbase/config";
 
 describe("public config contract", () => {

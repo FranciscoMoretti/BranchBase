@@ -3,11 +3,11 @@ import { useState } from "react";
 
 import type { Observation } from "../../controller/discovery-contract";
 import type { ProjectOverview } from "../../controller/product-contract";
-import {
-  type AppGroupSnapshot,
-  appGroupIsRunning,
-  type WorkspaceSnapshot,
-  type WorktreeSnapshot,
+import { appGroupIsRunning } from "../../controller/workspace-snapshot";
+import type {
+  AppGroupSnapshot,
+  WorkspaceSnapshot,
+  WorktreeSnapshot,
 } from "../../controller/workspace-snapshot";
 import { appGroupDisplayStatus } from "../components/app-group-status";
 import { CreateWorktreeDialog } from "../components/create-worktree-dialog";
@@ -26,8 +26,10 @@ import { useCodexIntegration } from "../queries";
 import { useRepositoryTrust } from "../use-repository-trust";
 import { useWorktreeCommandActions } from "../use-worktree-command-actions";
 import { ActivityPage } from "./activity-page";
-import { hrefFor, type ProductLocation } from "./data";
-import { EnvironmentList, type GroupControls } from "./environment-list";
+import { hrefFor } from "./data";
+import type { ProductLocation } from "./data";
+import { EnvironmentList } from "./environment-list";
+import type { GroupControls } from "./environment-list";
 import { GroupDetails } from "./group-details";
 import { InfrastructurePage } from "./infrastructure-page";
 import { DetectedServicesSection } from "./observed-project-page";

@@ -1,10 +1,10 @@
-import { basename } from "node:path";
+import pathModule from "node:path";
 
 import {
-  type ResolvedBranchBaseAppGroups,
   resolveStartCommand,
   resolveStopCommand,
 } from "../config/branchbase-config";
+import type { ResolvedBranchBaseAppGroups } from "../config/branchbase-config";
 import type {
   BranchBaseApp,
   BranchBaseAppGroup,
@@ -34,17 +34,15 @@ import {
   ownedPortPids,
   portOwnership,
 } from "../runtime/ports";
-import {
-  appGroupInstanceProcessId,
-  type ProcessSupervisor,
-} from "../runtime/process-supervisor";
+import { appGroupInstanceProcessId } from "../runtime/process-supervisor";
+import type { ProcessSupervisor } from "../runtime/process-supervisor";
 import {
   appIsReady,
   appIsReadySync,
-  type BackingPortLease,
   reserveBackingPort,
   waitForAppReadiness,
 } from "../runtime/readiness";
+import type { BackingPortLease } from "../runtime/readiness";
 import { AppGroupLifecycleError } from "./app-group-lifecycle-error";
 import type {
   AppEndpointSnapshot,
@@ -85,7 +83,7 @@ function displayName(id: string, value: { name?: string }): string {
 }
 
 function groupHealth(apps: AppEndpointSnapshot[]): AppHealth {
-  if (apps.length === 0 || apps.every((app) => !app.listening)) {
+  if (apps.every((app) => !app.listening)) {
     return "not-running";
   }
   return apps.every((app) => app.readiness === "ready")
@@ -569,7 +567,7 @@ export class AppGroupRuntime {
       configFingerprint: repositoryCommandFingerprint(target.config),
       groupId: target.groupId,
       mode: group.instances.mode,
-      repoLabel: basename(target.repoPath),
+      repoLabel: pathModule.basename(target.repoPath),
       repoPath: target.repoPath,
       worktreeLabel: target.worktree.routeLabel,
       worktreePath: target.worktree.path,
@@ -686,7 +684,7 @@ export class AppGroupRuntime {
           configFingerprint: repositoryCommandFingerprint(target.config),
           groupId,
           mode: group.instances.mode,
-          repoLabel: basename(target.repoPath),
+          repoLabel: pathModule.basename(target.repoPath),
           repoPath: target.repoPath,
           worktreeLabel: target.worktree.routeLabel,
           worktreePath: target.worktree.path,
@@ -1116,9 +1114,9 @@ export class AppGroupRuntime {
                     configFingerprint,
                     groupId,
                     mode: group.instances.mode,
-                    repoLabel: basename(repoPath),
+                    repoLabel: pathModule.basename(repoPath),
                     repoPath,
-                    worktreeLabel: basename(worktreePath),
+                    worktreeLabel: pathModule.basename(worktreePath),
                     worktreePath,
                   });
               if (!(instance && instance.groupId === groupId)) {

@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
@@ -108,7 +108,7 @@ export class CodexHookActivityStore {
       options.persist === false
         ? null
         : (options.file ??
-          join(homedir(), ".branchbase", "codex", "activity.json"));
+          pathModule.join(homedir(), ".branchbase", "codex", "activity.json"));
     this.load();
   }
 
@@ -157,7 +157,7 @@ export class CodexHookActivityStore {
       nextState(observation.event, observation.source) ??
       previous?.state ??
       "ready";
-    const activeSubagents = new Set(previous?.activeSubagents ?? []);
+    const activeSubagents = new Set(previous?.activeSubagents);
     if (observation.event === "SubagentStart" && observation.agentId) {
       activeSubagents.add(observation.agentId);
     }

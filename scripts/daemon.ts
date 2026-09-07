@@ -11,8 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import pathModule from "node:path";
 
 import { currentHost } from "../src/host/host-adapter";
 import {
@@ -20,16 +19,16 @@ import {
   repositoryUrl,
 } from "../src/repository-context";
 
-const APP_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const CONTROL_DIR = join(homedir(), ".branchbase");
-const PID_FILE = join(CONTROL_DIR, "server.pid");
-const LOG_FILE = join(CONTROL_DIR, "server.log");
+const APP_ROOT = pathModule.dirname(import.meta.dirname);
+const CONTROL_DIR = pathModule.join(homedir(), ".branchbase");
+const PID_FILE = pathModule.join(CONTROL_DIR, "server.pid");
+const LOG_FILE = pathModule.join(CONTROL_DIR, "server.log");
 const command = process.argv[2];
 const selectedRepoPath = repositoryPathFromArgs(
   process.argv.slice(3),
   process.env.INIT_CWD
 );
-const repoPath = selectedRepoPath ? resolve(selectedRepoPath) : null;
+const repoPath = selectedRepoPath ? pathModule.resolve(selectedRepoPath) : null;
 
 function appUrl(): string {
   return repositoryUrl(
@@ -52,7 +51,7 @@ interface DaemonRecord {
 
 function startMarker(pid: number): string {
   const result = spawnSync("ps", ["-p", String(pid), "-o", "lstart="], {
-    encoding: "utf8",
+    encoding: "utf-8",
   });
   return result.status === 0 ? result.stdout.trim() : "";
 }
@@ -62,7 +61,7 @@ function readPid(file = PID_FILE): number | null {
     return null;
   }
   try {
-    const record = JSON.parse(readFileSync(file, "utf8")) as DaemonRecord;
+    const record = JSON.parse(readFileSync(file, "utf-8")) as DaemonRecord;
     return Number.isInteger(record.pid) &&
       record.pid > 0 &&
       record.startMarker.length > 0 &&

@@ -3,20 +3,23 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { createRequire } from "node:module";
-import { createServer, type Server } from "node:net";
+import { createServer } from "node:net";
+import type { Server } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import pathModule from "node:path";
 
 import { PortlessRoutingEngine } from "./local-routing";
 
 const require = createRequire(import.meta.url);
 
 it("rejects structurally invalid Portless route state", () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-portless-state-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-portless-state-")
+  );
   try {
     mkdirSync(temporary, { recursive: true });
     writeFileSync(
-      join(temporary, "routes.json"),
+      pathModule.join(temporary, "routes.json"),
       JSON.stringify([{ hostname: "app.localhost", pid: "wrong", port: 3000 }])
     );
     const routing = new PortlessRoutingEngine({ stateDirectory: temporary });
@@ -30,11 +33,13 @@ it("rejects structurally invalid Portless route state", () => {
 });
 
 it("accepts Portless routes with supported tunnel metadata", () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-portless-state-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-portless-state-")
+  );
   try {
     mkdirSync(temporary, { recursive: true });
     writeFileSync(
-      join(temporary, "routes.json"),
+      pathModule.join(temporary, "routes.json"),
       JSON.stringify([
         {
           hostname: "app.localhost",
@@ -59,8 +64,8 @@ it("accepts Portless routes with supported tunnel metadata", () => {
 });
 
 function packageFile(packageName: string, ...parts: string[]): string {
-  return join(
-    dirname(require.resolve(`${packageName}/package.json`)),
+  return pathModule.join(
+    pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
 }
@@ -84,8 +89,10 @@ function close(server: Server): Promise<void> {
 }
 
 it("activates a Portless route when the backing app resets connections", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-portless-flap-"));
-  const stateDirectory = join(temporary, "portless");
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-portless-flap-")
+  );
+  const stateDirectory = pathModule.join(temporary, "portless");
   const backend = createHttpServer((request) => {
     request.socket.destroy();
   });
@@ -140,8 +147,10 @@ it("activates a Portless route when the backing app resets connections", async (
 }, 15_000);
 
 it("reloads consecutive Portless route updates", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-portless-watch-"));
-  const stateDirectory = join(temporary, "portless");
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-portless-watch-")
+  );
+  const stateDirectory = pathModule.join(temporary, "portless");
   const backend = createHttpServer((_request, response) => {
     response.end("ok");
   });

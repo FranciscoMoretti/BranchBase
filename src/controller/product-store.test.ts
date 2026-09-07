@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
@@ -20,7 +20,7 @@ import { WorkspaceController } from "./workspace-controller";
 const directories: string[] = [];
 function store() {
   const directory = realpathSync(
-    mkdtempSync(join(tmpdir(), "branchbase-product-"))
+    mkdtempSync(pathModule.join(tmpdir(), "branchbase-product-"))
   );
   directories.push(directory);
   return { directory, product: new ProductStore(directory) };
@@ -69,7 +69,7 @@ test("pin limits reject invalid metadata without losing the prior record", () =>
 test("addedAt must be an ISO timestamp", () => {
   const { directory, product } = store();
   writeFileSync(
-    join(directory, "product.json"),
+    pathModule.join(directory, "product.json"),
     JSON.stringify({
       projects: [
         { addedAt: "2026-09-06", name: "App", path: "/repo", pins: [] },
@@ -84,29 +84,31 @@ test("addedAt must be an ISO timestamp", () => {
 test("invalid project catalogs fail with recovery guidance without overwriting the file", () => {
   const { directory, product } = store();
   const contents = '{"projects": [}';
-  writeFileSync(join(directory, "product.json"), contents);
+  writeFileSync(pathModule.join(directory, "product.json"), contents);
 
   expect(() => product.projects()).toThrow(ProductCatalogError);
   expect(() => product.projects()).toThrow("repair or restore it");
   expect(() => product.saveProject("/repo", "App")).toThrow(
     ProductCatalogError
   );
-  expect(readFileSync(join(directory, "product.json"), "utf8")).toBe(contents);
+  expect(
+    readFileSync(pathModule.join(directory, "product.json"), "utf-8")
+  ).toBe(contents);
 });
 
 function observedFixture() {
   const fixture = store();
-  const repoPath = join(fixture.directory, "repo");
+  const repoPath = pathModule.join(fixture.directory, "repo");
   mkdirSync(repoPath);
   const git = (...args: string[]) => {
-    const result = spawnSync("git", args, { cwd: repoPath, encoding: "utf8" });
+    const result = spawnSync("git", args, { cwd: repoPath, encoding: "utf-8" });
     if (result.status !== 0) {
       throw new Error(result.stderr);
     }
   };
   git("init", "-q");
   writeFileSync(
-    join(repoPath, ".branchbase.json"),
+    pathModule.join(repoPath, ".branchbase.json"),
     JSON.stringify({
       version: 1,
       setup: { argv: ["true"] },
@@ -131,8 +133,10 @@ function observedFixture() {
     "-qm",
     "initial"
   );
-  const runtime = join(fixture.directory, "runtime");
-  const state = new FileBranchBaseStateStore(join(runtime, "state.json"));
+  const runtime = pathModule.join(fixture.directory, "runtime");
+  const state = new FileBranchBaseStateStore(
+    pathModule.join(runtime, "state.json")
+  );
   const controller = new WorkspaceController(undefined, {
     processes: new ProcessSupervisor(runtime),
     state,
@@ -195,12 +199,12 @@ test("saved projects survive controller restart and unavailable configuration ca
       name: "My project",
       path: repoPath,
     });
-    writeFileSync(join(repoPath, ".branchbase.json"), "invalid");
+    writeFileSync(pathModule.join(repoPath, ".branchbase.json"), "invalid");
     expect(controller.projects()[0].workspace).toBeNull();
     controller.removeProject(repoPath);
     expect(controller.projects()).toHaveLength(0);
     expect(
-      new ProductStore(join(directory, "runtime"))
+      new ProductStore(pathModule.join(directory, "runtime"))
         .events(repoPath)
         .some((event) => event.message === "Project saved")
     ).toBe(true);
@@ -211,7 +215,7 @@ test("saved projects survive controller restart and unavailable configuration ca
 
 test("saved projects can be removed through a symlink alias", async () => {
   const { controller, repoPath, directory } = observedFixture();
-  const alias = join(directory, "repo-alias");
+  const alias = pathModule.join(directory, "repo-alias");
   symlinkSync(repoPath, alias, "dir");
   try {
     controller.saveProject(repoPath);
@@ -251,7 +255,7 @@ test("project removal and trust revocation preserve retained runtime ownership",
 test("activity history initializes when upgrading a project-only catalog", () => {
   const { directory, product } = store();
   writeFileSync(
-    join(directory, "product.json"),
+    pathModule.join(directory, "product.json"),
     JSON.stringify({
       projects: [
         {

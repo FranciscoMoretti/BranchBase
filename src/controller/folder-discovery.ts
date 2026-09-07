@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 const EXCLUDED = new Set([
   "node_modules",
@@ -30,7 +30,7 @@ export function scanRepositories(root: string, maxDepth = 3, limit = 2000) {
       break;
     }
     visited++;
-    if (existsSync(join(current.path, ".git"))) {
+    if (existsSync(pathModule.join(current.path, ".git"))) {
       repositories.push(current.path);
       continue;
     }
@@ -40,14 +40,14 @@ export function scanRepositories(root: string, maxDepth = 3, limit = 2000) {
     try {
       for (const entry of readdirSync(current.path, {
         withFileTypes: true,
-      }).sort((a, b) => a.name.localeCompare(b.name))) {
+      }).toSorted((a, b) => a.name.localeCompare(b.name))) {
         if (
           entry.isDirectory() &&
           !entry.name.startsWith(".") &&
           !EXCLUDED.has(entry.name)
         ) {
           queue.push({
-            path: join(current.path, entry.name),
+            path: pathModule.join(current.path, entry.name),
             depth: current.depth + 1,
           });
         }
