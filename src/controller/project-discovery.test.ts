@@ -201,7 +201,7 @@ test("configuring an observed project does not approve or execute its commands",
     await workspace.close();
   }
 });
-test("associated services exclude nested Git repositories and unrelated paths", () => {
+test("associated services exclude managed, nested, and unrelated paths", () => {
   const root = temporary();
   const repo = repository(join(root, "app"));
   const nested = repository(join(repo, "nested"));
@@ -221,6 +221,7 @@ test("associated services exclude nested Git repositories and unrelated paths", 
   });
   const services = [
     service(inside, 1001),
+    { ...service(inside, 1004), managed: true },
     service(nested, 1002),
     service(`${repo}-other`, 1003),
   ];

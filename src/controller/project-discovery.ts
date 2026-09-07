@@ -167,6 +167,7 @@ export class ProjectDiscovery {
         services: inspected.services
           .filter(
             (service) =>
+              !service.managed &&
               pathInside(service.cwd, worktree.path) &&
               this.rootFor(service.cwd) === worktree.path
           )
