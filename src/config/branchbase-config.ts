@@ -6,21 +6,18 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
 import type { BranchBaseCommand } from "./branchbase-command";
 import {
-  type BranchBaseAppGroup,
-  type BranchBaseConfig,
   BranchBaseConfigSchema,
   cloneBranchBaseConfig,
 } from "./branchbase-schema";
-import {
-  type ResolvedTemplateApp,
-  renderBranchBaseTemplate,
-} from "./branchbase-template";
+import type { BranchBaseAppGroup, BranchBaseConfig } from "./branchbase-schema";
+import { renderBranchBaseTemplate } from "./branchbase-template";
+import type { ResolvedTemplateApp } from "./branchbase-template";
 
 // biome-ignore lint/performance/noBarrelFile: preserve the package's internal config-module exports.
 export {
@@ -84,7 +81,7 @@ export function branchbaseCommandEnvironment(
 }
 
 export function findBranchBaseConfig(root: string): string | null {
-  const path = join(root, ".branchbase.json");
+  const path = pathModule.join(root, ".branchbase.json");
   return existsSync(path) ? path : null;
 }
 
@@ -95,7 +92,7 @@ function contentRevision(content: string): string {
 export function loadBranchBaseConfigDocument(
   path: string
 ): BranchBaseConfigDocument {
-  const content = readFileSync(path, "utf8");
+  const content = readFileSync(path, "utf-8");
   const result = BranchBaseConfigSchema.safeParse(JSON.parse(content));
   if (!result.success) {
     throw new Error(
@@ -114,7 +111,7 @@ export function updateBranchBaseConfig(
   config: BranchBaseConfig,
   expectedRevision: string
 ): BranchBaseConfigDocument {
-  const currentContent = readFileSync(configPath, "utf8");
+  const currentContent = readFileSync(configPath, "utf-8");
   if (contentRevision(currentContent) !== expectedRevision) {
     throw new Error(
       "The configuration changed on disk. Reload it before saving your changes."

@@ -7,10 +7,10 @@ import {
 } from "lucide-react";
 
 import type { CodexIntegrationSnapshot } from "../../codex/codex-integration";
-import {
-  type AppGroupSnapshot,
-  appGroupIsRunning,
-  type WorktreeSnapshot,
+import { appGroupIsRunning } from "../../controller/workspace-snapshot";
+import type {
+  AppGroupSnapshot,
+  WorktreeSnapshot,
 } from "../../controller/workspace-snapshot";
 import { AppGroupActionsMenu } from "../components/app-group-actions-menu";
 import { appGroupDisplayStatus } from "../components/app-group-status";

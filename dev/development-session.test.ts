@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { reserveBackingPort } from "../src/runtime/readiness";
 import type { DevelopmentRouting } from "./development-routing";
@@ -34,12 +34,20 @@ function listenOnPort(port: number): Promise<() => Promise<void>> {
 }
 
 it("isolates development resources from the production runtime", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-development-"));
-  const homeDirectory = join(temporary, "home");
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-development-")
+  );
+  const homeDirectory = pathModule.join(temporary, "home");
   const appRoot = realpathSync(".");
   const proxyPort = await reserveBackingPort();
-  const expectedProductionDirectory = join(homeDirectory, ".branchbase");
-  const productionState = join(expectedProductionDirectory, "state.json");
+  const expectedProductionDirectory = pathModule.join(
+    homeDirectory,
+    ".branchbase"
+  );
+  const productionState = pathModule.join(
+    expectedProductionDirectory,
+    "state.json"
+  );
   let opened: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
 
   try {
@@ -50,7 +58,7 @@ it("isolates development resources from the production runtime", async () => {
     opened = await openDevelopmentSession({
       appRoot,
       environment: {
-        BRANCHBASE_CODEX_CONTROL_DIR: join(
+        BRANCHBASE_CODEX_CONTROL_DIR: pathModule.join(
           expectedProductionDirectory,
           "codex"
         ),
@@ -60,23 +68,23 @@ it("isolates development resources from the production runtime", async () => {
     });
 
     expect(opened.profile.controlDirectory).toStartWith(
-      join(expectedProductionDirectory, "development")
+      pathModule.join(expectedProductionDirectory, "development")
     );
     expect(opened.profile.controlDirectory).not.toBe(
       expectedProductionDirectory
     );
     expect(opened.profile.statePath).toBe(
-      join(opened.profile.controlDirectory, "state.json")
+      pathModule.join(opened.profile.controlDirectory, "state.json")
     );
     expect(opened.profile.portlessStateDirectory).toBe(
-      join(opened.profile.controlDirectory, "portless")
+      pathModule.join(opened.profile.controlDirectory, "portless")
     );
     expect(opened.profile.codexControlDirectory).toBe(
-      join(opened.profile.controlDirectory, "codex")
+      pathModule.join(opened.profile.controlDirectory, "codex")
     );
     expect(opened.profile.dashboardPort).toBe(0);
     expect(opened.profile.portlessPort).toBe(port);
-    expect(readFileSync(productionState, "utf8")).toBe("production-state\n");
+    expect(readFileSync(productionState, "utf-8")).toBe("production-state\n");
   } finally {
     await opened?.close();
     await proxyPort.release();
@@ -85,7 +93,9 @@ it("isolates development resources from the production runtime", async () => {
 });
 
 it("allows only one development writer per checkout", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-development-lock-"));
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-development-lock-")
+  );
   const proxyPort = await reserveBackingPort();
   const port = proxyPort.port;
   let first: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
@@ -93,7 +103,7 @@ it("allows only one development writer per checkout", async () => {
   const options = {
     appRoot: realpathSync("."),
     environment: { BRANCHBASE_PORTLESS_PORT: String(port) },
-    homeDirectory: join(temporary, "home"),
+    homeDirectory: pathModule.join(temporary, "home"),
   };
 
   try {
@@ -116,7 +126,7 @@ it("allows only one development writer per checkout", async () => {
 
 it("rejects an empty explicit development proxy port", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-development-empty-port-")
+    pathModule.join(tmpdir(), "branchbase-development-empty-port-")
   );
 
   try {
@@ -124,7 +134,7 @@ it("rejects an empty explicit development proxy port", async () => {
       openDevelopmentSession({
         appRoot: realpathSync("."),
         environment: { BRANCHBASE_PORTLESS_PORT: "" },
-        homeDirectory: join(temporary, "home"),
+        homeDirectory: pathModule.join(temporary, "home"),
       })
     ).rejects.toThrow(
       "BRANCHBASE_PORTLESS_PORT must be an integer between 1 and 65535"
@@ -136,12 +146,12 @@ it("rejects an empty explicit development proxy port", async () => {
 
 it("releases session ownership when proxy shutdown fails", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-development-close-")
+    pathModule.join(tmpdir(), "branchbase-development-close-")
   );
   const options = {
     appRoot: realpathSync("."),
     environment: {},
-    homeDirectory: join(temporary, "home"),
+    homeDirectory: pathModule.join(temporary, "home"),
   };
   let opened: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
   let closeProxy: (() => Promise<void>) | undefined;
@@ -159,7 +169,10 @@ it("releases session ownership when proxy shutdown fails", async () => {
       warning.mockRestore();
     }
     const releaseLease = acquireExclusiveFileLock(
-      join(opened.profile.controlDirectory, "server.lock.guard.sqlite")
+      pathModule.join(
+        opened.profile.controlDirectory,
+        "server.lock.guard.sqlite"
+      )
     );
     releaseLease();
     await closeProxy();
@@ -178,11 +191,11 @@ it("releases session ownership when proxy shutdown fails", async () => {
 
 it("opens different development checkouts concurrently", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-development-checkouts-")
+    pathModule.join(tmpdir(), "branchbase-development-checkouts-")
   );
-  const firstRoot = join(temporary, "first");
-  const secondRoot = join(temporary, "second");
-  const homeDirectory = join(temporary, "home");
+  const firstRoot = pathModule.join(temporary, "first");
+  const secondRoot = pathModule.join(temporary, "second");
+  const homeDirectory = pathModule.join(temporary, "home");
   let first: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
   let second: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
 
@@ -213,9 +226,9 @@ it("opens different development checkouts concurrently", async () => {
 
 it("reuses the development proxy port between sessions", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-development-recovery-")
+    pathModule.join(tmpdir(), "branchbase-development-recovery-")
   );
-  const homeDirectory = join(temporary, "home");
+  const homeDirectory = pathModule.join(temporary, "home");
   const appRoot = realpathSync(".");
   let initial: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
   let recovered: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
@@ -245,12 +258,12 @@ it("reuses the development proxy port between sessions", async () => {
 
 it("does not silently change a remembered development proxy port", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-development-stable-port-")
+    pathModule.join(tmpdir(), "branchbase-development-stable-port-")
   );
   const options = {
     appRoot: realpathSync("."),
     environment: {},
-    homeDirectory: join(temporary, "home"),
+    homeDirectory: pathModule.join(temporary, "home"),
   };
   let closeOccupiedPort: (() => Promise<void>) | undefined;
   let initial: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
@@ -280,13 +293,13 @@ it("does not silently change a remembered development proxy port", async () => {
 
 it("rejects changing the explicit proxy port for existing state", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-development-port-change-")
+    pathModule.join(tmpdir(), "branchbase-development-port-change-")
   );
   const firstPort = await reserveBackingPort();
   const secondPort = await reserveBackingPort(new Set([firstPort.port]));
   const options = {
     appRoot: realpathSync("."),
-    homeDirectory: join(temporary, "home"),
+    homeDirectory: pathModule.join(temporary, "home"),
   };
   let initial: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
 
@@ -318,7 +331,7 @@ it("rejects changing the explicit proxy port for existing state", async () => {
 
 it("rejects an occupied explicit development proxy port", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-development-conflict-")
+    pathModule.join(tmpdir(), "branchbase-development-conflict-")
   );
   const reservation = await reserveBackingPort();
   const options = {
@@ -326,7 +339,7 @@ it("rejects an occupied explicit development proxy port", async () => {
     environment: {
       BRANCHBASE_PORTLESS_PORT: String(reservation.port),
     },
-    homeDirectory: join(temporary, "home"),
+    homeDirectory: pathModule.join(temporary, "home"),
   };
   let opened: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
 

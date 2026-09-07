@@ -1,19 +1,19 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { AppGroupLifecycleError } from "../controller/app-group-lifecycle-error";
 import { ProductCatalogError } from "../controller/product-store";
-import {
-  type BranchBaseServerController,
-  createBranchBaseServer,
-} from "./branchbase-server";
+import { createBranchBaseServer } from "./branchbase-server";
+import type { BranchBaseServerController } from "./branchbase-server";
 
 describe("BranchBase HTTP server", () => {
   it("preserves the product catalog error code for API callers", async () => {
-    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-catalog-"));
-    const catalogFile = join(appRoot, "product.json");
+    const appRoot = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-server-catalog-")
+    );
+    const catalogFile = pathModule.join(appRoot, "product.json");
     const controller = {
       close: () => Promise.resolve(),
       execute: () => Promise.reject(new Error("not used")),
@@ -50,7 +50,9 @@ describe("BranchBase HTTP server", () => {
   });
 
   it("preserves stable App-group lifecycle error codes", async () => {
-    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-error-"));
+    const appRoot = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-server-error-")
+    );
     const controller = {
       close: () => Promise.resolve(),
       execute: () =>
@@ -105,7 +107,9 @@ describe("BranchBase HTTP server", () => {
   });
 
   it("starts, authorizes commands, and closes through one interface", async () => {
-    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-test-"));
+    const appRoot = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-server-test-")
+    );
     let closeCalls = 0;
     let commandCalls = 0;
     const controller = {
@@ -177,7 +181,9 @@ describe("BranchBase HTTP server", () => {
   });
 
   it("returns project errors with a null workspace", async () => {
-    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-projects-"));
+    const appRoot = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-server-projects-")
+    );
     const controller = {
       close: () => Promise.resolve(),
       execute: () => Promise.reject(new Error("not used")),
@@ -230,7 +236,7 @@ describe("BranchBase HTTP server", () => {
 
   it("reports unavailable observation support instead of a schema error", async () => {
     const appRoot = mkdtempSync(
-      join(tmpdir(), "branchbase-server-observation-")
+      pathModule.join(tmpdir(), "branchbase-server-observation-")
     );
     const controller = {
       close: () => Promise.resolve(),
@@ -267,7 +273,9 @@ describe("BranchBase HTTP server", () => {
   });
 
   it("formats IPv6 hosts as valid origins", async () => {
-    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-ipv6-"));
+    const appRoot = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-server-ipv6-")
+    );
     const controller = {
       close: () => Promise.resolve(),
       execute: () => Promise.reject(new Error("not used")),
@@ -298,9 +306,11 @@ describe("BranchBase HTTP server", () => {
   });
 
   it("cleans up the Codex hook capability on process exit", async () => {
-    const appRoot = mkdtempSync(join(tmpdir(), "branchbase-server-exit-"));
-    const codexDirectory = join(appRoot, "codex");
-    const capabilityFile = join(codexDirectory, "capability.json");
+    const appRoot = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-server-exit-")
+    );
+    const codexDirectory = pathModule.join(appRoot, "codex");
+    const capabilityFile = pathModule.join(codexDirectory, "capability.json");
     const controller = {
       close: () => Promise.resolve(),
       execute: () => Promise.reject(new Error("not used")),

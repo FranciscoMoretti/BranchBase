@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { ProcessSupervisor } from "./process-supervisor";
 
@@ -18,7 +18,9 @@ let controlDirectory = "";
 let supervisor: ProcessSupervisor;
 
 beforeEach(() => {
-  controlDirectory = mkdtempSync(join(tmpdir(), "branchbase-process-test-"));
+  controlDirectory = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-process-test-")
+  );
   supervisor = new ProcessSupervisor(controlDirectory);
 });
 
@@ -65,7 +67,7 @@ afterEach(() => {
 describe("managed logs", () => {
   it("ignores structurally invalid persisted process failures", () => {
     writeFileSync(
-      join(controlDirectory, `${worktreeId}.failure.json`),
+      pathModule.join(controlDirectory, `${worktreeId}.failure.json`),
       JSON.stringify({ failedAt: 42, message: ["not", "a", "message"] })
     );
 

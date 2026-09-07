@@ -3,9 +3,9 @@ import { z } from "zod";
 const CONFIG_DRAFT_STORAGE_PREFIX = "branchbase:configuration-draft:";
 
 export interface ConfigDraftStorage {
-  getItem(key: string): string | null;
-  removeItem(key: string): void;
-  setItem(key: string, value: string): void;
+  getItem: (key: string) => string | null;
+  removeItem: (key: string) => void;
+  setItem: (key: string, value: string) => void;
 }
 
 const StoredConfigDraftSchema = z.strictObject({

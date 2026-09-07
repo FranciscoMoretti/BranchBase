@@ -1,10 +1,8 @@
 import { describe, expect, it } from "bun:test";
 
 import type { WorktreeSnapshot } from "../controller/workspace-snapshot";
-import {
-  type WorktreeCommandActions,
-  worktreeCommandMenuItems,
-} from "./worktree-command-menu";
+import { worktreeCommandMenuItems } from "./worktree-command-menu";
+import type { WorktreeCommandActions } from "./worktree-command-menu";
 
 const actions: WorktreeCommandActions = {
   onRestart: () => undefined,

@@ -3,8 +3,8 @@ import { spawn, spawnSync } from "node:child_process";
 const TRAILING_SLASH = /\/$/;
 
 export interface HostAdapter {
-  openUrl(url: string): void;
-  pickRepository(): string | null;
+  openUrl: (url: string) => void;
+  pickRepository: () => string | null;
 }
 
 export class MacOSHostAdapter implements HostAdapter {
@@ -21,7 +21,7 @@ export class MacOSHostAdapter implements HostAdapter {
         "-e",
         'POSIX path of (choose folder with prompt "Choose a Git repository")',
       ],
-      { encoding: "utf8" }
+      { encoding: "utf-8" }
     );
     if (result.status !== 0) {
       if ((result.stderr ?? "").includes("User canceled")) {

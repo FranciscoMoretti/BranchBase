@@ -13,7 +13,7 @@ export function inspectHttpStatus(url: string): number | null {
       "0.5",
       url,
     ],
-    { encoding: "utf8", timeout: 1000 }
+    { encoding: "utf-8", timeout: 1000 }
   );
   const status = Number(result.stdout);
   return result.status === 0 && Number.isInteger(status) ? status : null;

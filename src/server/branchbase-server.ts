@@ -1,13 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
-import { extname, join } from "node:path";
+import { createServer } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import pathModule from "node:path";
 
-import { createServer as createViteServer, type ViteDevServer } from "vite";
+import { createServer as createViteServer } from "vite";
+import type { ViteDevServer } from "vite";
 
 import { createCodexHookCapability } from "../codex/codex-hook-capability";
 import {
@@ -69,8 +67,8 @@ export interface BranchBaseServerOptions {
 }
 
 export interface BranchBaseServer {
-  close(): Promise<void>;
-  listen(): Promise<string>;
+  close: () => Promise<void>;
+  listen: () => Promise<string>;
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown) {
@@ -118,7 +116,7 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
     }
     chunks.push(value);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+  return JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}");
 }
 
 export async function createBranchBaseServer(
@@ -306,14 +304,14 @@ export async function createBranchBaseServer(
     }
     const requested =
       url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-    const file = join(options.appRoot, "dist", requested);
+    const file = pathModule.join(options.appRoot, "dist", requested);
     if (!(existsSync(file) && statSync(file).isFile())) {
       response.writeHead(404).end("Not found");
       return;
     }
     response.writeHead(200, {
       "content-type":
-        CONTENT_TYPES[extname(file)] ?? "application/octet-stream",
+        CONTENT_TYPES[pathModule.extname(file)] ?? "application/octet-stream",
     });
     createReadStream(file).pipe(response);
   }

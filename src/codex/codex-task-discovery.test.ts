@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CodexIntegrationUnavailableError } from "./codex-integration";
@@ -18,7 +18,7 @@ function fakeCommand(
   return {
     args: [
       fileURLToPath(
-        new URL("./fixtures/fake-codex-app-server.ts", import.meta.url)
+        new URL("fixtures/fake-codex-app-server.ts", import.meta.url)
       ),
     ],
     executable: process.execPath,
@@ -257,12 +257,12 @@ describe("persisted Codex task discovery", () => {
   for (const scenario of ["initialize-timeout-once", "partial-eof-once"]) {
     it(`restarts safely after ${scenario}`, async () => {
       const temporary = mkdtempSync(
-        join(tmpdir(), "branchbase-codex-recovery-")
+        pathModule.join(tmpdir(), "branchbase-codex-recovery-")
       );
       try {
         const adapter = new CodexTaskDiscoveryAdapter({
           command: fakeCommand(scenario, {
-            BRANCHBASE_FAKE_CODEX_RECOVERY_MARKER: join(
+            BRANCHBASE_FAKE_CODEX_RECOVERY_MARKER: pathModule.join(
               temporary,
               "failed-once"
             ),
@@ -298,7 +298,7 @@ describe("persisted Codex task discovery", () => {
         { id: "local-worktree", path: root },
       ]);
       const safe = snapshot.tasks.every(({ task, worktreePath }) => {
-        const keys = Object.keys(task).sort();
+        const keys = Object.keys(task).toSorted();
         return (
           worktreePath === root &&
           JSON.stringify(keys) ===

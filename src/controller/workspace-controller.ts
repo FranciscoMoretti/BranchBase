@@ -1,17 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import pathModule from "node:path";
 
 import { CodexContextStore } from "../codex/branchbase-context";
-import {
-  CodexHookActivityStore,
-  type CodexHookObservation,
-} from "../codex/codex-hook-activity";
-import {
-  type CodexIntegrationAdapter,
-  type CodexIntegrationLoadOptions,
-  type CodexIntegrationSnapshot,
-  projectCodexIntegration,
+import { CodexHookActivityStore } from "../codex/codex-hook-activity";
+import type { CodexHookObservation } from "../codex/codex-hook-activity";
+import { projectCodexIntegration } from "../codex/codex-integration";
+import type {
+  CodexIntegrationAdapter,
+  CodexIntegrationLoadOptions,
+  CodexIntegrationSnapshot,
 } from "../codex/codex-integration";
 import { CodexTaskDiscoveryAdapter } from "../codex/codex-task-discovery";
 import { clearLogs } from "../commands/clear-logs";
@@ -40,8 +38,8 @@ import {
   loadBranchBaseConfigDocument,
   resolveSetupCommand,
   updateBranchBaseConfig,
-  type WorktreeEnvConfig,
 } from "../config/branchbase-config";
+import type { WorktreeEnvConfig } from "../config/branchbase-config";
 import type { BranchBaseConfig } from "../config/branchbase-schema";
 import {
   repositoryCommandFingerprint,
@@ -52,15 +50,11 @@ import {
 } from "../config/repository-trust";
 import type { RepositoryTrustApproval } from "../config/repository-trust-approval";
 import type { WorktreeConfigSource } from "../config/worktree-config-source";
-import {
-  type DiscoveredWorktree,
-  parseWorktreeList,
-} from "../git/discover-worktrees";
+import { parseWorktreeList } from "../git/discover-worktrees";
+import type { DiscoveredWorktree } from "../git/discover-worktrees";
 import { inspectProcessSamples, processTreeUsage } from "../host/process-usage";
-import {
-  type LocalRoutingEngine,
-  PortlessRoutingEngine,
-} from "../runtime/local-routing";
+import { PortlessRoutingEngine } from "../runtime/local-routing";
+import type { LocalRoutingEngine } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { inspectListeningPorts, pathInside } from "../runtime/ports";
 import {
@@ -68,23 +62,21 @@ import {
   ProcessSupervisor,
   setupProcessId,
 } from "../runtime/process-supervisor";
-import { AppGroupRuntime, type AppGroupTarget } from "./app-group-runtime";
-import {
-  type BranchBaseCommandInput,
-  type BranchBaseCommandName,
-  type BranchBaseCommandResult,
-  parseCommandInput,
-  parseCommandResult,
+import { AppGroupRuntime } from "./app-group-runtime";
+import type { AppGroupTarget } from "./app-group-runtime";
+import { parseCommandInput, parseCommandResult } from "./command-contract";
+import type {
+  BranchBaseCommandInput,
+  BranchBaseCommandName,
+  BranchBaseCommandResult,
 } from "./command-contract";
 import type { Observation } from "./discovery-contract";
 import type { AppPin, ProjectOverview } from "./product-contract";
 import { ProductStore } from "./product-store";
 import { ProjectDiscovery } from "./project-discovery";
 import { initializeRepository as initializeRepositoryConfig } from "./repository-initializer";
-import {
-  type WorkspaceSnapshot,
-  worktreeHasRunningAppGroups,
-} from "./workspace-snapshot";
+import { worktreeHasRunningAppGroups } from "./workspace-snapshot";
+import type { WorkspaceSnapshot } from "./workspace-snapshot";
 import { commandWorkingDirectory } from "./worktree-command";
 
 type CommandHandler = (
@@ -176,7 +168,7 @@ export class MissingWorktreeConfigError extends Error {
 function git(cwd: string, args: string[]): string {
   const result = spawnSync("git", args, {
     cwd,
-    encoding: "utf8",
+    encoding: "utf-8",
     timeout: 3000,
   });
   if (result.status !== 0) {
@@ -208,7 +200,7 @@ function resolveWorktrees(repositoryRoot: string): ResolvedWorktree[] {
 }
 
 function projectAliasPaths(repoPath: string): Set<string> {
-  const aliases = new Set([repoPath, resolve(repoPath)]);
+  const aliases = new Set([repoPath, pathModule.resolve(repoPath)]);
   if (!existsSync(repoPath)) {
     return aliases;
   }
@@ -219,11 +211,11 @@ function projectAliasPaths(repoPath: string): Set<string> {
   }
   try {
     const root = git(repoPath, ["rev-parse", "--show-toplevel"]);
-    aliases.add(resolve(root));
+    aliases.add(pathModule.resolve(root));
     for (const worktree of parseWorktreeList(
       git(repoPath, ["worktree", "list", "--porcelain"])
     )) {
-      aliases.add(resolve(worktree.path));
+      aliases.add(pathModule.resolve(worktree.path));
       if (existsSync(worktree.path)) {
         try {
           aliases.add(realpathSync(worktree.path));
@@ -233,12 +225,12 @@ function projectAliasPaths(repoPath: string): Set<string> {
       }
     }
     try {
-      const commonDirectory = resolve(
+      const commonDirectory = pathModule.resolve(
         repoPath,
         git(repoPath, ["rev-parse", "--git-common-dir"])
       );
-      if (basename(commonDirectory) === ".git") {
-        aliases.add(resolve(commonDirectory, ".."));
+      if (pathModule.basename(commonDirectory) === ".git") {
+        aliases.add(pathModule.resolve(commonDirectory, ".."));
       }
     } catch {
       // The top-level root remains useful when common-dir discovery is unavailable.
@@ -292,7 +284,7 @@ function worktreeRouteLabel(
   item: { branch: string | null },
   path: string
 ): string {
-  return item.branch ?? basename(path);
+  return item.branch ?? pathModule.basename(path);
 }
 
 export interface WorkspaceControllerRuntimeOptions {
@@ -344,7 +336,7 @@ export class WorkspaceController {
     this.processes = runtime.processes ?? new ProcessSupervisor();
     this.routing = runtime.routing ?? new PortlessRoutingEngine();
     this.state = runtime.state ?? new FileBranchBaseStateStore();
-    this.product = new ProductStore(dirname(this.state.path));
+    this.product = new ProductStore(pathModule.dirname(this.state.path));
     this.discovery = new ProjectDiscovery(
       this.product,
       (path) => resolveWorktrees(git(path, ["rev-parse", "--show-toplevel"])),
@@ -525,7 +517,7 @@ export class WorkspaceController {
     const configPath = findBranchBaseConfig(projectRoot);
     if (!configPath) {
       throw new MissingWorktreeConfigError(
-        join(projectRoot, ".branchbase.json")
+        pathModule.join(projectRoot, ".branchbase.json")
       );
     }
     const configDocument = loadBranchBaseConfigDocument(configPath);
@@ -553,7 +545,7 @@ export class WorkspaceController {
             }`;
           }
         } else {
-          configurationError = `Missing checkout configuration: ${join(path, ".branchbase.json")}`;
+          configurationError = `Missing checkout configuration: ${pathModule.join(path, ".branchbase.json")}`;
         }
       }
       const effectiveConfig = effectiveDocument.config;
@@ -616,7 +608,7 @@ export class WorkspaceController {
         health: primary.health,
         id,
         isMain: index === 0,
-        name: basename(path),
+        name: pathModule.basename(path),
         path,
         primaryAppGroup: primary.id,
         processRunning: primary.processRunning,
@@ -665,7 +657,7 @@ export class WorkspaceController {
       projectDefaultConfigPath: configPath,
       projectDefaultConfigRevision: configDocument.revision,
       projectDefaultPrimaryAppGroup: primaryGroupId,
-      repoName: basename(worktrees[0].path),
+      repoName: pathModule.basename(worktrees[0].path),
       repoPath: projectRoot,
       trustCommands: trustCommands(config),
       trustFingerprint: repositoryCommandFingerprint(config),
@@ -694,7 +686,7 @@ export class WorkspaceController {
       .find((project) => project.path === root);
     this.product.saveProject(
       root,
-      name ?? existing?.name ?? basename(root),
+      name ?? existing?.name ?? pathModule.basename(root),
       pins
     );
   }
@@ -1001,7 +993,7 @@ export class WorkspaceController {
       const path = findBranchBaseConfig(worktree.path);
       if (!path) {
         throw new MissingWorktreeConfigError(
-          join(worktree.path, ".branchbase.json")
+          pathModule.join(worktree.path, ".branchbase.json")
         );
       }
       loadBranchBaseConfigDocument(path);

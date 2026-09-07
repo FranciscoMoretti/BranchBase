@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { BranchBaseConfigSchema } from "./branchbase-schema";
 import {
@@ -36,11 +36,13 @@ function config(mode: "per-worktree" | "selectable") {
 
 describe("repository trust fingerprint", () => {
   it("fails closed when any persisted trust entry has an invalid shape", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-trust-")
+    );
     try {
       const repoPath = "/code/chat-js";
       writeFileSync(
-        join(directory, "trusted-repositories.json"),
+        pathModule.join(directory, "trusted-repositories.json"),
         JSON.stringify({
           [repoPath]: repositoryCommandFingerprint(config("per-worktree")),
           "/code/invalid": { trusted: true },
@@ -56,9 +58,11 @@ describe("repository trust fingerprint", () => {
   });
 
   it("refuses to overwrite a malformed trust store during revocation", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-trust-")
+    );
     try {
-      const file = join(directory, "trusted-repositories.json");
+      const file = pathModule.join(directory, "trusted-repositories.json");
       const contents = JSON.stringify({
         "/code/valid": "retained-fingerprint",
         "/code/invalid": { trusted: true },
@@ -68,7 +72,7 @@ describe("repository trust fingerprint", () => {
       expect(() => revokeRepositoryTrust("/code/valid", directory)).toThrow(
         "trust store is invalid"
       );
-      expect(readFileSync(file, "utf8")).toBe(contents);
+      expect(readFileSync(file, "utf-8")).toBe(contents);
       expect(existsSync(`${file}.write-lock`)).toBe(false);
       expect(
         repositoryIsTrusted("/code/valid", config("per-worktree"), directory)
@@ -79,14 +83,16 @@ describe("repository trust fingerprint", () => {
   });
 
   it("preserves approvals while another writer holds the filesystem lock", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
-    const file = join(directory, "trusted-repositories.json");
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-trust-")
+    );
+    const file = pathModule.join(directory, "trusted-repositories.json");
     const lockDirectory = `${file}.write-lock`;
     const repoPath = "/code/existing";
     const primary = config("per-worktree");
     try {
       trustRepository(repoPath, primary, directory);
-      const before = readFileSync(file, "utf8");
+      const before = readFileSync(file, "utf-8");
       mkdirSync(lockDirectory);
       expect(() => trustRepository("/code/new", primary, directory)).toThrow(
         "retry the approval change"
@@ -94,7 +100,7 @@ describe("repository trust fingerprint", () => {
       expect(() => revokeRepositoryTrust(repoPath, directory)).toThrow(
         lockDirectory
       );
-      expect(readFileSync(file, "utf8")).toBe(before);
+      expect(readFileSync(file, "utf-8")).toBe(before);
       expect(existsSync(lockDirectory)).toBe(true);
       rmdirSync(lockDirectory);
       revokeRepositoryTrust(repoPath, directory);
@@ -112,7 +118,9 @@ describe("repository trust fingerprint", () => {
   });
 
   it("retains approvals for multiple effective configurations in one Project", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-trust-")
+    );
     try {
       const repoPath = "/code/chat-js";
       const primary = config("per-worktree");
@@ -129,9 +137,14 @@ describe("repository trust fingerprint", () => {
   });
 
   it("serializes concurrent updates from separate processes", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-trust-")
+    );
     try {
-      const modulePath = join(process.cwd(), "src/config/repository-trust.ts");
+      const modulePath = pathModule.join(
+        process.cwd(),
+        "src/config/repository-trust.ts"
+      );
       const child = `
         import { trustRepository } from ${JSON.stringify(modulePath)};
         for (let attempt = 0; ; attempt += 1) {
@@ -173,7 +186,7 @@ describe("repository trust fingerprint", () => {
           5000
         );
       });
-      let results: Array<{ exitCode: number; stderr: string; stdout: string }>;
+      let results: { exitCode: number; stderr: string; stdout: string }[];
       try {
         results = await Promise.race([resultPromise, timeout]);
       } catch (error) {
@@ -190,7 +203,10 @@ describe("repository trust fingerprint", () => {
       expect(results.every(({ exitCode }) => exitCode === 0)).toBe(true);
 
       const store = JSON.parse(
-        readFileSync(join(directory, "trusted-repositories.json"), "utf8")
+        readFileSync(
+          pathModule.join(directory, "trusted-repositories.json"),
+          "utf-8"
+        )
       ) as Record<string, unknown>;
       expect(Object.keys(store)).toHaveLength(8);
     } finally {

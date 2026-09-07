@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import {
   initializeRepository,
@@ -11,11 +11,13 @@ import {
 
 describe("repository initialization", () => {
   it("detects commands and creates a slot-free HTTP App", () => {
-    const root = mkdtempSync(join(tmpdir(), "branchbase-initialize-"));
+    const root = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-initialize-")
+    );
     try {
       spawnSync("git", ["init", "-q"], { cwd: root });
       writeFileSync(
-        join(root, "package.json"),
+        pathModule.join(root, "package.json"),
         JSON.stringify({
           packageManager: "bun@1.3.0",
           scripts: { dev: "vite" },
@@ -40,7 +42,7 @@ describe("repository initialization", () => {
       expect(() => readFileSync(preview.configPath)).toThrow();
 
       const created = initializeRepository(root);
-      expect(JSON.parse(readFileSync(created.configPath, "utf8"))).toEqual(
+      expect(JSON.parse(readFileSync(created.configPath, "utf-8"))).toEqual(
         created.config
       );
       expect(() => initializeRepository(root)).toThrow("already exists");
@@ -50,10 +52,10 @@ describe("repository initialization", () => {
   });
 
   it("does not present fallback commands as detected commands", () => {
-    const root = mkdtempSync(join(tmpdir(), "branchbase-django-"));
+    const root = mkdtempSync(pathModule.join(tmpdir(), "branchbase-django-"));
     try {
       spawnSync("git", ["init", "-q"], { cwd: root });
-      writeFileSync(join(root, "manage.py"), "");
+      writeFileSync(pathModule.join(root, "manage.py"), "");
       const preview = planRepositoryInitialization(root);
       expect(preview.detectedSetupCommand).toBeNull();
       expect(preview.detectedStartCommand).toBeNull();
@@ -63,10 +65,10 @@ describe("repository initialization", () => {
   });
 
   it("uses the same App group start field for Docker Compose", () => {
-    const root = mkdtempSync(join(tmpdir(), "branchbase-compose-"));
+    const root = mkdtempSync(pathModule.join(tmpdir(), "branchbase-compose-"));
     try {
       spawnSync("git", ["init", "-q"], { cwd: root });
-      writeFileSync(join(root, "compose.yaml"), "services: {}\n");
+      writeFileSync(pathModule.join(root, "compose.yaml"), "services: {}\n");
       expect(
         planRepositoryInitialization(root).config.appGroups.Apps.start.argv
       ).toEqual(["docker", "compose", "up"]);

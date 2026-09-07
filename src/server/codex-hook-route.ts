@@ -4,10 +4,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
 
 import { MAX_BRANCHBASE_CONTEXT_BYTES } from "../codex/branchbase-context";
-import {
-  CODEX_HOOK_EVENTS,
-  type CodexHookObservation,
-} from "../codex/codex-hook-activity";
+import { CODEX_HOOK_EVENTS } from "../codex/codex-hook-activity";
+import type { CodexHookObservation } from "../codex/codex-hook-activity";
 
 const MAX_HOOK_BODY = 16 * 1024;
 const LoopbackAddresses = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -74,7 +72,7 @@ async function readHookBody(request: IncomingMessage): Promise<unknown> {
     }
     chunks.push(value);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+  return JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}");
 }
 
 function rejectedRequest(
@@ -107,7 +105,7 @@ function rejectedRequest(
 }
 
 export function createCodexHookRequestHandler(options: {
-  observe(observation: CodexHookObservation): CodexHookResponse | undefined;
+  observe: (observation: CodexHookObservation) => CodexHookResponse | undefined;
   token: string;
 }): (request: IncomingMessage, response: ServerResponse) => Promise<void> {
   return async (request, response) => {

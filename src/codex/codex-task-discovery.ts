@@ -1,19 +1,19 @@
-import { isAbsolute } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
 import { codexExecutableCandidates } from "../host/codex-executable";
 import {
   CodexAppServerClient,
-  type CodexCommand,
   resolveCodexCommand,
 } from "./codex-app-server-client";
-import {
-  type CodexIntegrationAdapter,
-  type CodexIntegrationAdapterSnapshot,
-  type CodexIntegrationLoadOptions,
-  CodexIntegrationUnavailableError,
-  type CodexWorktreeReference,
+import type { CodexCommand } from "./codex-app-server-client";
+import { CodexIntegrationUnavailableError } from "./codex-integration";
+import type {
+  CodexIntegrationAdapter,
+  CodexIntegrationAdapterSnapshot,
+  CodexIntegrationLoadOptions,
+  CodexWorktreeReference,
 } from "./codex-integration";
 
 const DEFAULT_MAX_LINE_BYTES = 1024 * 1024;
@@ -120,8 +120,8 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
     worktrees: readonly CodexWorktreeReference[],
     options: CodexIntegrationLoadOptions = {}
   ): Promise<CodexIntegrationAdapterSnapshot> {
-    const paths = [...new Set(worktrees.map(({ path }) => path))].sort();
-    if (paths.some((path) => !isAbsolute(path))) {
+    const paths = [...new Set(worktrees.map(({ path }) => path))].toSorted();
+    if (paths.some((path) => !pathModule.isAbsolute(path))) {
       throw new CodexIntegrationUnavailableError(
         "Codex task discovery requires canonical worktree paths"
       );

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
@@ -23,7 +23,7 @@ export type CodexHookCapabilityRecord = z.infer<
 >;
 
 export interface CodexHookCapability {
-  cleanup(): void;
+  cleanup: () => void;
   file: string;
   record: CodexHookCapabilityRecord;
 }
@@ -36,8 +36,8 @@ export function createCodexHookCapability(options: {
   processStartMarker: string;
 }): CodexHookCapability {
   const directory =
-    options.directory ?? join(homedir(), ".branchbase", "codex");
-  const file = join(directory, "capability.json");
+    options.directory ?? pathModule.join(homedir(), ".branchbase", "codex");
+  const file = pathModule.join(directory, "capability.json");
   const record = CodexHookCapabilityRecordSchema.parse({
     endpoint: options.endpoint,
     generatedAt: (options.now ?? new Date()).toISOString(),

@@ -1,4 +1,5 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 
 import { z } from "zod";
 
@@ -12,8 +13,8 @@ export interface CodexCommand {
 }
 
 interface PendingRequest {
-  reject(error: Error): void;
-  resolve(value: unknown): void;
+  reject: (error: Error) => void;
+  resolve: (value: unknown) => void;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -194,7 +195,7 @@ export class CodexAppServerClient {
       }
       const content =
         line.at(-1) === 13 ? line.subarray(0, line.byteLength - 1) : line;
-      this.receive(content.toString("utf8"));
+      this.receive(content.toString("utf-8"));
       newline = this.outputBuffer.indexOf(10);
     }
     if (this.outputBuffer.byteLength > this.maxLineBytes) {

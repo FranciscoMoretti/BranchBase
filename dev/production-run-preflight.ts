@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { findVerifiedWorktreeRun } from "../src/controller/recorded-worktree-run-inspection";
 
@@ -8,8 +8,9 @@ export function assertProductionWorktreeAvailable(
   options: { productionControlDirectory?: string } = {}
 ): void {
   const productionControlDirectory =
-    options.productionControlDirectory ?? join(homedir(), ".branchbase");
-  const statePath = join(productionControlDirectory, "state.json");
+    options.productionControlDirectory ??
+    pathModule.join(homedir(), ".branchbase");
+  const statePath = pathModule.join(productionControlDirectory, "state.json");
   let run: ReturnType<typeof findVerifiedWorktreeRun>;
   try {
     run = findVerifiedWorktreeRun(productionControlDirectory, worktreePath);

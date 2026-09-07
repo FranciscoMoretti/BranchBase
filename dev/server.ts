@@ -1,11 +1,10 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import pathModule from "node:path";
 
 import { WorkspaceController } from "../src/controller/workspace-controller";
 import { createBranchBaseServer } from "../src/server/branchbase-server";
 import { openDevelopmentSession } from "./development-session";
 
-const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const appRoot = pathModule.dirname(import.meta.dirname);
 const session = await openDevelopmentSession({ appRoot });
 let server: Awaited<ReturnType<typeof createBranchBaseServer>> | undefined;
 

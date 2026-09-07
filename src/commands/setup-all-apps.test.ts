@@ -38,7 +38,7 @@ describe("setup all apps", () => {
   });
 
   it("still validates repository trust when no worktrees are selected", () => {
-    const approvals: Array<string | undefined> = [];
+    const approvals: (string | undefined)[] = [];
     const controller = controllerFixture({
       onAssert: (worktreeId) => approvals.push(worktreeId),
       onStart: () => undefined,

@@ -3,7 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { lstatSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 const EVENTS = new Set([
   "SessionStart",
@@ -37,7 +37,7 @@ function boundedString(value: unknown, maximum: number): string | undefined {
 
 function processStartMarker(pid: number): string {
   const result = spawnSync("ps", ["-p", String(pid), "-o", "lstart="], {
-    encoding: "utf8",
+    encoding: "utf-8",
     timeout: 250,
   });
   return result.status === 0 ? result.stdout.trim() : "";
@@ -54,7 +54,7 @@ function readCapability(path: string): Capability {
   ) {
     throw new Error("Insecure BranchBase capability");
   }
-  const value = JSON.parse(readFileSync(path, "utf8")) as Record<
+  const value = JSON.parse(readFileSync(path, "utf-8")) as Record<
     string,
     unknown
   >;
@@ -101,7 +101,7 @@ async function readStdin(): Promise<unknown> {
     }
     chunks.push(value);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+  return JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}");
 }
 
 async function readBoundedResponse(response: Response): Promise<string> {
@@ -114,7 +114,7 @@ async function readBoundedResponse(response: Response): Promise<string> {
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
-      return Buffer.concat(chunks).toString("utf8");
+      return Buffer.concat(chunks).toString("utf-8");
     }
     const chunk = Buffer.from(value);
     size += chunk.length;
@@ -170,7 +170,7 @@ async function main(): Promise<unknown> {
   const event = process.argv[2] ?? "";
   const capabilityPath =
     process.env.BRANCHBASE_CODEX_CAPABILITY_PATH ??
-    join(homedir(), ".branchbase", "codex", "capability.json");
+    pathModule.join(homedir(), ".branchbase", "codex", "capability.json");
   const [capability, input] = await Promise.all([
     Promise.resolve().then(() => readCapability(capabilityPath)),
     readStdin(),

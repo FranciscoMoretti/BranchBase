@@ -3,16 +3,13 @@ import { afterEach, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Window } from "happy-dom";
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot } from "react-dom/client";
+import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { ActivityPage } from "./activity-page";
-import {
-  ActionFeedback,
-  FormFeedback,
-  QueryContent,
-  type QueryState,
-} from "./async-state";
+import { ActionFeedback, FormFeedback, QueryContent } from "./async-state";
+import type { QueryState } from "./async-state";
 import { ProjectsPage } from "./projects-page";
 
 const base: QueryState = {

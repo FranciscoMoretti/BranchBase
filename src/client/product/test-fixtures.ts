@@ -1,4 +1,5 @@
 import type { WorktreeSnapshot } from "../../controller/workspace-snapshot";
+
 export const worktree: WorktreeSnapshot = {
   appLabel: "App",
   apps: [

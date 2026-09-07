@@ -5,7 +5,7 @@ export type RepositoryPage = "settings" | "workspace";
 
 export function repositoryPathFromSearch(search: string): string | null {
   const value = new URLSearchParams(search).get(REPOSITORY_QUERY_PARAM)?.trim();
-  return value ? value : null;
+  return value || null;
 }
 
 export function repositoryPageFromSearch(search: string): RepositoryPage {

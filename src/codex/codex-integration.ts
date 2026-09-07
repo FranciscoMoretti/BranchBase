@@ -54,11 +54,11 @@ export interface CodexIntegrationLoadOptions {
 }
 
 export interface CodexIntegrationAdapter {
-  close(): Promise<void>;
-  loadAssociatedTasks(
+  close: () => Promise<void>;
+  loadAssociatedTasks: (
     worktrees: readonly CodexWorktreeReference[],
     options?: CodexIntegrationLoadOptions
-  ): Promise<CodexIntegrationAdapterSnapshot>;
+  ) => Promise<CodexIntegrationAdapterSnapshot>;
 }
 
 export class CodexIntegrationUnavailableError extends Error {
@@ -109,7 +109,7 @@ export function orderCodexTasks(
 ): CodexTaskSnapshot[] {
   return tasks
     .map((task) => CodexTaskSnapshotSchema.parse(task))
-    .sort((left, right) => {
+    .toSorted((left, right) => {
       const recency = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
       return recency === 0 ? left.id.localeCompare(right.id) : recency;
     });

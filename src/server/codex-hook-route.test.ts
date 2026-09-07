@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { createServer, type Server } from "node:http";
+import { createServer } from "node:http";
+import type { Server } from "node:http";
 
 import type { CodexHookObservation } from "../codex/codex-hook-activity";
 import { createCodexHookRequestHandler } from "./codex-hook-route";

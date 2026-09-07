@@ -52,7 +52,7 @@ export function inspectProcessSamples(): ProcessSample[] | null {
     return null;
   }
   const result = spawnSync("ps", ["-axo", "pid=,ppid=,rss=,%cpu="], {
-    encoding: "utf8",
+    encoding: "utf-8",
     timeout: 2000,
     maxBuffer: 4 * 1024 * 1024,
   });

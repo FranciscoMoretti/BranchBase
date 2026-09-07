@@ -12,17 +12,14 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { spawn } from "bun";
 
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
-import {
-  type DetectedService,
-  type Observation,
-  ObservationSchema,
-} from "./discovery-contract";
+import { ObservationSchema } from "./discovery-contract";
+import type { DetectedService, Observation } from "./discovery-contract";
 import { scanRepositories } from "./folder-discovery";
 import { ProductStore } from "./product-store";
 import { ProjectDiscovery } from "./project-discovery";
@@ -30,19 +27,19 @@ import { WorkspaceController } from "./workspace-controller";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
-  for (const close of cleanup.splice(0).reverse()) {
+  for (const close of cleanup.splice(0).toReversed()) {
     close();
   }
 });
 function temporary() {
   const path = realpathSync(
-    mkdtempSync(join(tmpdir(), "branchbase-discovery-"))
+    mkdtempSync(pathModule.join(tmpdir(), "branchbase-discovery-"))
   );
   cleanup.push(() => rmSync(path, { recursive: true, force: true }));
   return path;
 }
 function git(path: string, ...args: string[]) {
-  const result = spawnSync("git", args, { cwd: path, encoding: "utf8" });
+  const result = spawnSync("git", args, { cwd: path, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(result.stderr);
   }
@@ -66,39 +63,41 @@ function repository(path: string) {
 }
 function controller(directory: string) {
   return new WorkspaceController(undefined, {
-    state: new FileBranchBaseStateStore(join(directory, "state.json")),
-    processes: new ProcessSupervisor(join(directory, "control")),
+    state: new FileBranchBaseStateStore(
+      pathModule.join(directory, "state.json")
+    ),
+    processes: new ProcessSupervisor(pathModule.join(directory, "control")),
   });
 }
 test("folder scans are bounded and skip symlinks, dependencies and repository contents", () => {
   const root = temporary();
-  const repo = repository(join(root, "team", "app"));
-  repository(join(repo, "nested"));
-  repository(join(root, "node_modules", "ignored"));
-  repository(join(root, "a", "b", "c", "too-deep"));
-  symlinkSync(repo, join(root, "linked"));
-  symlinkSync(root, join(root, "selected-alias"));
+  const repo = repository(pathModule.join(root, "team", "app"));
+  repository(pathModule.join(repo, "nested"));
+  repository(pathModule.join(root, "node_modules", "ignored"));
+  repository(pathModule.join(root, "a", "b", "c", "too-deep"));
+  symlinkSync(repo, pathModule.join(root, "linked"));
+  symlinkSync(root, pathModule.join(root, "selected-alias"));
   expect(scanRepositories(root).repositories).toEqual([repo]);
-  expect(scanRepositories(join(root, "selected-alias")).repositories).toEqual([
-    repo,
-  ]);
+  expect(
+    scanRepositories(pathModule.join(root, "selected-alias")).repositories
+  ).toEqual([repo]);
   expect(scanRepositories(root, 3, 1).warning).toContain("limited");
 });
 test("canonicalizes a selected symlink alias before scanning", async () => {
   const root = temporary();
-  const selected = join(root, "selected");
-  const alias = join(root, "alias");
+  const selected = pathModule.join(root, "selected");
+  const alias = pathModule.join(root, "alias");
   mkdirSync(selected);
-  repository(join(selected, "app"));
+  repository(pathModule.join(selected, "app"));
   symlinkSync(selected, alias);
-  const workspace = controller(join(root, "state"));
+  const workspace = controller(pathModule.join(root, "state"));
   try {
     workspace.addDevelopmentFolder(alias);
     expect(workspace.developmentFolders().map((folder) => folder.path)).toEqual(
       [realpathSync(selected)]
     );
     expect(workspace.projects().map((project) => project.path)).toEqual([
-      realpathSync(join(selected, "app")),
+      realpathSync(pathModule.join(selected, "app")),
     ]);
   } finally {
     await workspace.close();
@@ -106,21 +105,21 @@ test("canonicalizes a selected symlink alias before scanning", async () => {
 });
 test("validates missing development folders with an actionable error", async () => {
   const root = temporary();
-  const workspace = controller(join(root, "state"));
+  const workspace = controller(pathModule.join(root, "state"));
   try {
-    expect(() => workspace.addDevelopmentFolder(join(root, "missing"))).toThrow(
-      "Choose a development folder."
-    );
+    expect(() =>
+      workspace.addDevelopmentFolder(pathModule.join(root, "missing"))
+    ).toThrow("Choose a development folder.");
   } finally {
     await workspace.close();
   }
 });
 test("removes missing development folders by their stored path", async () => {
   const root = temporary();
-  const missing = join(root, "missing");
-  const workspace = controller(join(root, "state"));
+  const missing = pathModule.join(root, "missing");
+  const workspace = controller(pathModule.join(root, "state"));
   try {
-    new ProductStore(join(root, "state")).saveFolder(missing);
+    new ProductStore(pathModule.join(root, "state")).saveFolder(missing);
     workspace.removeDevelopmentFolder(missing);
     expect(workspace.developmentFolders()).toEqual([]);
   } finally {
@@ -129,9 +128,9 @@ test("removes missing development folders by their stored path", async () => {
 });
 test("preserves unreadable-folder and scan-limit warnings together", () => {
   const root = temporary();
-  const unreadable = join(root, "aaa-unreadable");
+  const unreadable = pathModule.join(root, "aaa-unreadable");
   mkdirSync(unreadable);
-  mkdirSync(join(root, "bbb-queued"));
+  mkdirSync(pathModule.join(root, "bbb-queued"));
   const originalMode = 0o755;
   chmodSync(unreadable, 0o000);
   try {
@@ -150,12 +149,12 @@ test("preserves unreadable-folder and scan-limit warnings together", () => {
 });
 test("watch folders persist, deduplicate linked worktrees and respect manual removal", async () => {
   const root = temporary();
-  const code = join(root, "Code");
-  const repo = repository(join(code, "app"));
-  const linked = join(root, "external-checkout");
+  const code = pathModule.join(root, "Code");
+  const repo = repository(pathModule.join(code, "app"));
+  const linked = pathModule.join(root, "external-checkout");
   git(repo, "worktree", "add", "-qb", "feature", linked);
   // A second scan root containing a linked checkout still resolves the same project.
-  const workspace = controller(join(root, "state"));
+  const workspace = controller(pathModule.join(root, "state"));
   try {
     workspace.addDevelopmentFolder(code);
     workspace.addDevelopmentFolder(linked);
@@ -168,7 +167,7 @@ test("watch folders persist, deduplicate linked worktrees and respect manual rem
       linked,
     ]);
     expect(workspace.projects()[0]?.error).toBeNull();
-    expect(existsSync(join(repo, ".branchbase.json"))).toBe(false);
+    expect(existsSync(pathModule.join(repo, ".branchbase.json"))).toBe(false);
     workspace.saveProject(repo, "My project");
     workspace.scanDevelopmentFolders();
     expect(workspace.projects()[0]?.name).toBe("My project");
@@ -179,7 +178,9 @@ test("watch folders persist, deduplicate linked worktrees and respect manual rem
     workspace.removeDevelopmentFolder(code);
     expect(workspace.projects()).toHaveLength(1);
     expect(
-      new ProductStore(join(root, "state")).folders().map((item) => item.path)
+      new ProductStore(pathModule.join(root, "state"))
+        .folders()
+        .map((item) => item.path)
     ).toEqual([linked]);
     rmSync(linked, { recursive: true, force: true });
     workspace.scanDevelopmentFolders();
@@ -190,8 +191,8 @@ test("watch folders persist, deduplicate linked worktrees and respect manual rem
 });
 test("configuring an observed project does not approve or execute its commands", async () => {
   const root = temporary();
-  const repo = repository(join(root, "app"));
-  const workspace = controller(join(root, "state"));
+  const repo = repository(pathModule.join(root, "app"));
+  const workspace = controller(pathModule.join(root, "state"));
   try {
     workspace.saveProject(repo);
     expect(workspace.observeRepository(repo).configured).toBe(false);
@@ -201,7 +202,9 @@ test("configuring an observed project does not approve or execute its commands",
     expect(snapshot.trusted).toBe(false);
     expect(snapshot.globalRunningCount).toBe(0);
     expect(
-      existsSync(join(root, "state", "control", "trusted-repositories.json"))
+      existsSync(
+        pathModule.join(root, "state", "control", "trusted-repositories.json")
+      )
     ).toBe(false);
   } finally {
     await workspace.close();
@@ -209,11 +212,11 @@ test("configuring an observed project does not approve or execute its commands",
 });
 test("associated services exclude managed, nested, and unrelated paths", () => {
   const root = temporary();
-  const repo = repository(join(root, "app"));
-  const nested = repository(join(repo, "nested"));
-  const inside = join(repo, "packages", "web");
+  const repo = repository(pathModule.join(root, "app"));
+  const nested = repository(pathModule.join(repo, "nested"));
+  const inside = pathModule.join(repo, "packages", "web");
   mkdirSync(inside, { recursive: true });
-  const store = new ProductStore(join(root, "state"));
+  const store = new ProductStore(pathModule.join(root, "state"));
   const service = (cwd: string, pid: number): DetectedService => ({
     cwd,
     pid,
@@ -341,7 +344,7 @@ test("observation schema bounds service identities and resources", () => {
 test("version one metadata loads with no discovery fields", () => {
   const root = temporary();
   writeFileSync(
-    join(root, "product.json"),
+    pathModule.join(root, "product.json"),
     JSON.stringify({ events: [], observations: {}, projects: [], version: 1 })
   );
   const store = new ProductStore(root);
@@ -353,8 +356,8 @@ test("version one metadata loads with no discovery fields", () => {
   "a real listener in an external linked worktree is associated and its process usage is observed",
   async () => {
     const root = temporary();
-    const repo = repository(join(root, "app"));
-    const linked = join(root, "external");
+    const repo = repository(pathModule.join(root, "app"));
+    const linked = pathModule.join(root, "external");
     git(repo, "worktree", "add", "-qb", "feature", linked);
     const child = spawn(
       [
@@ -364,7 +367,7 @@ test("version one metadata loads with no discovery fields", () => {
       ],
       { cwd: linked, stdout: "pipe", stderr: "pipe" }
     );
-    const workspace = controller(join(root, "state"));
+    const workspace = controller(pathModule.join(root, "state"));
     try {
       const line = await child.stdout.getReader().read();
       const port = Number(new TextDecoder().decode(line.value).trim());

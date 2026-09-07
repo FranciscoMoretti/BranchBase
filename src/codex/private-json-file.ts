@@ -11,7 +11,7 @@ import {
   rmSync,
   writeSync,
 } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import pathModule from "node:path";
 
 export function ensurePrivateDirectory(directory: string): void {
   mkdirSync(directory, { mode: 0o700, recursive: true });
@@ -27,15 +27,15 @@ export function ensurePrivateDirectory(directory: string): void {
 }
 
 export function readPrivateJsonFile(file: string): unknown {
-  return JSON.parse(readFileSync(file, "utf8"));
+  return JSON.parse(readFileSync(file, "utf-8"));
 }
 
 export function writePrivateJsonFile(file: string, value: unknown): void {
-  const directory = dirname(file);
+  const directory = pathModule.dirname(file);
   ensurePrivateDirectory(directory);
-  const temporary = join(
+  const temporary = pathModule.join(
     directory,
-    `.${basename(file)}.${process.pid}.${randomUUID()}.tmp`
+    `.${pathModule.basename(file)}.${process.pid}.${randomUUID()}.tmp`
   );
   const descriptor = openSync(temporary, "wx", 0o600);
   try {

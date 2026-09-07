@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { selectRequestedWorktrees } from "../commands/command";
 import { loadBranchBaseConfig } from "../config/branchbase-config";
@@ -50,12 +50,14 @@ class FakeRoutingEngine implements LocalRoutingEngine {
 
 describe("slot-free workspace inspection", () => {
   it("projects stable endpoint identity without allocating a backing port", () => {
-    const root = mkdtempSync(join(tmpdir(), "branchbase-controller-"));
-    const statePath = join(root, ".local", "state.json");
+    const root = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-controller-")
+    );
+    const statePath = pathModule.join(root, ".local", "state.json");
     try {
       spawnSync("git", ["init", "-q"], { cwd: root });
       writeFileSync(
-        join(root, ".branchbase.json"),
+        pathModule.join(root, ".branchbase.json"),
         JSON.stringify({
           version: 1,
           setup: { argv: ["bun", "install"] },
@@ -100,7 +102,7 @@ describe("slot-free workspace inspection", () => {
         url: null,
       });
       expect(snapshot.trustCommands).toHaveLength(3);
-      expect(readFileSync(statePath, "utf8")).toContain(
+      expect(readFileSync(statePath, "utf-8")).toContain(
         `website.${snapshot.worktrees[0]?.branch}.branchbase-controller-`
       );
     } finally {
@@ -109,11 +111,13 @@ describe("slot-free workspace inspection", () => {
   });
 
   it("lets one worktree use its own configuration without changing the Project default", async () => {
-    const sandbox = mkdtempSync(join(tmpdir(), "branchbase-config-source-"));
-    const root = join(sandbox, "chat-js");
-    const experiment = join(sandbox, "chat-js-experiment");
-    const statePath = join(sandbox, ".local", "state.json");
-    const controlDirectory = join(sandbox, ".control");
+    const sandbox = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-config-source-")
+    );
+    const root = pathModule.join(sandbox, "chat-js");
+    const experiment = pathModule.join(sandbox, "chat-js-experiment");
+    const statePath = pathModule.join(sandbox, ".local", "state.json");
+    const controlDirectory = pathModule.join(sandbox, ".control");
     const config = (groupId: string, startCommand = "true") => ({
       version: 1,
       setup: { argv: ["true"] },
@@ -137,7 +141,7 @@ describe("slot-free workspace inspection", () => {
         cwd: root,
       });
       writeFileSync(
-        join(root, ".branchbase.json"),
+        pathModule.join(root, ".branchbase.json"),
         JSON.stringify(config("default-apps"))
       );
       spawnSync("git", ["add", ".branchbase.json"], { cwd: root });
@@ -150,7 +154,7 @@ describe("slot-free workspace inspection", () => {
         { cwd: root }
       );
       writeFileSync(
-        join(experiment, ".branchbase.json"),
+        pathModule.join(experiment, ".branchbase.json"),
         JSON.stringify(config("experiment-apps"))
       );
       const state = new FileBranchBaseStateStore(statePath);
@@ -167,7 +171,7 @@ describe("slot-free workspace inspection", () => {
       expect(inherited.repoPath).toBe(realpathSync(root));
       expect(experimentWorktree).toMatchObject({
         configuration: {
-          path: join(realpathSync(root), ".branchbase.json"),
+          path: pathModule.join(realpathSync(root), ".branchbase.json"),
           preference: "project-default",
           source: "project-default",
         },
@@ -190,14 +194,14 @@ describe("slot-free workspace inspection", () => {
         worktreeId: reviewedExperiment.id,
       };
       writeFileSync(
-        join(experiment, ".branchbase.json"),
+        pathModule.join(experiment, ".branchbase.json"),
         JSON.stringify(config("experiment-apps", "printf"))
       );
       expect(() =>
         controller.trustRepository(root, [experimentApproval])
       ).toThrow("commands changed after they were reviewed");
       writeFileSync(
-        join(experiment, ".branchbase.json"),
+        pathModule.join(experiment, ".branchbase.json"),
         JSON.stringify(config("experiment-apps"))
       );
       controller.trustRepository(root, [experimentApproval]);
@@ -209,12 +213,12 @@ describe("slot-free workspace inspection", () => {
         )?.configuration.trusted
       ).toBe(true);
       writeFileSync(
-        join(experiment, ".branchbase.json"),
+        pathModule.join(experiment, ".branchbase.json"),
         JSON.stringify(config("experiment-apps", "printf"))
       );
       saveRepositoryTrust(
         realpathSync(root),
-        loadBranchBaseConfig(join(root, ".branchbase.json")),
+        loadBranchBaseConfig(pathModule.join(root, ".branchbase.json")),
         controlDirectory
       );
 
@@ -224,7 +228,7 @@ describe("slot-free workspace inspection", () => {
       );
       expect(selectedExperiment).toMatchObject({
         configuration: {
-          path: join(realpathSync(experiment), ".branchbase.json"),
+          path: pathModule.join(realpathSync(experiment), ".branchbase.json"),
           preference: "checkout",
           source: "checkout",
         },
@@ -327,14 +331,14 @@ describe("slot-free workspace inspection", () => {
           "project-default"
         )
       ).toThrow("Stop this worktree's App groups");
-      writeFileSync(join(experiment, ".branchbase.json"), "{");
+      writeFileSync(pathModule.join(experiment, ".branchbase.json"), "{");
       const fallback = controller
         .inspect(root)
         .worktrees.find(({ path }) => path === realpathSync(experiment));
       expect(fallback).toMatchObject({
         configuration: {
           error: expect.stringContaining("Invalid checkout configuration"),
-          path: join(realpathSync(root), ".branchbase.json"),
+          path: pathModule.join(realpathSync(root), ".branchbase.json"),
           preference: "checkout",
           source: "project-default",
         },
@@ -475,16 +479,18 @@ describe("controller command contract", () => {
   });
 
   it("rejects command working directories that escape through a symlink", () => {
-    const sandbox = mkdtempSync(join(tmpdir(), "branchbase-command-cwd-"));
-    const root = join(sandbox, "worktree");
-    const outside = join(sandbox, "outside");
+    const sandbox = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-command-cwd-")
+    );
+    const root = pathModule.join(sandbox, "worktree");
+    const outside = pathModule.join(sandbox, "outside");
     mkdirSync(root);
     mkdirSync(outside);
-    mkdirSync(join(root, "apps"));
-    symlinkSync(outside, join(root, "linked"));
+    mkdirSync(pathModule.join(root, "apps"));
+    symlinkSync(outside, pathModule.join(root, "linked"));
     try {
       expect(commandWorkingDirectory(root, "apps")).toBe(
-        realpathSync(join(root, "apps"))
+        realpathSync(pathModule.join(root, "apps"))
       );
       expect(() => commandWorkingDirectory(root, "../outside")).toThrow(
         "inside the worktree"

@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { loadBranchBaseConfig } from "../config/branchbase-config";
 import { repositoryCommandFingerprint } from "../config/repository-trust";
@@ -26,7 +26,7 @@ import { WorkspaceController } from "./workspace-controller";
 const directories: string[] = [];
 function store() {
   const directory = realpathSync(
-    mkdtempSync(join(tmpdir(), "branchbase-product-"))
+    mkdtempSync(pathModule.join(tmpdir(), "branchbase-product-"))
   );
   directories.push(directory);
   return { directory };
@@ -38,17 +38,17 @@ afterEach(() => {
 });
 function observedFixture() {
   const fixture = store();
-  const repoPath = join(fixture.directory, "repo");
+  const repoPath = pathModule.join(fixture.directory, "repo");
   mkdirSync(repoPath);
   const git = (...args: string[]) => {
-    const result = spawnSync("git", args, { cwd: repoPath, encoding: "utf8" });
+    const result = spawnSync("git", args, { cwd: repoPath, encoding: "utf-8" });
     if (result.status !== 0) {
       throw new Error(result.stderr);
     }
   };
   git("init", "-q");
   writeFileSync(
-    join(repoPath, ".branchbase.json"),
+    pathModule.join(repoPath, ".branchbase.json"),
     JSON.stringify({
       version: 1,
       setup: { argv: ["true"] },
@@ -72,8 +72,10 @@ function observedFixture() {
     "-qm",
     "initial"
   );
-  const runtime = join(fixture.directory, "runtime");
-  const state = new FileBranchBaseStateStore(join(runtime, "state.json"));
+  const runtime = pathModule.join(fixture.directory, "runtime");
+  const state = new FileBranchBaseStateStore(
+    pathModule.join(runtime, "state.json")
+  );
   const controller = new WorkspaceController(undefined, {
     processes: new ProcessSupervisor(runtime),
     state,
@@ -121,7 +123,7 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
   const { controller, state, repoPath, snapshot } = observedFixture();
   const processes = (controller as unknown as { processes: ProcessSupervisor })
     .processes;
-  const persistedWorktreePath = join(repoPath, "persisted-worktree");
+  const persistedWorktreePath = pathModule.join(repoPath, "persisted-worktree");
   let pending: Promise<unknown> | undefined;
   let managed:
     | ReturnType<ProcessSupervisor["listManagedProcesses"]>[number]
@@ -131,7 +133,9 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
       { fingerprint: snapshot.trustFingerprint },
     ]);
     mkdirSync(persistedWorktreePath);
-    const config = loadBranchBaseConfig(join(repoPath, ".branchbase.json"));
+    const config = loadBranchBaseConfig(
+      pathModule.join(repoPath, ".branchbase.json")
+    );
     config.appGroups.service.start = {
       argv: ["sleep", "5"],
     };
@@ -210,8 +214,8 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
   const { controller, state, repoPath, snapshot } = observedFixture();
   const processes = (controller as unknown as { processes: ProcessSupervisor })
     .processes;
-  const worktreePath = join(repoPath, "persisted-setup-worktree");
-  const markerPath = join(worktreePath, "cwd-moved");
+  const worktreePath = pathModule.join(repoPath, "persisted-setup-worktree");
+  const markerPath = pathModule.join(worktreePath, "cwd-moved");
   let processId: string | undefined;
   try {
     controller.trustRepository(repoPath, [
@@ -219,7 +223,9 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
     ]);
     mkdirSync(worktreePath);
     const worktreeId = Buffer.from(worktreePath).toString("base64url");
-    const config = loadBranchBaseConfig(join(repoPath, ".branchbase.json"));
+    const config = loadBranchBaseConfig(
+      pathModule.join(repoPath, ".branchbase.json")
+    );
     state.instance({
       configFingerprint: repositoryCommandFingerprint(config),
       groupId: "service",
@@ -263,12 +269,12 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
     const persistedProcesses = new ProcessSupervisor(
       processes.controlDirectory
     );
-    const persistedRecordPath = join(
+    const persistedRecordPath = pathModule.join(
       processes.controlDirectory,
       `${processId}.pid`
     );
     const persistedRecord = JSON.parse(
-      readFileSync(persistedRecordPath, "utf8")
+      readFileSync(persistedRecordPath, "utf-8")
     ) as Record<string, unknown>;
     persistedRecord.ownerId = undefined;
     writeFileSync(persistedRecordPath, JSON.stringify(persistedRecord));
@@ -301,7 +307,7 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
 test("initializing a repository does not approve commands", async () => {
   const { controller, repoPath } = observedFixture();
   try {
-    rmSync(join(repoPath, ".branchbase.json"));
+    rmSync(pathModule.join(repoPath, ".branchbase.json"));
     controller.initializeRepository(repoPath);
     expect(controller.inspect(repoPath).trusted).toBe(false);
   } finally {

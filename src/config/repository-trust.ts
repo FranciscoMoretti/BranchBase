@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { z } from "zod";
 
@@ -17,11 +17,14 @@ import type { BranchBaseCommand } from "./branchbase-command";
 import type { BranchBaseConfig } from "./branchbase-config";
 
 function defaultControlDirectory(): string {
-  return process.env.BRANCHBASE_CONTROL_DIR ?? join(homedir(), ".branchbase");
+  return (
+    process.env.BRANCHBASE_CONTROL_DIR ??
+    pathModule.join(homedir(), ".branchbase")
+  );
 }
 
 function trustFile(controlDirectory = defaultControlDirectory()): string {
-  return join(controlDirectory, "trusted-repositories.json");
+  return pathModule.join(controlDirectory, "trusted-repositories.json");
 }
 
 const TrustStoreSchema = z.record(
@@ -79,7 +82,7 @@ function trustStore(
     return {};
   }
   try {
-    return TrustStoreSchema.parse(JSON.parse(readFileSync(file, "utf8")));
+    return TrustStoreSchema.parse(JSON.parse(readFileSync(file, "utf-8")));
   } catch (error) {
     if (failOnInvalid) {
       throw new Error(

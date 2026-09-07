@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { spawn } from "bun";
 
@@ -33,8 +33,10 @@ async function readChunk(stream: ReadableStream<Uint8Array>): Promise<string> {
 }
 
 it("holds an exclusive lock until its idempotent release", () => {
-  const temporary = mkdtempSync(join(tmpdir(), "branchbase-exclusive-lock-"));
-  const file = join(temporary, "session.sqlite");
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-exclusive-lock-")
+  );
+  const file = pathModule.join(temporary, "session.sqlite");
 
   try {
     const release = acquireExclusiveFileLock(file);
@@ -53,9 +55,9 @@ it("holds an exclusive lock until its idempotent release", () => {
 
 it("releases the lock when its process crashes", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-exclusive-lock-crash-")
+    pathModule.join(tmpdir(), "branchbase-exclusive-lock-crash-")
   );
-  const file = join(temporary, "session.sqlite");
+  const file = pathModule.join(temporary, "session.sqlite");
   const child = spawn({
     cmd: [
       process.execPath,

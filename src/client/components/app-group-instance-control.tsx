@@ -1,5 +1,6 @@
 import { PlusIcon } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 import type { AppGroupSnapshot } from "../../controller/workspace-snapshot";
 import { Button } from "./ui/button";

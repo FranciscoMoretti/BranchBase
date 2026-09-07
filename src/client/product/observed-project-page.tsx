@@ -16,7 +16,8 @@ import { CodexTasksSection } from "../components/worktree-details";
 import { useCodexIntegration } from "../queries";
 import { ActivityPage } from "./activity-page";
 import { FormFeedback } from "./async-state";
-import { type ProductLocation, useProductCommand } from "./data";
+import { useProductCommand } from "./data";
+import type { ProductLocation } from "./data";
 import {
   Blank,
   CopyButton,

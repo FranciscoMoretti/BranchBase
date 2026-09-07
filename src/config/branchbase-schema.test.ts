@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { branchbaseJsonSchema } from "./branchbase-json-schema";
 import {
-  type BranchBaseConfig,
   BranchBaseConfigSchema,
   cloneBranchBaseConfig,
 } from "./branchbase-schema";
+import type { BranchBaseConfig } from "./branchbase-schema";
 
 const validConfig = {
   version: 1,
@@ -131,14 +131,14 @@ describe("shared BranchBase schema", () => {
   });
 
   it("keeps the published JSON Schema generated from the Zod schema", () => {
-    const path = join(
+    const path = pathModule.join(
       import.meta.dirname,
       "..",
       "..",
       "schema",
       "branchbase.schema.json"
     );
-    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(
+    expect(JSON.parse(readFileSync(path, "utf-8"))).toEqual(
       branchbaseJsonSchema()
     );
   });

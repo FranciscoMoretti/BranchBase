@@ -1,5 +1,6 @@
 import { expect, it } from "bun:test";
-import { type ChildProcess, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import {
   mkdirSync,
@@ -11,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
 import { FileBranchBaseStateStore } from "../src/runtime/local-state";
 import {
@@ -31,7 +32,7 @@ function recordProductionRun(
   options: { listenerClaimed?: boolean } = {}
 ): { instanceId: string } {
   const state = new FileBranchBaseStateStore(
-    join(productionControlDirectory, "state.json")
+    pathModule.join(productionControlDirectory, "state.json")
   );
   const instance = state.instance({
     configFingerprint: "production",
@@ -87,10 +88,14 @@ async function stopChild(child: ChildProcess): Promise<void> {
 
 it("rejects a worktree with a verified production run", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-production-preflight-")
+    pathModule.join(tmpdir(), "branchbase-production-preflight-")
   );
-  const productionControlDirectory = join(temporary, "home", ".branchbase");
-  const worktreePath = join(temporary, "project");
+  const productionControlDirectory = pathModule.join(
+    temporary,
+    "home",
+    ".branchbase"
+  );
+  const worktreePath = pathModule.join(temporary, "project");
   mkdirSync(worktreePath);
   const canonicalWorktreePath = realpathSync(worktreePath);
   const processes = new ProcessSupervisor(productionControlDirectory);
@@ -144,10 +149,14 @@ it("rejects a worktree with a verified production run", async () => {
 
 it("rejects an orphaned listener that still belongs to the worktree", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-production-listener-preflight-")
+    pathModule.join(tmpdir(), "branchbase-production-listener-preflight-")
   );
-  const productionControlDirectory = join(temporary, "home", ".branchbase");
-  const worktreePath = join(temporary, "project");
+  const productionControlDirectory = pathModule.join(
+    temporary,
+    "home",
+    ".branchbase"
+  );
+  const worktreePath = pathModule.join(temporary, "project");
   mkdirSync(worktreePath);
   const canonicalWorktreePath = realpathSync(worktreePath);
   const portReservation = await reserveBackingPort();
@@ -194,10 +203,17 @@ it("rejects an orphaned listener that still belongs to the worktree", async () =
 
 it("rejects a claimed command-managed listener outside the worktree", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-production-command-listener-preflight-")
+    pathModule.join(
+      tmpdir(),
+      "branchbase-production-command-listener-preflight-"
+    )
   );
-  const productionControlDirectory = join(temporary, "home", ".branchbase");
-  const worktreePath = join(temporary, "project");
+  const productionControlDirectory = pathModule.join(
+    temporary,
+    "home",
+    ".branchbase"
+  );
+  const worktreePath = pathModule.join(temporary, "project");
   mkdirSync(worktreePath);
   const canonicalWorktreePath = realpathSync(worktreePath);
   const portReservation = await reserveBackingPort();
@@ -246,10 +262,14 @@ it("rejects a claimed command-managed listener outside the worktree", async () =
 
 it("ignores stale production state without a live process or listener", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-production-stale-preflight-")
+    pathModule.join(tmpdir(), "branchbase-production-stale-preflight-")
   );
-  const productionControlDirectory = join(temporary, "home", ".branchbase");
-  const worktreePath = join(temporary, "project");
+  const productionControlDirectory = pathModule.join(
+    temporary,
+    "home",
+    ".branchbase"
+  );
+  const worktreePath = pathModule.join(temporary, "project");
   mkdirSync(worktreePath);
   const canonicalWorktreePath = realpathSync(worktreePath);
   const portReservation = await reserveBackingPort();
@@ -275,11 +295,15 @@ it("ignores stale production state without a live process or listener", async ()
 
 it("fails closed when a recorded worktree path cannot be resolved safely", async () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-production-path-error-preflight-")
+    pathModule.join(tmpdir(), "branchbase-production-path-error-preflight-")
   );
-  const productionControlDirectory = join(temporary, "home", ".branchbase");
-  const worktreePath = join(temporary, "project");
-  const recordedWorktreePath = join(temporary, "recorded-project");
+  const productionControlDirectory = pathModule.join(
+    temporary,
+    "home",
+    ".branchbase"
+  );
+  const worktreePath = pathModule.join(temporary, "project");
+  const recordedWorktreePath = pathModule.join(temporary, "recorded-project");
   mkdirSync(worktreePath);
   symlinkSync(worktreePath, recordedWorktreePath);
   const canonicalWorktreePath = realpathSync(worktreePath);
@@ -308,13 +332,20 @@ it("fails closed when a recorded worktree path cannot be resolved safely", async
 
 it("fails closed when production state cannot be verified", () => {
   const temporary = mkdtempSync(
-    join(tmpdir(), "branchbase-production-invalid-preflight-")
+    pathModule.join(tmpdir(), "branchbase-production-invalid-preflight-")
   );
-  const productionControlDirectory = join(temporary, "home", ".branchbase");
-  const worktreePath = join(temporary, "project");
+  const productionControlDirectory = pathModule.join(
+    temporary,
+    "home",
+    ".branchbase"
+  );
+  const worktreePath = pathModule.join(temporary, "project");
   mkdirSync(productionControlDirectory, { recursive: true });
   mkdirSync(worktreePath);
-  writeFileSync(join(productionControlDirectory, "state.json"), "not-json\n");
+  writeFileSync(
+    pathModule.join(productionControlDirectory, "state.json"),
+    "not-json\n"
+  );
 
   try {
     expect(() =>

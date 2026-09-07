@@ -14,7 +14,8 @@ import {
   appGroupCanRestart,
   appGroupIsRunning,
 } from "../../controller/workspace-snapshot";
-import { type CommandMenuItem, CommandMenuItems } from "./command-menu-items";
+import { CommandMenuItems } from "./command-menu-items";
+import type { CommandMenuItem } from "./command-menu-items";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,

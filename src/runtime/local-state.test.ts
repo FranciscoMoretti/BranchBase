@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import pathModule from "node:path";
 
-import { FileBranchBaseStateStore, type InstanceRequest } from "./local-state";
+import { FileBranchBaseStateStore } from "./local-state";
+import type { InstanceRequest } from "./local-state";
 
 const COLLISION_SAFE_HOSTNAME = /^web-[a-f0-9]{6}\.main\.chat-js\.localhost$/;
 
@@ -24,9 +25,11 @@ function request(
 
 describe("BranchBase local App-group instance state", () => {
   it("rejects structurally invalid persisted state", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const statePath = join(directory, "state.json");
+      const statePath = pathModule.join(directory, "state.json");
       writeFileSync(
         statePath,
         JSON.stringify({
@@ -52,9 +55,11 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("creates one stable instance and Friendly hostname per worktree", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const statePath = join(directory, "state.json");
+      const statePath = pathModule.join(directory, "state.json");
       const firstStore = new FileBranchBaseStateStore(statePath);
       const instance = firstStore.instance(request());
       const first = firstStore.endpoint({
@@ -85,9 +90,13 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("shares selectable instances and lets one worktree select a secondary instance", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const store = new FileBranchBaseStateStore(join(directory, "state.json"));
+      const store = new FileBranchBaseStateStore(
+        pathModule.join(directory, "state.json")
+      );
       const mainRequest = request({
         groupId: "services",
         mode: "selectable",
@@ -126,9 +135,13 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("isolates selectable instances with incompatible configuration contracts", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const store = new FileBranchBaseStateStore(join(directory, "state.json"));
+      const store = new FileBranchBaseStateStore(
+        pathModule.join(directory, "state.json")
+      );
       const stable = request({
         configFingerprint: "stable-contract",
         groupId: "services",
@@ -174,9 +187,11 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("keeps legacy selectable instances visible, reserved, and selectable", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const statePath = join(directory, "state.json");
+      const statePath = pathModule.join(directory, "state.json");
       const selectable = request({ groupId: "services", mode: "selectable" });
       const store = new FileBranchBaseStateStore(statePath);
       const primary = store.instance(selectable);
@@ -184,7 +199,7 @@ describe("BranchBase local App-group instance state", () => {
         selectable,
         "Legacy data"
       );
-      const persisted = JSON.parse(readFileSync(statePath, "utf8"));
+      const persisted = JSON.parse(readFileSync(statePath, "utf-8"));
       persisted.repositories[selectable.repoPath].instances[
         primary.id
       ].configFingerprint = "";
@@ -218,9 +233,13 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("reports persisted runs only for the worktree that owns them", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const store = new FileBranchBaseStateStore(join(directory, "state.json"));
+      const store = new FileBranchBaseStateStore(
+        pathModule.join(directory, "state.json")
+      );
       const main = request();
       const instance = store.instance(main);
       store.saveRun(
@@ -250,9 +269,13 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("reserves the automatic selectable instance name", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const store = new FileBranchBaseStateStore(join(directory, "state.json"));
+      const store = new FileBranchBaseStateStore(
+        pathModule.join(directory, "state.json")
+      );
       const selectable = request({
         groupId: "services",
         mode: "selectable",
@@ -268,9 +291,11 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("persists an automatically assigned port on the instance endpoint", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const statePath = join(directory, "state.json");
+      const statePath = pathModule.join(directory, "state.json");
       const store = new FileBranchBaseStateStore(statePath);
       const instance = store.instance(request());
       store.endpoint({
@@ -297,9 +322,13 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("keeps hostnames unique when per-worktree groups reuse an App label", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const store = new FileBranchBaseStateStore(join(directory, "state.json"));
+      const store = new FileBranchBaseStateStore(
+        pathModule.join(directory, "state.json")
+      );
       const first = store.instance(request({ groupId: "product" }));
       const second = store.instance(request({ groupId: "admin" }));
       const firstEndpoint = store.endpoint({
@@ -326,9 +355,11 @@ describe("BranchBase local App-group instance state", () => {
   });
 
   it("persists v1 migration before returning generated instance identities", () => {
-    const directory = mkdtempSync(join(tmpdir(), "branchbase-state-"));
+    const directory = mkdtempSync(
+      pathModule.join(tmpdir(), "branchbase-state-")
+    );
     try {
-      const statePath = join(directory, "state.json");
+      const statePath = pathModule.join(directory, "state.json");
       writeFileSync(
         statePath,
         JSON.stringify({
@@ -371,7 +402,7 @@ describe("BranchBase local App-group instance state", () => {
           repoPath: request().repoPath,
         }).hostname
       ).toBe("web.main.chat-js.localhost");
-      expect(JSON.parse(readFileSync(statePath, "utf8")).version).toBe(2);
+      expect(JSON.parse(readFileSync(statePath, "utf-8")).version).toBe(2);
     } finally {
       rmSync(directory, { force: true, recursive: true });
     }

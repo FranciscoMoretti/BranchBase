@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { resolve } from "node:path";
+import pathModule from "node:path";
 
 import { pathInside } from "../runtime/ports";
 
@@ -10,7 +10,9 @@ export function commandWorkingDirectory(
   const root = realpathSync(worktreePath);
   let cwd: string;
   try {
-    cwd = realpathSync(relativeCwd ? resolve(root, relativeCwd) : root);
+    cwd = realpathSync(
+      relativeCwd ? pathModule.resolve(root, relativeCwd) : root
+    );
   } catch {
     throw new Error("Command working directory must exist inside the worktree");
   }

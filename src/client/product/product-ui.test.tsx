@@ -8,7 +8,8 @@ import {
   CodexTasksSection,
   WorktreeConfigurationSource,
 } from "../components/worktree-details";
-import { EnvironmentList, type GroupControls } from "./environment-list";
+import { EnvironmentList } from "./environment-list";
+import type { GroupControls } from "./environment-list";
 import { GroupDetails } from "./group-details";
 import { worktree } from "./test-fixtures";
 
