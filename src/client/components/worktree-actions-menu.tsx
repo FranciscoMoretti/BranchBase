@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export function WorktreeActionsMenu({
+export const WorktreeActionsMenu = ({
   bordered = false,
   commandActions,
   includeLifecycle = true,
@@ -30,7 +30,7 @@ export function WorktreeActionsMenu({
   onInspect: () => void;
   pending: boolean;
   worktree: WorktreeSnapshot;
-}) {
+}) => {
   const running = appsAreRunning(worktree);
   const items: CommandMenuItem[] = [
     {
@@ -79,4 +79,4 @@ export function WorktreeActionsMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+};

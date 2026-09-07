@@ -9,9 +9,9 @@ export type WorktreeDisplayStatus =
   | "setup-failed"
   | "setting-up";
 
-export function appGroupDisplayStatus(
+export const appGroupDisplayStatus = (
   group: Pick<AppGroupSnapshot, "apps" | "health" | "processRunning">
-): AppGroupDisplayStatus {
+): AppGroupDisplayStatus => {
   if (
     group.apps.some(
       (app) =>
@@ -29,16 +29,16 @@ export function appGroupDisplayStatus(
     return "partial";
   }
   return "stopped";
-}
+};
 
-export function worktreeDisplayStatus(
+export const worktreeDisplayStatus = (
   worktree: Pick<
     WorktreeSnapshot,
     "health" | "processRunning" | "setupState"
   > & {
     appGroups: Pick<AppGroupSnapshot, "apps" | "health" | "processRunning">[];
   }
-): WorktreeDisplayStatus {
+): WorktreeDisplayStatus => {
   if (worktree.setupState === "failed") {
     return "setup-failed";
   }
@@ -57,4 +57,4 @@ export function worktreeDisplayStatus(
     return "running";
   }
   return "stopped";
-}
+};

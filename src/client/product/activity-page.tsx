@@ -13,12 +13,12 @@ import { QueryContent } from "./async-state";
 import { hrefFor, useActivity } from "./data";
 import { Blank, PageHeading, Search, Status } from "./primitives";
 
-function activityStatus(severity: string): string {
+const activityStatus = (severity: string): string => {
   if (severity === "warning") {
     return "partial";
   }
   return severity === "success" ? "running" : "stopped";
-}
+};
 
 export const activityPeriodStart = (
   period: string,
@@ -30,7 +30,7 @@ export const activityPeriodStart = (
     : Math.max(selectedAt, refreshedAt) -
       (period === "day" ? 1 : 7) * 86_400_000;
 
-export function ActivityPage({
+export const ActivityPage = ({
   repoPath,
   groupId,
   worktreeId,
@@ -38,7 +38,7 @@ export function ActivityPage({
   repoPath?: string;
   groupId?: string;
   worktreeId?: string;
-}) {
+}) => {
   const activity = useActivity(repoPath);
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(50);
@@ -224,4 +224,4 @@ export function ActivityPage({
       </QueryContent>
     </>
   );
-}
+};

@@ -8,7 +8,7 @@ interface ParseState {
   quote: "double" | "single" | null;
 }
 
-function quoteArgument(argument: string): string {
+const quoteArgument = (argument: string): string => {
   if (argument === "") {
     return "''";
   }
@@ -16,13 +16,12 @@ function quoteArgument(argument: string): string {
     return argument;
   }
   return `'${argument.replaceAll("'", `'"'"'`)}'`;
-}
+};
 
-export function formatCommandLine(argv: string[]): string {
-  return argv.map(quoteArgument).join(" ");
-}
+export const formatCommandLine = (argv: string[]): string =>
+  argv.map(quoteArgument).join(" ");
 
-function consumeEscaped(state: ParseState, character: string): boolean {
+const consumeEscaped = (state: ParseState, character: string): boolean => {
   if (!state.escaping) {
     return false;
   }
@@ -30,9 +29,9 @@ function consumeEscaped(state: ParseState, character: string): boolean {
   state.argumentStarted = true;
   state.escaping = false;
   return true;
-}
+};
 
-function consumeQuoted(state: ParseState, character: string): boolean {
+const consumeQuoted = (state: ParseState, character: string): boolean => {
   if (state.quote === "single") {
     if (character === "'") {
       state.quote = null;
@@ -52,13 +51,13 @@ function consumeQuoted(state: ParseState, character: string): boolean {
     state.argument += character;
   }
   return true;
-}
+};
 
-function consumeUnquoted(
+const consumeUnquoted = (
   state: ParseState,
   character: string,
   argv: string[]
-): void {
+): void => {
   if (WHITESPACE.test(character)) {
     if (state.argumentStarted) {
       argv.push(state.argument);
@@ -77,9 +76,9 @@ function consumeUnquoted(
   } else {
     state.argument += character;
   }
-}
+};
 
-export function parseCommandLine(value: string): string[] {
+export const parseCommandLine = (value: string): string[] => {
   const argv: string[] = [];
   const state: ParseState = {
     argument: "",
@@ -107,4 +106,4 @@ export function parseCommandLine(value: string): string[] {
     argv.push(state.argument);
   }
   return argv;
-}
+};

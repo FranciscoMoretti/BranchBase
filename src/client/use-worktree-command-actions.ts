@@ -45,9 +45,9 @@ export interface PendingCommandScopes {
   worktrees: Set<string>;
 }
 
-function commandInput(
+const commandInput = (
   value: unknown
-): (Record<string, unknown> & { repoPath: string }) | null {
+): (Record<string, unknown> & { repoPath: string }) | null => {
   if (!(value && typeof value === "object" && !Array.isArray(value))) {
     return null;
   }
@@ -55,9 +55,9 @@ function commandInput(
   return typeof input.repoPath === "string"
     ? (input as Record<string, unknown> & { repoPath: string })
     : null;
-}
+};
 
-function requestedWorktreeIds(input: Record<string, unknown>): string[] {
+const requestedWorktreeIds = (input: Record<string, unknown>): string[] => {
   if (typeof input.worktreeId === "string") {
     return [input.worktreeId];
   }
@@ -66,12 +66,12 @@ function requestedWorktreeIds(input: Record<string, unknown>): string[] {
         (item): item is string => typeof item === "string"
       )
     : [];
-}
+};
 
-function addAppGroupScope(
+const addAppGroupScope = (
   scopes: PendingCommandScopes,
   input: Record<string, unknown>
-): void {
+): void => {
   if (
     typeof input.worktreeId !== "string" ||
     typeof input.appGroupName !== "string"
@@ -82,13 +82,13 @@ function addAppGroupScope(
   groups.add(input.appGroupName);
   scopes.appGroups.set(input.worktreeId, groups);
   scopes.worktrees.add(input.worktreeId);
-}
+};
 
-function addWorktreeScopes(
+const addWorktreeScopes = (
   scopes: PendingCommandScopes,
   worktreeIds: readonly string[],
   allAppGroups: boolean
-): void {
+): void => {
   for (const worktreeId of worktreeIds) {
     if (allAppGroups) {
       scopes.allAppGroups.add(worktreeId);
@@ -96,12 +96,12 @@ function addWorktreeScopes(
     scopes.blockedWorktrees.add(worktreeId);
     scopes.worktrees.add(worktreeId);
   }
-}
+};
 
-export function pendingCommandScopes(
+export const pendingCommandScopes = (
   commands: readonly PendingCommand[],
   repoPath: string
-): PendingCommandScopes {
+): PendingCommandScopes => {
   const scopes: PendingCommandScopes = {
     allAppGroups: new Set(),
     appGroups: new Map(),
@@ -133,9 +133,9 @@ export function pendingCommandScopes(
     }
   }
   return scopes;
-}
+};
 
-export function useWorktreeCommandActions({
+export const useWorktreeCommandActions = ({
   repoPath,
   requestRepositoryTrust,
   worktrees,
@@ -143,7 +143,7 @@ export function useWorktreeCommandActions({
   repoPath: string;
   requestRepositoryTrust: RequestRepositoryTrust;
   worktrees: WorktreeSnapshot[];
-}) {
+}) => {
   const commands = useCommands(repoPath);
   const pendingCommands = useMutationState<PendingCommand>({
     filters: { mutationKey: ["command"], status: "pending" },
@@ -460,4 +460,4 @@ export function useWorktreeCommandActions({
     visibleActions,
     worktreeActionPending,
   };
-}
+};

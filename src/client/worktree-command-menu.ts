@@ -20,7 +20,7 @@ export interface WorktreeCommandActions {
   onStop: (worktree: WorktreeSnapshot) => void;
 }
 
-export function worktreeCommandMenuItems({
+export const worktreeCommandMenuItems = ({
   actions,
   includeLifecycle = true,
   pending,
@@ -30,7 +30,7 @@ export function worktreeCommandMenuItems({
   includeLifecycle?: boolean;
   pending: boolean;
   worktree: WorktreeSnapshot;
-}): CommandMenuItem[] {
+}): CommandMenuItem[] => {
   const running = appsAreRunning(worktree);
   const stopped = appsAreStopped(worktree);
   return [
@@ -76,4 +76,4 @@ export function worktreeCommandMenuItems({
         ]
       : []),
   ];
-}
+};

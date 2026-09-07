@@ -5,8 +5,8 @@ import { fetchCodexIntegration, fetchLogs, fetchWorkspace } from "./api";
 export const REFRESH_INTERVAL = 5000;
 const CODEX_REFRESH_INTERVAL = 2500;
 
-export function useWorkspace(repoPath: string, enabled = true) {
-  return useQuery({
+export const useWorkspace = (repoPath: string, enabled = true) =>
+  useQuery({
     enabled: repoPath !== "" && enabled,
     queryFn: () => fetchWorkspace(repoPath),
     queryKey: ["workspace", repoPath],
@@ -14,10 +14,9 @@ export function useWorkspace(repoPath: string, enabled = true) {
     retry: false,
     staleTime: REFRESH_INTERVAL,
   });
-}
 
-export function useCodexIntegration(repoPath: string) {
-  return useQuery({
+export const useCodexIntegration = (repoPath: string) =>
+  useQuery({
     enabled: repoPath !== "",
     queryFn: () => fetchCodexIntegration(repoPath),
     queryKey: ["codex-integration", repoPath],
@@ -27,14 +26,13 @@ export function useCodexIntegration(repoPath: string) {
     retryDelay: 500,
     staleTime: CODEX_REFRESH_INTERVAL,
   });
-}
 
-export function useLogs(
+export const useLogs = (
   repoPath: string,
   worktreeId: string | null,
   appGroupName: string | null
-) {
-  return useQuery({
+) =>
+  useQuery({
     enabled: repoPath !== "" && worktreeId !== null && appGroupName !== null,
     queryFn: () => {
       if (!(worktreeId && appGroupName)) {
@@ -48,4 +46,3 @@ export function useLogs(
     retry: 2,
     retryDelay: 500,
   });
-}

@@ -12,7 +12,7 @@ let dom: Window | null = null;
 let root: Root | null = null;
 let originalGlobals: Record<string, PropertyDescriptor | undefined>;
 
-async function mount() {
+const mount = async () => {
   dom = new Window({ url: "http://localhost/?view=machine" });
   const names = [
     "document",
@@ -63,7 +63,7 @@ async function mount() {
       </ThemeProvider>
     );
   });
-}
+};
 
 afterEach(async () => {
   if (root) {
@@ -80,18 +80,17 @@ afterEach(async () => {
   }
 });
 
-function waitForHistoryEvent() {
-  return new Promise<void>((resolve) => setTimeout(resolve, 25));
-}
+const waitForHistoryEvent = () =>
+  new Promise<void>((resolve) => setTimeout(resolve, 25));
 
-async function settleHistory() {
+const settleHistory = async () => {
   await act(async () => {
     await waitForHistoryEvent();
     await waitForHistoryEvent();
   });
-}
+};
 
-function setDirty(value: boolean) {
+const setDirty = (value: boolean) => {
   if (!dom) {
     throw new Error("DOM was not installed");
   }
@@ -100,9 +99,9 @@ function setDirty(value: boolean) {
       detail: value,
     } as never)
   );
-}
+};
 
-function dialogButton(label: string) {
+const dialogButton = (label: string) => {
   if (!dom) {
     throw new Error("DOM was not installed");
   }
@@ -115,7 +114,7 @@ function dialogButton(label: string) {
     );
   }
   return button;
-}
+};
 
 test("dirty Back cancel then discard preserves indexed history", async () => {
   await mount();

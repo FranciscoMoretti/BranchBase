@@ -20,7 +20,7 @@ import { Input } from "./ui/input";
 
 type CreateWorktreeInput = Record<string, unknown> & { repoPath: string };
 
-export function CreateWorktreeDialog({
+export const CreateWorktreeDialog = ({
   mutation,
   onClose,
   repoPath,
@@ -30,13 +30,13 @@ export function CreateWorktreeDialog({
   onClose: () => void;
   repoPath: string;
   requestRepositoryTrust: RequestRepositoryTrust;
-}) {
+}) => {
   const [branch, setBranch] = useState("");
   const [createBranch, setCreateBranch] = useState(true);
   const [folderName, setFolderName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  async function create(input: CreateWorktreeInput) {
+  const create = async (input: CreateWorktreeInput) => {
     try {
       setError(null);
       await mutation.mutateAsync(input);
@@ -46,9 +46,9 @@ export function CreateWorktreeDialog({
         caught instanceof Error ? caught.message : "Could not create worktree"
       );
     }
-  }
+  };
 
-  function submit(event: FormEvent) {
+  const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!branch.trim()) {
       setError("Branch is required.");
@@ -66,7 +66,7 @@ export function CreateWorktreeDialog({
         repoPath,
       })
     );
-  }
+  };
 
   return (
     <Dialog onOpenChange={(next) => !next && onClose()} open>
@@ -142,4 +142,4 @@ export function CreateWorktreeDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

@@ -28,7 +28,7 @@ export class BranchBaseApiError extends Error {
   }
 }
 
-async function responseJson(response: Response): Promise<unknown> {
+const responseJson = async (response: Response): Promise<unknown> => {
   let body: unknown;
   try {
     body = await response.json();
@@ -57,12 +57,12 @@ async function responseJson(response: Response): Promise<unknown> {
     );
   }
   return body;
-}
+};
 
-export async function request(
+export const request = async (
   path: string,
   init?: RequestInit
-): Promise<Response> {
+): Promise<Response> => {
   try {
     return await fetch(path, {
       ...init,
@@ -87,11 +87,10 @@ export async function request(
       null
     );
   }
-}
-export async function getJson(path: string): Promise<unknown> {
-  return responseJson(await request(path));
-}
-function token(): Promise<string> {
+};
+export const getJson = async (path: string): Promise<unknown> =>
+  responseJson(await request(path));
+const token = (): Promise<string> => {
   sessionToken ??= request("/api/session")
     .then(responseJson)
     .then((body) => SessionResponseSchema.parse(body).token)
@@ -100,52 +99,45 @@ function token(): Promise<string> {
       throw error;
     });
   return sessionToken;
-}
+};
 
-export async function fetchWorkspace(
+export const fetchWorkspace = async (
   repoPath: string
-): Promise<WorkspaceSnapshot> {
+): Promise<WorkspaceSnapshot> => {
   const query = new URLSearchParams({ repoPath });
   return WorkspaceSnapshotSchema.parse(
     await responseJson(await request(`/api/workspace?${query}`))
   );
-}
+};
 
-export async function fetchCodexIntegration(
+export const fetchCodexIntegration = async (
   repoPath: string
-): Promise<CodexIntegrationSnapshot> {
+): Promise<CodexIntegrationSnapshot> => {
   const query = new URLSearchParams({ repoPath });
   return CodexIntegrationSnapshotSchema.parse(
     await responseJson(await request(`/api/codex?${query}`))
   );
-}
+};
 
-export async function fetchLogs(
+export const fetchLogs = async (
   repoPath: string,
   worktreeId: string,
   appGroupName: string
-): Promise<string[]> {
+): Promise<string[]> => {
   const query = new URLSearchParams({ appGroupName, repoPath, worktreeId });
   const body = LogsResponseSchema.parse(
     await responseJson(await request(`/api/logs?${query}`))
   );
   return body.lines;
-}
+};
 
-export function runCommand(
-  command: string,
-  input: Record<string, unknown>
-): Promise<CommandReceipt> {
-  return postCommand(command, input, CommandReceiptSchema);
-}
-
-async function postCommand<T>(
+const postCommand = async <T>(
   command: string,
   input: Record<string, unknown>,
   schema: ZodType<T>
-): Promise<T> {
-  async function send(): Promise<Response> {
-    return request(`/api/commands/${command}`, {
+): Promise<T> => {
+  const send = async (): Promise<Response> =>
+    request(`/api/commands/${command}`, {
       body: JSON.stringify(input),
       headers: {
         "content-type": "application/json",
@@ -153,33 +145,34 @@ async function postCommand<T>(
       },
       method: "POST",
     });
-  }
   let response = await send();
   if (response.status === 403) {
     sessionToken = null;
     response = await send();
   }
   return schema.parse(await responseJson(response));
-}
+};
 
-export function pickRepository(): Promise<string | null> {
-  return postCommand("pick-repository", {}, PickRepositoryResultSchema).then(
+export const runCommand = (
+  command: string,
+  input: Record<string, unknown>
+): Promise<CommandReceipt> => postCommand(command, input, CommandReceiptSchema);
+
+export const pickRepository = (): Promise<string | null> =>
+  postCommand("pick-repository", {}, PickRepositoryResultSchema).then(
     (result) => result.path
   );
-}
 
-export function previewRepositoryConfig(repoPath: string) {
-  return postCommand(
+export const previewRepositoryConfig = (repoPath: string) =>
+  postCommand(
     "preview-repository-config",
     { repoPath },
     RepositoryInitializationPlanSchema
   );
-}
 
-export function initializeRepository(repoPath: string) {
-  return postCommand(
+export const initializeRepository = (repoPath: string) =>
+  postCommand(
     "initialize-repository",
     { repoPath },
     RepositoryInitializationPlanSchema
   );
-}

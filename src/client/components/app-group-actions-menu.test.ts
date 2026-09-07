@@ -3,28 +3,25 @@ import { describe, expect, it } from "bun:test";
 import type { AppGroupSnapshot } from "../../controller/workspace-snapshot";
 import { appGroupCommandMenuItems } from "./app-group-actions-menu";
 
-function group(health: AppGroupSnapshot["health"]): AppGroupSnapshot {
-  return {
-    apps: [],
-    health,
-    id: "product",
-    instance: { id: "product-main", mode: "per-worktree", name: "main" },
-    instances: [{ id: "product-main", name: "main", running: false }],
-    name: "Product Apps",
-    processRunning: false,
-    stop: "process",
-  };
-}
+const group = (health: AppGroupSnapshot["health"]): AppGroupSnapshot => ({
+  apps: [],
+  health,
+  id: "product",
+  instance: { id: "product-main", mode: "per-worktree", name: "main" },
+  instances: [{ id: "product-main", name: "main", running: false }],
+  name: "Product Apps",
+  processRunning: false,
+  stop: "process",
+});
 
-function itemIds(target: AppGroupSnapshot): string[] {
-  return appGroupCommandMenuItems({
+const itemIds = (target: AppGroupSnapshot): string[] =>
+  appGroupCommandMenuItems({
     group: target,
     onRestart: () => undefined,
     onRetry: () => undefined,
     onToggle: () => undefined,
     pending: false,
   }).map((item) => item.id);
-}
 
 describe("app group actions menu", () => {
   it("offers start for a stopped group", () => {

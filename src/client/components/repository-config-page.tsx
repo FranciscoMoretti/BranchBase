@@ -12,7 +12,7 @@ import { FormFeedback } from "../product/async-state";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 
-export function RepositoryConfigPage({
+export const RepositoryConfigPage = ({
   config,
   configPath,
   error,
@@ -30,7 +30,7 @@ export function RepositoryConfigPage({
   onDirtyChange: (dirty: boolean) => void;
   onSave: (value: BranchBaseConfig) => Promise<void>;
   pending: boolean;
-}) {
+}) => {
   const original = useMemo(() => JSON.stringify(config, null, 2), [config]);
   const [source, setSource] = useState(
     () => loadConfigDraft(configPath, original) ?? original
@@ -77,20 +77,20 @@ export function RepositoryConfigPage({
             .join("; ");
   }
 
-  function requestClose() {
+  const requestClose = () => {
     if (dirty) {
       setDiscardRequested(true);
     } else {
       onClose();
     }
-  }
+  };
 
-  function keepEditing(): void {
+  const keepEditing = (): void => {
     setDiscardRequested(false);
     setIgnoredNavigationRequest(navigationRequest);
-  }
+  };
 
-  async function saveConfiguration(): Promise<void> {
+  const saveConfiguration = async (): Promise<void> => {
     if (!parsed.success) {
       return;
     }
@@ -100,12 +100,12 @@ export function RepositoryConfigPage({
     } catch {
       // The parent presents the save error; retain the editable draft.
     }
-  }
+  };
 
-  function discardChanges(): void {
+  const discardChanges = (): void => {
     clearConfigDraft(configPath);
     onClose();
-  }
+  };
 
   return (
     <section className="bg-background flex min-w-0 flex-col">
@@ -188,4 +188,4 @@ export function RepositoryConfigPage({
       </footer>
     </section>
   );
-}
+};

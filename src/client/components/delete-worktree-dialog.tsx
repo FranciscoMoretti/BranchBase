@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 
-export function DeleteWorktreeDialog({
+export const DeleteWorktreeDialog = ({
   mutation,
   onClose,
   repoPath,
@@ -31,9 +31,9 @@ export function DeleteWorktreeDialog({
   onClose: () => void;
   repoPath: string;
   worktree: WorktreeSnapshot;
-}) {
+}) => {
   const [error, setError] = useState<string | null>(null);
-  async function confirm() {
+  const confirm = async () => {
     try {
       setError(null);
       await mutation.mutateAsync({ repoPath, worktreeId: worktree.id });
@@ -43,7 +43,7 @@ export function DeleteWorktreeDialog({
         caught instanceof Error ? caught.message : "Could not delete worktree"
       );
     }
-  }
+  };
   return (
     <AlertDialog
       onOpenChange={(nextOpen) => {
@@ -84,4 +84,4 @@ export function DeleteWorktreeDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+};

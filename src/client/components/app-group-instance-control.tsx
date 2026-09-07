@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "./ui/select";
 
-export function AppGroupInstanceControl({
+export const AppGroupInstanceControl = ({
   disabled,
   group,
   onCreate,
@@ -34,7 +34,7 @@ export function AppGroupInstanceControl({
   group: AppGroupSnapshot;
   onCreate: (name: string) => Promise<void>;
   onSelect: (instanceId: string) => void;
-}) {
+}) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
 
@@ -42,7 +42,7 @@ export function AppGroupInstanceControl({
     return null;
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -56,7 +56,7 @@ export function AppGroupInstanceControl({
       // The workspace command alert presents the mutation error. Keep this
       // dialog and its input intact so the user can correct the name.
     }
-  }
+  };
 
   return (
     <div className="flex min-w-0 items-center">
@@ -140,4 +140,4 @@ export function AppGroupInstanceControl({
       </Dialog>
     </div>
   );
-}
+};
