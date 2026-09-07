@@ -10,7 +10,9 @@ import {
   ExclusiveFileLockBusyError,
 } from "./exclusive-file-lock";
 
-async function readChunk(stream: ReadableStream<Uint8Array>): Promise<string> {
+const readChunk = async (
+  stream: ReadableStream<Uint8Array>
+): Promise<string> => {
   const reader = stream.getReader();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -30,7 +32,7 @@ async function readChunk(stream: ReadableStream<Uint8Array>): Promise<string> {
     }
     reader.releaseLock();
   }
-}
+};
 
 it("holds an exclusive lock until its idempotent release", () => {
   const temporary = mkdtempSync(

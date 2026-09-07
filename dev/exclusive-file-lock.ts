@@ -7,7 +7,7 @@ export class ExclusiveFileLockBusyError extends Error {
   }
 }
 
-export function acquireExclusiveFileLock(file: string): () => void {
+export const acquireExclusiveFileLock = (file: string): (() => void) => {
   const database = new Database(file, { create: true, strict: true });
   try {
     database.run("BEGIN IMMEDIATE");
@@ -36,4 +36,4 @@ export function acquireExclusiveFileLock(file: string): () => void {
       database.close(true);
     }
   };
-}
+};

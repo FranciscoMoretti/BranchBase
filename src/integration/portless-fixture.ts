@@ -52,42 +52,44 @@ export const integrationConfig: BranchBaseConfig = {
   },
 };
 
-export function packageFile(packageName: string, ...parts: string[]): string {
-  return pathModule.join(
+export const packageFile = (packageName: string, ...parts: string[]): string =>
+  pathModule.join(
     pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
-}
 
-function run(cwd: string, command: string, args: string[]): void {
+const run = (cwd: string, command: string, args: string[]): void => {
   const result = spawnSync(command, args, { cwd, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(
       `${command} ${args.join(" ")} failed: ${result.stderr || result.stdout}`
     );
   }
-}
+};
 
-export function assert(condition: unknown, message: string): asserts condition {
+export const assert: (
+  condition: unknown,
+  message: string
+) => asserts condition = (condition, message) => {
   if (!condition) {
     throw new Error(message);
   }
-}
+};
 
-export function processIsLive(pid: number): boolean {
+export const processIsLive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);
     return true;
   } catch {
     return false;
   }
-}
+};
 
-export async function waitUntil(
+export const waitUntil = async (
   condition: () => boolean,
   message: string,
   timeout = 10_000
-): Promise<void> {
+): Promise<void> => {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     if (condition()) {
@@ -96,16 +98,16 @@ export async function waitUntil(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(message);
-}
+};
 
-export function endpoint(
+export const endpoint = (
   worktree: ReturnType<WorkspaceController["inspect"]>["worktrees"][number],
   appId: string
-): AppEndpointSnapshot {
+): AppEndpointSnapshot => {
   const value = worktree.appGroups[0]?.apps.find((app) => app.id === appId);
   assert(value, `${appId} was not present for ${worktree.path}`);
   return value;
-}
+};
 
 export class PortlessIntegrationFixture {
   readonly controlDirectory: string;

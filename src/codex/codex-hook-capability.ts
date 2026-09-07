@@ -28,13 +28,13 @@ export interface CodexHookCapability {
   record: CodexHookCapabilityRecord;
 }
 
-export function createCodexHookCapability(options: {
+export const createCodexHookCapability = (options: {
   directory?: string;
   endpoint: string;
   now?: Date;
   pid: number;
   processStartMarker: string;
-}): CodexHookCapability {
+}): CodexHookCapability => {
   const directory =
     options.directory ?? pathModule.join(homedir(), ".branchbase", "codex");
   const file = pathModule.join(directory, "capability.json");
@@ -71,4 +71,4 @@ export function createCodexHookCapability(options: {
     file,
     record,
   };
-}
+};

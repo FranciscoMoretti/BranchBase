@@ -113,25 +113,23 @@ class TrustedWorkspaceController extends WorkspaceController {
   }
 }
 
-function git(cwd: string, ...args: string[]): void {
+const git = (cwd: string, ...args: string[]): void => {
   const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout);
   }
-}
+};
 
-function listen(server: Server, port: number): Promise<void> {
-  return new Promise((resolve, reject) => {
+const listen = (server: Server, port: number): Promise<void> =>
+  new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", resolve);
   });
-}
 
-function close(server: Server): Promise<void> {
-  return new Promise((resolve, reject) => {
+const close = (server: Server): Promise<void> =>
+  new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
-}
 
 describe("App-group instance assignment", () => {
   it("uses an approved captured Stop command for a detached run", async () => {

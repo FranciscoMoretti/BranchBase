@@ -2,10 +2,10 @@ import type { WorkspaceController } from "../controller/workspace-controller";
 import type { CommandReceipt } from "../controller/workspace-snapshot";
 import { requiredString } from "./command";
 
-export function clearLogs(
+export const clearLogs = (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): CommandReceipt {
+): CommandReceipt => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const worktreeId = requiredString(input.worktreeId, "Worktree");
   const appGroupName = requiredString(input.appGroupName, "App group");
@@ -17,4 +17,4 @@ export function clearLogs(
     ok: true,
     worktreeId,
   };
-}
+};

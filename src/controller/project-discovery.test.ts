@@ -31,21 +31,21 @@ afterEach(() => {
     close();
   }
 });
-function temporary() {
+const temporary = () => {
   const path = realpathSync(
     mkdtempSync(pathModule.join(tmpdir(), "branchbase-discovery-"))
   );
   cleanup.push(() => rmSync(path, { recursive: true, force: true }));
   return path;
-}
-function git(path: string, ...args: string[]) {
+};
+const git = (path: string, ...args: string[]) => {
   const result = spawnSync("git", args, { cwd: path, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(result.stderr);
   }
   return result.stdout.trim();
-}
-function repository(path: string) {
+};
+const repository = (path: string) => {
   mkdirSync(path, { recursive: true });
   git(path, "init", "-q", "-b", "main");
   git(
@@ -60,15 +60,14 @@ function repository(path: string) {
     "Initial"
   );
   return path;
-}
-function controller(directory: string) {
-  return new WorkspaceController(undefined, {
+};
+const controller = (directory: string) =>
+  new WorkspaceController(undefined, {
     state: new FileBranchBaseStateStore(
       pathModule.join(directory, "state.json")
     ),
     processes: new ProcessSupervisor(pathModule.join(directory, "control")),
   });
-}
 test("folder scans are bounded and skip symlinks, dependencies and repository contents", () => {
   const root = temporary();
   const repo = repository(pathModule.join(root, "team", "app"));

@@ -3,10 +3,10 @@ import type { CommandReceipt } from "../controller/workspace-snapshot";
 import { requiredString } from "./command";
 import { findAppGroup } from "./start-apps";
 
-export async function stopApps(
+export const stopApps = async (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): Promise<CommandReceipt> {
+): Promise<CommandReceipt> => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const worktreeId = requiredString(input.worktreeId, "Worktree");
   const appGroupName = requiredString(input.appGroupName, "App group");
@@ -25,4 +25,4 @@ export async function stopApps(
     ok: true,
     worktreeId,
   };
-}
+};

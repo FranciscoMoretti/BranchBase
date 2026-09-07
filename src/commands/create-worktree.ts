@@ -9,7 +9,7 @@ import { requiredString } from "./command";
 const BRANCH_PATTERN = /^[A-Za-z0-9._/@-]+$/;
 const FOLDER_PATTERN = /^[A-Za-z0-9._-]+$/;
 
-function run(argv: string[], cwd: string, env = process.env): string {
+const run = (argv: string[], cwd: string, env = process.env): string => {
   const [command, ...args] = argv;
   const result = spawnSync(command, args, {
     cwd,
@@ -23,12 +23,12 @@ function run(argv: string[], cwd: string, env = process.env): string {
     );
   }
   return `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
-}
+};
 
-export function createWorktree(
+export const createWorktree = (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): CommandReceipt {
+): CommandReceipt => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   controller.assertTrusted(repoPath);
   const branch = requiredString(input.branch, "Branch");
@@ -72,4 +72,4 @@ export function createWorktree(
     ok: true,
     worktreeId: created.id,
   };
-}
+};

@@ -16,7 +16,7 @@ import { FakeCodexIntegrationAdapter } from "../codex/codex-integration";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { WorkspaceController } from "./workspace-controller";
 
-function writeConfig(root: string): void {
+const writeConfig = (root: string): void => {
   writeFileSync(
     pathModule.join(root, ".branchbase.json"),
     JSON.stringify({
@@ -31,7 +31,7 @@ function writeConfig(root: string): void {
       version: 1,
     })
   );
-}
+};
 
 describe("WorkspaceController Codex hook bridge", () => {
   it("returns a safe full BranchBase context snapshot for a task session start", () => {

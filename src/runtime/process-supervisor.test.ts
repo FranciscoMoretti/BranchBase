@@ -24,7 +24,7 @@ beforeEach(() => {
   supervisor = new ProcessSupervisor(controlDirectory);
 });
 
-async function waitForProcessExit(pid: number): Promise<void> {
+const waitForProcessExit = async (pid: number): Promise<void> => {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     try {
       process.kill(pid, 0);
@@ -34,7 +34,7 @@ async function waitForProcessExit(pid: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   throw new Error(`Process ${pid} did not exit`);
-}
+};
 
 afterEach(() => {
   rmSync(controlDirectory, { force: true, recursive: true });

@@ -23,7 +23,7 @@ export interface VerifiedWorktreeRun {
   worktreePath: string;
 }
 
-function canonicalPath(path: string): string | null {
+const canonicalPath = (path: string): string | null => {
   try {
     return realpathSync(path);
   } catch (error) {
@@ -33,14 +33,14 @@ function canonicalPath(path: string): string | null {
     }
     throw error;
   }
-}
+};
 
-function liveRunEvidence(
+const liveRunEvidence = (
   instance: RecordedInstance,
   worktreePath: string,
   processes: ProcessSupervisor,
   ports: ReturnType<typeof inspectListeningPorts>
-): Pick<VerifiedWorktreeRun, "pid" | "port"> | null {
+): Pick<VerifiedWorktreeRun, "pid" | "port"> | null => {
   if (
     !instance.run ||
     canonicalPath(instance.run.worktreePath) !== worktreePath
@@ -64,12 +64,12 @@ function liveRunEvidence(
   const pid = managedPid ?? listener?.pid;
   const port = listener?.port ?? Object.values(instance.run.apps)[0]?.port;
   return pid && port ? { pid, port } : null;
-}
+};
 
-export function findVerifiedWorktreeRun(
+export const findVerifiedWorktreeRun = (
   controlDirectory: string,
   worktreePathValue: string
-): VerifiedWorktreeRun | null {
+): VerifiedWorktreeRun | null => {
   const statePath = pathModule.join(controlDirectory, "state.json");
   if (!existsSync(statePath)) {
     return null;
@@ -99,4 +99,4 @@ export function findVerifiedWorktreeRun(
     }
   }
   return null;
-}
+};

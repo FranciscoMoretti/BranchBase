@@ -66,37 +66,29 @@ export interface StartManagedProcessInput {
   trackExitFailure?: boolean;
 }
 
-export function setupProcessId(worktreeId: string): string {
-  return `${worktreeId}--setup`;
-}
+export const setupProcessId = (worktreeId: string): string =>
+  `${worktreeId}--setup`;
 
-export function appGroupProcessId(
+export const appGroupProcessId = (
   worktreeId: string,
   appGroupId: string
-): string {
-  return `${worktreeId}--app-group--${Buffer.from(appGroupId).toString("base64url")}`;
-}
+): string =>
+  `${worktreeId}--app-group--${Buffer.from(appGroupId).toString("base64url")}`;
 
-export function appGroupInstanceProcessId(instanceId: string): string {
-  return `${instanceId}--app-group-instance`;
-}
+export const appGroupInstanceProcessId = (instanceId: string): string =>
+  `${instanceId}--app-group-instance`;
 
-function safeId(processId: string): string {
-  return processId.replaceAll(/[^A-Za-z0-9_-]/g, "_");
-}
+const safeId = (processId: string): string =>
+  processId.replaceAll(/[^A-Za-z0-9_-]/g, "_");
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+const delay = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-function isMissingPathError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOENT"
-  );
-}
+const isMissingPathError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  error.code === "ENOENT";
 
 export class ProcessSupervisor {
   readonly controlDirectory: string;

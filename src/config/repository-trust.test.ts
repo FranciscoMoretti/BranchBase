@@ -19,8 +19,8 @@ import {
   trustRepository,
 } from "./repository-trust";
 
-function config(mode: "per-worktree" | "selectable") {
-  return BranchBaseConfigSchema.parse({
+const config = (mode: "per-worktree" | "selectable") =>
+  BranchBaseConfigSchema.parse({
     version: 1,
     setup: { argv: ["true"] },
     appGroups: {
@@ -32,7 +32,6 @@ function config(mode: "per-worktree" | "selectable") {
       },
     },
   });
-}
 
 describe("repository trust fingerprint", () => {
   it("fails closed when any persisted trust entry has an invalid shape", () => {

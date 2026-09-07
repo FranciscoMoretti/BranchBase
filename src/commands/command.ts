@@ -1,11 +1,11 @@
-export function requiredString(value: unknown, label: string): string {
+export const requiredString = (value: unknown, label: string): string => {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`${label} is required`);
   }
   return value.trim();
-}
+};
 
-export function optionalStringArray(value: unknown): string[] | null {
+export const optionalStringArray = (value: unknown): string[] | null => {
   if (value === undefined) {
     return null;
   }
@@ -16,16 +16,16 @@ export function optionalStringArray(value: unknown): string[] | null {
     throw new Error("Worktree list must contain valid identifiers");
   }
   return value.map((item) => item.trim());
-}
+};
 
-export function selectRequestedWorktrees<T extends { id: string }>(
+export const selectRequestedWorktrees = <T extends { id: string }>(
   worktrees: readonly T[],
   value: unknown
-): T[] {
+): T[] => {
   const ids = optionalStringArray(value);
   if (ids === null) {
     return [...worktrees];
   }
   const requested = new Set(ids);
   return worktrees.filter((worktree) => requested.has(worktree.id));
-}
+};

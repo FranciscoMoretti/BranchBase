@@ -20,11 +20,11 @@ interface CommandOptions {
   env?: Record<string, string>;
 }
 
-function run(
+const run = (
   command: string,
   args: string[],
   options: CommandOptions = {}
-): string {
+): string => {
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? PROJECT_ROOT,
     encoding: "utf-8",
@@ -35,15 +35,18 @@ function run(
     throw new Error(`${command} ${args.join(" ")} failed:\n${output}`);
   }
   return output;
-}
+};
 
-function assert(condition: unknown, message: string): asserts condition {
+const assert: (condition: unknown, message: string) => asserts condition = (
+  condition,
+  message
+) => {
   if (!condition) {
     throw new Error(message);
   }
-}
+};
 
-async function unusedPort(): Promise<number> {
+const unusedPort = async (): Promise<number> => {
   const server = createServer();
   await new Promise<void>((resolveListen) => {
     server.listen(0, "127.0.0.1", resolveListen);
@@ -55,9 +58,9 @@ async function unusedPort(): Promise<number> {
     server.close((error) => (error ? reject(error) : resolveClose()));
   });
   return port;
-}
+};
 
-async function waitUntilStopped(url: string): Promise<void> {
+const waitUntilStopped = async (url: string): Promise<void> => {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
       await fetch(url);
@@ -67,7 +70,7 @@ async function waitUntilStopped(url: string): Promise<void> {
     await new Promise((resolveSleep) => setTimeout(resolveSleep, 100));
   }
   throw new Error("Packed BranchBase daemon did not stop");
-}
+};
 
 const temporaryRoot = mkdtempSync(
   pathModule.join(tmpdir(), "branchbase-pack-")

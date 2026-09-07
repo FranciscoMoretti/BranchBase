@@ -58,7 +58,7 @@ describe("BranchBase Codex hook runner", () => {
     rmSync(capabilityDirectory, { force: true, recursive: true });
   });
 
-  async function run(event: string, input: unknown, capabilityPath: string) {
+  const run = async (event: string, input: unknown, capabilityPath: string) => {
     const child = spawn([RUNNER, event], {
       env: {
         ...process.env,
@@ -75,7 +75,7 @@ describe("BranchBase Codex hook runner", () => {
       new Response(child.stderr).text(),
     ]);
     return { exitCode, stderr, stdout };
-  }
+  };
 
   it("forwards only allowlisted lifecycle metadata and exits successfully", async () => {
     const capability = createCodexHookCapability({

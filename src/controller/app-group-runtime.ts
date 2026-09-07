@@ -78,34 +78,31 @@ interface StopContext extends LifecycleContext {
   run: AppGroupRun | null;
 }
 
-function displayName(id: string, value: { name?: string }): string {
-  return value.name ?? id;
-}
+const displayName = (id: string, value: { name?: string }): string =>
+  value.name ?? id;
 
-function groupHealth(apps: AppEndpointSnapshot[]): AppHealth {
+const groupHealth = (apps: AppEndpointSnapshot[]): AppHealth => {
   if (apps.every((app) => !app.listening)) {
     return "not-running";
   }
   return apps.every((app) => app.readiness === "ready")
     ? "running"
     : "partially-running";
-}
+};
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+const delay = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-function commandEndpointIsClaimed(
+const commandEndpointIsClaimed = (
   endpoint: RunEndpoint,
   ports: ReturnType<typeof inspectListeningPorts>
-): boolean {
+): boolean => {
   const current = listeningPortPids(ports, endpoint.port);
   return current.length > 0 && endpoint.listenerClaimed === true;
-}
+};
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 const PORT_STOP_TIMEOUT_MS = 5000;
 

@@ -2,11 +2,10 @@ import { planRepositoryInitialization } from "../controller/repository-initializ
 import type { WorkspaceController } from "../controller/workspace-controller";
 import { requiredString } from "./command";
 
-export function previewRepositoryConfig(
+export const previewRepositoryConfig = (
   _controller: WorkspaceController,
   input: Record<string, unknown>
-) {
-  return planRepositoryInitialization(
+) =>
+  planRepositoryInitialization(
     requiredString(input.repoPath, "Repository path")
   );
-}

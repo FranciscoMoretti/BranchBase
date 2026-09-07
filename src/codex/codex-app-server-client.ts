@@ -232,11 +232,11 @@ export class CodexAppServerClient {
   }
 }
 
-function commandIsAvailable(
+const commandIsAvailable = (
   command: CodexCommand,
   timeoutMs: number
-): Promise<boolean> {
-  return new Promise((resolve) => {
+): Promise<boolean> =>
+  new Promise((resolve) => {
     const child = spawn(
       command.executable,
       [...(command.args ?? []), "--version"],
@@ -246,6 +246,7 @@ function commandIsAvailable(
       }
     );
     let settled = false;
+    let timer: ReturnType<typeof setTimeout>;
     const finish = (available: boolean) => {
       if (settled) {
         return;
@@ -254,23 +255,22 @@ function commandIsAvailable(
       clearTimeout(timer);
       resolve(available);
     };
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       child.kill("SIGTERM");
       finish(false);
     }, timeoutMs);
     child.once("error", () => finish(false));
     child.once("exit", (code) => finish(code === 0));
   });
-}
 
-export async function resolveCodexCommand(
+export const resolveCodexCommand = async (
   commands: readonly CodexCommand[],
   versionTimeoutMs: number
-): Promise<CodexCommand> {
+): Promise<CodexCommand> => {
   for (const command of commands) {
     if (await commandIsAvailable(command, versionTimeoutMs)) {
       return command;
     }
   }
   throw new CodexIntegrationUnavailableError("Codex executable is unavailable");
-}
+};

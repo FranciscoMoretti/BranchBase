@@ -3,10 +3,10 @@ import type { WorkspaceController } from "../controller/workspace-controller";
 import type { CommandReceipt } from "../controller/workspace-snapshot";
 import { requiredString } from "./command";
 
-export function updateRepositoryConfig(
+export const updateRepositoryConfig = (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): CommandReceipt {
+): CommandReceipt => {
   controller.updateConfiguration(
     requiredString(input.repoPath, "Repository path"),
     input.config as BranchBaseConfig,
@@ -17,4 +17,4 @@ export function updateRepositoryConfig(
     message: "Saved repository configuration",
     ok: true,
   };
-}
+};

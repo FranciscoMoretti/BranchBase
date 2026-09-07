@@ -2,10 +2,10 @@ import type { WorkspaceController } from "../controller/workspace-controller";
 import type { CommandReceipt } from "../controller/workspace-snapshot";
 import { requiredString, selectRequestedWorktrees } from "./command";
 
-export function setupAllApps(
+export const setupAllApps = (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): CommandReceipt {
+): CommandReceipt => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const workspace = controller.inspect(repoPath);
   const targets = selectRequestedWorktrees(
@@ -26,4 +26,4 @@ export function setupAllApps(
     message: `Started setup in ${targets.length} worktree${targets.length === 1 ? "" : "s"}`,
     ok: true,
   };
-}
+};

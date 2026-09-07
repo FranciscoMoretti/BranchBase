@@ -31,7 +31,7 @@ interface ProjectDefaults {
   start?: BranchBaseCommand;
 }
 
-function gitRoot(repoPath: string): string {
+const gitRoot = (repoPath: string): string => {
   const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
     cwd: repoPath,
     encoding: "utf-8",
@@ -40,9 +40,9 @@ function gitRoot(repoPath: string): string {
     throw new Error((result.stderr || "Not a Git repository").trim());
   }
   return realpathSync(result.stdout.trim());
-}
+};
 
-function projectDefaults(root: string): ProjectDefaults {
+const projectDefaults = (root: string): ProjectDefaults => {
   if (COMPOSE_FILES.some((file) => existsSync(pathModule.join(root, file)))) {
     return {
       label: "Docker Compose",
@@ -89,11 +89,11 @@ function projectDefaults(root: string): ProjectDefaults {
     };
   }
   return { label: "Unknown" };
-}
+};
 
-export function planRepositoryInitialization(
+export const planRepositoryInitialization = (
   repoPath: string
-): RepositoryInitializationPlan {
+): RepositoryInitializationPlan => {
   const root = gitRoot(repoPath);
   const configPath = pathModule.join(root, ".branchbase.json");
   if (existsSync(configPath)) {
@@ -132,14 +132,14 @@ export function planRepositoryInitialization(
     detectedStartCommand: defaults.start?.argv.join(" ") ?? null,
     repoPath: root,
   };
-}
+};
 
-export function initializeRepository(
+export const initializeRepository = (
   repoPath: string
-): RepositoryInitializationPlan {
+): RepositoryInitializationPlan => {
   const plan = planRepositoryInitialization(repoPath);
   writeFileSync(plan.configPath, `${JSON.stringify(plan.config, null, 2)}\n`, {
     flag: "wx",
   });
   return plan;
-}
+};

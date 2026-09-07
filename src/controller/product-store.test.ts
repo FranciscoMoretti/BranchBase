@@ -18,13 +18,13 @@ import { ProductCatalogError, ProductStore } from "./product-store";
 import { WorkspaceController } from "./workspace-controller";
 
 const directories: string[] = [];
-function store() {
+const store = () => {
   const directory = realpathSync(
     mkdtempSync(pathModule.join(tmpdir(), "branchbase-product-"))
   );
   directories.push(directory);
   return { directory, product: new ProductStore(directory) };
-}
+};
 afterEach(() => {
   for (const directory of directories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
@@ -96,7 +96,7 @@ test("invalid project catalogs fail with recovery guidance without overwriting t
   ).toBe(contents);
 });
 
-function observedFixture() {
+const observedFixture = () => {
   const fixture = store();
   const repoPath = pathModule.join(fixture.directory, "repo");
   mkdirSync(repoPath);
@@ -148,7 +148,7 @@ function observedFixture() {
     repoPath,
     snapshot: controller.inspect(repoPath),
   };
-}
+};
 
 test("observed shared runtime transitions are durable, deduplicated, and include route failures", async () => {
   const { product, directory, snapshot, controller } = observedFixture();

@@ -78,15 +78,11 @@ const BranchBaseConfigObjectSchema = z.strictObject({
 
 type BranchBaseConfigShape = z.infer<typeof BranchBaseConfigObjectSchema>;
 
-export const BranchBaseConfigSchema = BranchBaseConfigObjectSchema.superRefine(
-  validateBranchBaseConfig
-);
-
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: keep schema issues colocated with their exact JSON paths.
-function validateBranchBaseConfig(
+const validateBranchBaseConfig = (
   config: BranchBaseConfigShape,
   context: z.RefinementCtx
-): void {
+): void => {
   const groups = Object.entries(config.appGroups);
   if (groups.length === 0) {
     context.addIssue({
@@ -161,13 +157,15 @@ function validateBranchBaseConfig(
       }
     }
   }
-}
+};
+
+export const BranchBaseConfigSchema = BranchBaseConfigObjectSchema.superRefine(
+  validateBranchBaseConfig
+);
 
 export type BranchBaseConfig = z.infer<typeof BranchBaseConfigSchema>;
 export type WorktreeEnvConfig = BranchBaseConfig;
 
-export function cloneBranchBaseConfig(
+export const cloneBranchBaseConfig = (
   config: BranchBaseConfig
-): BranchBaseConfig {
-  return structuredClone(config);
-}
+): BranchBaseConfig => structuredClone(config);

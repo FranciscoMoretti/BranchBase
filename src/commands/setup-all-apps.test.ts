@@ -3,18 +3,17 @@ import { describe, expect, it } from "bun:test";
 import type { WorkspaceController } from "../controller/workspace-controller";
 import { setupAllApps } from "./setup-all-apps";
 
-function controllerFixture(input: {
+const controllerFixture = (input: {
   onAssert: (worktreeId?: string) => void;
   onStart: (worktreeId: string) => void;
-}): WorkspaceController {
-  return {
+}): WorkspaceController =>
+  ({
     assertTrusted: (_repoPath: string, worktreeId?: string) =>
       input.onAssert(worktreeId),
     inspect: () => ({ worktrees: [{ id: "main" }, { id: "feature" }] }),
     startSetup: (_repoPath: string, worktreeId: string) =>
       input.onStart(worktreeId),
-  } as unknown as WorkspaceController;
-}
+  }) as unknown as WorkspaceController;
 
 describe("setup all apps", () => {
   it("validates every target before starting any setup", () => {

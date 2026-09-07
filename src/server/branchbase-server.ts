@@ -71,15 +71,15 @@ export interface BranchBaseServer {
   listen: () => Promise<string>;
 }
 
-function sendJson(response: ServerResponse, status: number, value: unknown) {
+const sendJson = (response: ServerResponse, status: number, value: unknown) => {
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "x-content-type-options": "nosniff",
   });
   response.end(JSON.stringify(value));
-}
+};
 
-function errorBody(error: unknown) {
+const errorBody = (error: unknown) => {
   if (error instanceof ProductCatalogError) {
     return { code: error.code, error: error.message };
   }
@@ -97,15 +97,15 @@ function errorBody(error: unknown) {
     return { code: error.code, error: error.message };
   }
   return { error: error instanceof Error ? error.message : String(error) };
-}
+};
 
-function httpOrigin(host: string, port: number): string {
+const httpOrigin = (host: string, port: number): string => {
   const urlHost =
     host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
   return `http://${urlHost}:${port}`;
-}
+};
 
-async function readJson(request: IncomingMessage): Promise<unknown> {
+const readJson = async (request: IncomingMessage): Promise<unknown> => {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
@@ -117,11 +117,11 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
     chunks.push(value);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}");
-}
+};
 
-export async function createBranchBaseServer(
+export const createBranchBaseServer = async (
   options: BranchBaseServerOptions
-): Promise<BranchBaseServer> {
+): Promise<BranchBaseServer> => {
   const controller = options.controller ?? new WorkspaceController();
   const host = options.host ?? "127.0.0.1";
   const configuredPort = options.port ?? 3999;
@@ -141,16 +141,16 @@ export async function createBranchBaseServer(
   let listeningUrl: string | null = null;
   let shutdownPromise: Promise<void> | null = null;
 
-  function authorized(request: IncomingMessage): boolean {
+  const authorized = (request: IncomingMessage): boolean => {
     const origin = request.headers.origin;
     const expectedOrigin = `http://${request.headers.host}`;
     return (
       request.headers["x-branchbase-token"] === token &&
       (!origin || origin === expectedOrigin)
     );
-  }
+  };
 
-  function handleDiscoveryGet(url: URL, response: ServerResponse): boolean {
+  const handleDiscoveryGet = (url: URL, response: ServerResponse): boolean => {
     if (url.pathname === "/api/observation") {
       if (!controller.observeRepository) {
         sendJson(response, 501, {
@@ -179,11 +179,11 @@ export async function createBranchBaseServer(
       return true;
     }
     return false;
-  }
-  async function handleGetApi(
+  };
+  const handleGetApi = async (
     url: URL,
     response: ServerResponse
-  ): Promise<boolean> {
+  ): Promise<boolean> => {
     if (handleDiscoveryGet(url, response)) {
       return true;
     }
@@ -260,13 +260,13 @@ export async function createBranchBaseServer(
       })
     );
     return true;
-  }
+  };
 
-  async function handleCommand(
+  const handleCommand = async (
     request: IncomingMessage,
     response: ServerResponse,
     command: string
-  ): Promise<void> {
+  ): Promise<void> => {
     if (!authorized(request)) {
       sendJson(response, 403, { error: "Invalid mutation session" });
       return;
@@ -283,13 +283,13 @@ export async function createBranchBaseServer(
     }
     const result = await controller.execute(command, await readJson(request));
     sendJson(response, 200, result);
-  }
+  };
 
-  function serveUi(
+  const serveUi = (
     request: IncomingMessage,
     response: ServerResponse,
     url: URL
-  ): void {
+  ): void => {
     if (vite) {
       vite.middlewares(request, response, (error: unknown) => {
         if (error) {
@@ -314,7 +314,7 @@ export async function createBranchBaseServer(
         CONTENT_TYPES[pathModule.extname(file)] ?? "application/octet-stream",
     });
     createReadStream(file).pipe(response);
-  }
+  };
 
   const server = createServer(async (request, response) => {
     const url = new URL(
@@ -351,16 +351,20 @@ export async function createBranchBaseServer(
     }
   });
 
-  function closeHttpServer(): Promise<void> {
+  const closeHttpServer = (): Promise<void> => {
     if (!server.listening) {
       return Promise.resolve();
     }
     return new Promise((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
     });
-  }
+  };
 
-  function enableCodexHookBridge(port: number): void {
+  const cleanupCodexHookCapability = (): void => {
+    codexHookCapability?.cleanup();
+  };
+
+  const enableCodexHookBridge = (port: number): void => {
     if (options.enableCodexHooks === false) {
       return;
     }
@@ -385,11 +389,7 @@ export async function createBranchBaseServer(
       codexHookCapability = null;
       handleCodexHook = null;
     }
-  }
-
-  function cleanupCodexHookCapability(): void {
-    codexHookCapability?.cleanup();
-  }
+  };
 
   return {
     close(): Promise<void> {
@@ -428,4 +428,4 @@ export async function createBranchBaseServer(
       });
     },
   };
-}
+};

@@ -7,7 +7,7 @@ export interface DiscoveredWorktree {
   prunable: boolean;
 }
 
-export function parseWorktreeList(output: string): DiscoveredWorktree[] {
+export const parseWorktreeList = (output: string): DiscoveredWorktree[] => {
   const worktrees: DiscoveredWorktree[] = [];
   let current: DiscoveredWorktree | null = null;
 
@@ -39,4 +39,4 @@ export function parseWorktreeList(output: string): DiscoveredWorktree[] {
     worktrees.push(current);
   }
   return worktrees;
-}
+};

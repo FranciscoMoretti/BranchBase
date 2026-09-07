@@ -8,20 +8,18 @@ import type { InstanceRequest } from "./local-state";
 
 const COLLISION_SAFE_HOSTNAME = /^web-[a-f0-9]{6}\.main\.chat-js\.localhost$/;
 
-function request(
+const request = (
   overrides: Partial<Parameters<FileBranchBaseStateStore["instance"]>[0]> = {}
-): InstanceRequest {
-  return {
-    configFingerprint: "default-contract",
-    groupId: "development",
-    mode: "per-worktree" as const,
-    repoLabel: "chat-js",
-    repoPath: "/code/one/chat-js",
-    worktreeLabel: "main",
-    worktreePath: "/code/one/chat-js",
-    ...overrides,
-  };
-}
+): InstanceRequest => ({
+  configFingerprint: "default-contract",
+  groupId: "development",
+  mode: "per-worktree" as const,
+  repoLabel: "chat-js",
+  repoPath: "/code/one/chat-js",
+  worktreeLabel: "main",
+  worktreePath: "/code/one/chat-js",
+  ...overrides,
+});
 
 describe("BranchBase local App-group instance state", () => {
   it("rejects structurally invalid persisted state", () => {
