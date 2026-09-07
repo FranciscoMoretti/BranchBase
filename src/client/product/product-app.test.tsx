@@ -1,8 +1,10 @@
 import { afterEach, expect, test } from "bun:test";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Window } from "happy-dom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+
 import { ThemeProvider } from "../components/theme-provider";
 
 let dom: Window | null = null;

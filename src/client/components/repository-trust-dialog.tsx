@@ -1,4 +1,5 @@
 import { ShieldCheckIcon } from "lucide-react";
+
 import { FormFeedback } from "../product/async-state";
 import { Button } from "./ui/button";
 import {
@@ -84,7 +85,7 @@ export function RepositoryTrustDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <code className="break-all bg-muted px-2 py-1.5 text-muted-foreground">
+        <code className="bg-muted text-muted-foreground px-2 py-1.5 break-all">
           {repoPath}
         </code>
         <div className="divide-y">
@@ -99,7 +100,7 @@ export function RepositoryTrustDialog({
                   <h3 className="font-medium">{item.label}</h3>
                   <p className="text-muted-foreground">{item.description}</p>
                 </div>
-                <code className="block break-all bg-muted px-2 py-1.5">
+                <code className="bg-muted block px-2 py-1.5 break-all">
                   {item.command}
                 </code>
               </section>

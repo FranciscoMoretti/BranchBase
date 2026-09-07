@@ -119,10 +119,7 @@ export class PortlessIntegrationFixture {
   readonly sandbox: string;
   readonly statePath: string;
 
-  private constructor(input: {
-    proxyPort: number;
-    sandbox: string;
-  }) {
+  private constructor(input: { proxyPort: number; sandbox: string }) {
     this.sandbox = input.sandbox;
     this.root = join(this.sandbox, "repo");
     this.linkedPath = join(this.sandbox, "linked-worktree");

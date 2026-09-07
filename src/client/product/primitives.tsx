@@ -6,6 +6,7 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+
 import type { AppEndpointSnapshot } from "../../controller/workspace-snapshot";
 import { Button } from "../components/ui/button";
 import {

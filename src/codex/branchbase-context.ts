@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+
 import type { WorktreeSnapshot } from "../controller/workspace-snapshot";
 import type { CodexHookObservation } from "./codex-hook-activity";
 import type { CodexIntegrationAdapterSnapshot } from "./codex-integration";

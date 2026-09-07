@@ -1,38 +1,38 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="color-scheme" content="light dark">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="theme-color"
       content="#fafaf8"
       media="(prefers-color-scheme: light)"
-    >
+    />
     <meta
       name="theme-color"
       content="#0c0d0f"
       media="(prefers-color-scheme: dark)"
-    >
+    />
     <script>
-    "use strict";
-    (() => {
-      const root = document.documentElement;
-      let theme = "system";
-      try {
-        theme = localStorage.getItem("branchbase:theme") ?? "system";
-      } catch {
-        // Use the system theme when storage is unavailable.
-      }
-      let resolved = theme;
-      if (theme !== "light" && theme !== "dark") {
-        resolved = matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
-      }
-      root.classList.add(resolved);
-      root.style.colorScheme = resolved;
-    })();
+      "use strict";
+      (() => {
+        const root = document.documentElement;
+        let theme = "system";
+        try {
+          theme = localStorage.getItem("branchbase:theme") ?? "system";
+        } catch {
+          // Use the system theme when storage is unavailable.
+        }
+        let resolved = theme;
+        if (theme !== "light" && theme !== "dark") {
+          resolved = matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        }
+        root.classList.add(resolved);
+        root.style.colorScheme = resolved;
+      })();
     </script>
     <title>BranchBase</title>
   </head>

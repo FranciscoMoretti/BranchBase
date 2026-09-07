@@ -55,20 +55,20 @@ export function CodexTasksSection({
 }) {
   const newTaskUrl = codexNewTaskUrl(worktreePath);
   let content = (
-    <p className="mt-2 text-muted-foreground text-sm">
+    <p className="text-muted-foreground mt-2 text-sm">
       No Codex tasks associated with this worktree.
     </p>
   );
   if (discoveryUnavailable) {
     content = (
-      <p className="mt-2 text-muted-foreground text-sm">
+      <p className="text-muted-foreground mt-2 text-sm">
         Task discovery is temporarily unavailable. You can still start a new
         Codex task for this worktree.
       </p>
     );
   } else if (loading) {
     content = (
-      <p className="mt-2 text-muted-foreground text-sm">
+      <p className="text-muted-foreground mt-2 text-sm">
         Discovering Codex tasks…
       </p>
     );
@@ -83,17 +83,17 @@ export function CodexTasksSection({
               <div className="px-3 py-2.5" key={task.id}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate font-medium text-sm">
+                    <div className="truncate text-sm font-medium">
                       {task.title}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
                         <span
                           className={`size-1.5 rounded-full ${activity.className}`}
                         />
                         {activity.label}
                       </span>
-                      <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1 text-xs">
                         <Clock3Icon className="size-3" />
                         Updated {taskTime(task.updatedAt)}
                       </span>
@@ -166,7 +166,7 @@ export function WorktreeConfigurationSource({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h3>Configuration source</h3>
-          <code className="block truncate text-muted-foreground text-xs">
+          <code className="text-muted-foreground block truncate text-xs">
             {configuration.path}
           </code>
         </div>
@@ -200,13 +200,13 @@ export function WorktreeConfigurationSource({
         </Select>
       </div>
       {fallback ? (
-        <p className="mt-2 text-status-partial-foreground text-xs">
+        <p className="text-status-partial-foreground mt-2 text-xs">
           Using Project default because the selected worktree configuration is
           unavailable.
         </p>
       ) : null}
       {configuration.error ? (
-        <p className="mt-1 break-words text-destructive text-xs">
+        <p className="text-destructive mt-1 text-xs break-words">
           {configuration.error}
         </p>
       ) : null}

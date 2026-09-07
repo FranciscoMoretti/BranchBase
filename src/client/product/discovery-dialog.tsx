@@ -1,5 +1,6 @@
 import { FolderOpenIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
+
 import { Button } from "../components/ui/button";
 import {
   Dialog,
@@ -138,7 +139,7 @@ export function DevelopmentFoldersControls({ onAdd }: { onAdd: () => void }) {
         {folders.data?.map((folder) => (
           <div className="product-setting-row" key={folder.path}>
             <div className="min-w-0">
-              <p className="break-all font-medium">{folder.path}</p>
+              <p className="font-medium break-all">{folder.path}</p>
               <p className="product-muted">
                 {folder.projectsFound} repositories found ·{" "}
                 {folder.lastScannedAt

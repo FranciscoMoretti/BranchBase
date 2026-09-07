@@ -1,6 +1,7 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
+
 import { Separator } from "@/client/components/ui/separator";
 import { cn } from "@/client/lib/utils";
 
@@ -48,7 +49,7 @@ function ButtonGroupText({
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex items-center gap-2 rounded-none border bg-muted px-2.5 font-medium text-xs [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none",
+          "bg-muted flex items-center gap-2 rounded-none border px-2.5 text-xs font-medium [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
           className
         ),
       },
@@ -69,7 +70,7 @@ function ButtonGroupSeparator({
   return (
     <Separator
       className={cn(
-        "relative self-stretch bg-input data-horizontal:mx-px data-vertical:my-px data-vertical:h-auto data-horizontal:w-auto",
+        "bg-input relative self-stretch data-horizontal:mx-px data-horizontal:w-auto data-vertical:my-px data-vertical:h-auto",
         className
       )}
       data-slot="button-group-separator"

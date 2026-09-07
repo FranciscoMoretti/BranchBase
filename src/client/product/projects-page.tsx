@@ -5,6 +5,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { useState } from "react";
+
 import type { ProjectOverview } from "../../controller/product-contract";
 import { appGroupIsRunning } from "../../controller/workspace-snapshot";
 import { appGroupDisplayStatus } from "../components/app-group-status";
@@ -52,16 +53,16 @@ export function projectIsActive(project: ProjectOverview): boolean {
 function projectNeedsAttention(project: ProjectOverview): boolean {
   return Boolean(
     project.error ||
-      project.observation?.warning ||
-      project.workspace?.worktrees.some(
-        (worktree) =>
-          worktree.configuration.error ||
-          !worktree.configuration.trusted ||
-          worktree.setupState === "failed" ||
-          worktree.appGroups.some(
-            (group) => appGroupDisplayStatus(group) === "partial"
-          )
-      )
+    project.observation?.warning ||
+    project.workspace?.worktrees.some(
+      (worktree) =>
+        worktree.configuration.error ||
+        !worktree.configuration.trusted ||
+        worktree.setupState === "failed" ||
+        worktree.appGroups.some(
+          (group) => appGroupDisplayStatus(group) === "partial"
+        )
+    )
   );
 }
 function attentionHref(

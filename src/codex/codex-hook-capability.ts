@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
 import { z } from "zod";
 
 import { readPrivateJsonFile, writePrivateJsonFile } from "./private-json-file";

@@ -8,8 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { runCommand } from "../api";
 
+import { runCommand } from "../api";
 import { Button } from "../components/ui/button";
 import {
   Dialog,
