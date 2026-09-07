@@ -16,8 +16,8 @@ const LINE_BREAK = /\r?\n/;
 const SAMPLE_CACHE_TTL = 250;
 let cachedSamples: { at: number; samples: ProcessSample[] | null } | null =
   null;
-export function parseProcessSamples(output: string): ProcessSample[] {
-  return output
+export const parseProcessSamples = (output: string): ProcessSample[] =>
+  output
     .trim()
     .split(LINE_BREAK)
     .flatMap((line) => {
@@ -37,13 +37,12 @@ export function parseProcessSamples(output: string): ProcessSample[] {
       }
       return [{ cpuPercent, memoryBytes: rss * 1024, parentPid, pid }];
     });
-}
 /**
  * Read-only observations; never evidence for process ownership or termination.
  * CPU is the platform's decaying/lifetime `ps %cpu` average, not an instant
  * measurement. Results are cached briefly because this synchronous probe blocks.
  */
-export function inspectProcessSamples(): ProcessSample[] | null {
+export const inspectProcessSamples = (): ProcessSample[] | null => {
   const now = Date.now();
   if (cachedSamples && now - cachedSamples.at < SAMPLE_CACHE_TTL) {
     return cachedSamples.samples;
@@ -60,12 +59,12 @@ export function inspectProcessSamples(): ProcessSample[] | null {
     result.status === 0 ? parseProcessSamples(result.stdout) : null;
   cachedSamples = { at: Date.now(), samples };
   return samples;
-}
+};
 /** RSS totals are an additive approximation and may double-count shared pages. */
-export function processTreeUsage(
+export const processTreeUsage = (
   samples: ProcessSample[] | null,
   roots: number[]
-): ProcessUsage | null {
+): ProcessUsage | null => {
   if (samples === null) {
     return null;
   }
@@ -99,4 +98,4 @@ export function processTreeUsage(
     memoryBytes,
     processCount: seen.size,
   };
-}
+};

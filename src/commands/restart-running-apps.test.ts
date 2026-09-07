@@ -8,52 +8,50 @@ import type {
 import { restartRunningApps } from "./restart-running-apps";
 import { findAppGroup } from "./start-apps";
 
-function group(id: string): AppGroupSnapshot {
-  return {
-    apps: [],
-    health: "running",
-    id,
-    instance: { id: `${id}-main`, mode: "per-worktree", name: "main" },
-    instances: [{ id: `${id}-main`, name: "main", running: true }],
-    name: "Shared display name",
-    processRunning: true,
-    stop: "process",
-  };
-}
+const group = (id: string): AppGroupSnapshot => ({
+  apps: [],
+  health: "running",
+  id,
+  instance: { id: `${id}-main`, mode: "per-worktree", name: "main" },
+  instances: [{ id: `${id}-main`, name: "main", running: true }],
+  name: "Shared display name",
+  processRunning: true,
+  stop: "process",
+});
 
-function worktree(): WorktreeSnapshot {
-  return {
-    appGroups: [group("first"), group("second")],
-    appLabel: "Apps",
-    apps: [],
-    branch: "main",
-    configuration: {
-      changeBlocked: false,
-      error: null,
-      path: "/repo/.branchbase.json",
-      preference: "project-default",
-      revision: "default-revision",
-      source: "project-default",
-      trustCommands: [],
-      trustFingerprint: "default-fingerprint",
-      trusted: true,
-    },
-    health: "running",
-    id: "worktree",
-    isMain: true,
-    name: "repo",
-    path: "/repo",
-    primaryAppGroup: "first",
-    processRunning: true,
-    setupState: "idle",
-  };
-}
+const worktree = (): WorktreeSnapshot => ({
+  appGroups: [group("first"), group("second")],
+  appLabel: "Apps",
+  apps: [],
+  branch: "main",
+  configuration: {
+    changeBlocked: false,
+    error: null,
+    path: "/repo/.branchbase.json",
+    preference: "project-default",
+    revision: "default-revision",
+    source: "project-default",
+    trustCommands: [],
+    trustFingerprint: "default-fingerprint",
+    trusted: true,
+  },
+  health: "running",
+  id: "worktree",
+  isMain: true,
+  name: "repo",
+  path: "/repo",
+  primaryAppGroup: "first",
+  processRunning: true,
+  setupState: "idle",
+});
 
-function fakeController(target: WorktreeSnapshot): {
+const fakeController = (
+  target: WorktreeSnapshot
+): {
   controller: WorkspaceController;
   starts: string[];
   stops: string[];
-} {
+} => {
   const starts: string[] = [];
   const stops: string[] = [];
   const controller = {
@@ -75,7 +73,7 @@ function fakeController(target: WorktreeSnapshot): {
     worktree: () => ({ worktree: target }),
   } as unknown as WorkspaceController;
   return { controller, starts, stops };
-}
+};
 
 describe("restart running App groups", () => {
   it("targets every stable ID even when display names collide", async () => {

@@ -15,7 +15,7 @@ const EXCLUDED = new Set([
  * before traversal. Nested symlinks are skipped and repository commands are
  * never executed.
  */
-export function scanRepositories(root: string, maxDepth = 3, limit = 2000) {
+export const scanRepositories = (root: string, maxDepth = 3, limit = 2000) => {
   const canonical = realpathSync(root);
   if (!statSync(canonical).isDirectory()) {
     throw new Error("Choose a development folder.");
@@ -65,4 +65,4 @@ export function scanRepositories(root: string, maxDepth = 3, limit = 2000) {
     warning = [warning, limitWarning].filter(Boolean).join(" ") || null;
   }
   return { repositories, warning };
-}
+};

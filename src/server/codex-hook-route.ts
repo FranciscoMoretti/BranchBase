@@ -36,20 +36,20 @@ export const CodexHookObservationSchema = z
   })
   .strict();
 
-function sendJson(response: ServerResponse, status: number, value: unknown) {
+const sendJson = (response: ServerResponse, status: number, value: unknown) => {
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "x-content-type-options": "nosniff",
   });
   response.end(JSON.stringify(value));
-}
+};
 
 interface RejectedRequest {
   error: string;
   status: number;
 }
 
-function bearerMatches(request: IncomingMessage, token: string): boolean {
+const bearerMatches = (request: IncomingMessage, token: string): boolean => {
   const authorization = request.headers.authorization;
   if (!authorization?.startsWith("Bearer ")) {
     return false;
@@ -59,9 +59,9 @@ function bearerMatches(request: IncomingMessage, token: string): boolean {
   return (
     supplied.length === expected.length && timingSafeEqual(supplied, expected)
   );
-}
+};
 
-async function readHookBody(request: IncomingMessage): Promise<unknown> {
+const readHookBody = async (request: IncomingMessage): Promise<unknown> => {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
@@ -73,12 +73,12 @@ async function readHookBody(request: IncomingMessage): Promise<unknown> {
     chunks.push(value);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}");
-}
+};
 
-function rejectedRequest(
+const rejectedRequest = (
   request: IncomingMessage,
   token: string
-): RejectedRequest | null {
+): RejectedRequest | null => {
   if (
     request.method !== "POST" ||
     request.url?.split("?", 1)[0] !== "/api/codex/hooks"
@@ -102,13 +102,16 @@ function rejectedRequest(
     return { error: "Invalid Codex hook observation", status: 413 };
   }
   return null;
-}
+};
 
-export function createCodexHookRequestHandler(options: {
-  observe: (observation: CodexHookObservation) => CodexHookResponse | undefined;
-  token: string;
-}): (request: IncomingMessage, response: ServerResponse) => Promise<void> {
-  return async (request, response) => {
+export const createCodexHookRequestHandler =
+  (options: {
+    observe: (
+      observation: CodexHookObservation
+    ) => CodexHookResponse | undefined;
+    token: string;
+  }): ((request: IncomingMessage, response: ServerResponse) => Promise<void>) =>
+  async (request, response) => {
     const rejection = rejectedRequest(request, options.token);
     if (rejection) {
       sendJson(response, rejection.status, { error: rejection.error });
@@ -141,4 +144,3 @@ export function createCodexHookRequestHandler(options: {
       });
     }
   };
-}

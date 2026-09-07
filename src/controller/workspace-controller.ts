@@ -165,7 +165,7 @@ export class MissingWorktreeConfigError extends Error {
   }
 }
 
-function git(cwd: string, args: string[]): string {
+const git = (cwd: string, args: string[]): string => {
   const result = spawnSync("git", args, {
     cwd,
     encoding: "utf-8",
@@ -177,29 +177,25 @@ function git(cwd: string, args: string[]): string {
     );
   }
   return result.stdout.trim();
-}
+};
 
-function worktreeId(path: string): string {
-  return Buffer.from(realpathSync(path)).toString("base64url");
-}
+const worktreeId = (path: string): string =>
+  Buffer.from(realpathSync(path)).toString("base64url");
 
 interface ResolvedWorktree extends Omit<DiscoveredWorktree, "path"> {
   id: string;
   path: string;
 }
 
-function resolveWorktrees(repositoryRoot: string): ResolvedWorktree[] {
-  return parseWorktreeList(
-    git(repositoryRoot, ["worktree", "list", "--porcelain"])
-  )
+const resolveWorktrees = (repositoryRoot: string): ResolvedWorktree[] =>
+  parseWorktreeList(git(repositoryRoot, ["worktree", "list", "--porcelain"]))
     .filter((item) => !item.prunable && existsSync(item.path))
     .map((item) => {
       const path = realpathSync(item.path);
       return { ...item, id: worktreeId(path), path };
     });
-}
 
-function projectAliasPaths(repoPath: string): Set<string> {
+const projectAliasPaths = (repoPath: string): Set<string> => {
   const aliases = new Set([repoPath, pathModule.resolve(repoPath)]);
   if (!existsSync(repoPath)) {
     return aliases;
@@ -239,53 +235,47 @@ function projectAliasPaths(repoPath: string): Set<string> {
     // Removal must still work by the exact saved path when Git is unavailable.
   }
   return aliases;
-}
+};
 
-function commandSummary(label: string, command: BranchBaseCommand): string {
-  return `${label}: ${command.argv.join(" ")}`;
-}
+const commandSummary = (label: string, command: BranchBaseCommand): string =>
+  `${label}: ${command.argv.join(" ")}`;
 
-function worktreeSetupState(
+const worktreeSetupState = (
   id: string,
   path: string,
   processes: ProcessSupervisor
-): "failed" | "idle" | "running" {
+): "failed" | "idle" | "running" => {
   const processId = setupProcessId(id);
   if (processes.managedPid(processId, path) !== null) {
     return "running";
   }
   return processes.managedFailure(processId) ? "failed" : "idle";
-}
+};
 
-function primaryAppGroup(config: BranchBaseConfig): string {
+const primaryAppGroup = (config: BranchBaseConfig): string => {
   const entries = Object.entries(config.appGroups);
   return (
     entries.find(([, group]) => group.stop === "process")?.[0] ?? entries[0][0]
   );
-}
+};
 
-function displayName(id: string, value: { name?: string }): string {
-  return value.name ?? id;
-}
+const displayName = (id: string, value: { name?: string }): string =>
+  value.name ?? id;
 
-function trustCommands(config: BranchBaseConfig): string[] {
-  return [
-    commandSummary("Setup", config.setup),
-    ...Object.entries(config.appGroups).flatMap(([groupId, group]) => [
-      commandSummary(`${displayName(groupId, group)} Start`, group.start),
-      ...(group.stop === "process"
-        ? []
-        : [commandSummary(`${displayName(groupId, group)} Stop`, group.stop)]),
-    ]),
-  ];
-}
+const trustCommands = (config: BranchBaseConfig): string[] => [
+  commandSummary("Setup", config.setup),
+  ...Object.entries(config.appGroups).flatMap(([groupId, group]) => [
+    commandSummary(`${displayName(groupId, group)} Start`, group.start),
+    ...(group.stop === "process"
+      ? []
+      : [commandSummary(`${displayName(groupId, group)} Stop`, group.stop)]),
+  ]),
+];
 
-function worktreeRouteLabel(
+const worktreeRouteLabel = (
   item: { branch: string | null },
   path: string
-): string {
-  return item.branch ?? pathModule.basename(path);
-}
+): string => item.branch ?? pathModule.basename(path);
 
 export interface WorkspaceControllerRuntimeOptions {
   codexContext?: CodexContextStore;

@@ -4,10 +4,10 @@ import { appGroupIsStopped } from "../controller/workspace-snapshot";
 import { requiredString, selectRequestedWorktrees } from "./command";
 import { startApps } from "./start-apps";
 
-export async function startAllApps(
+export const startAllApps = async (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): Promise<CommandReceipt> {
+): Promise<CommandReceipt> => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const requestedGroup =
     typeof input.appGroupName === "string" ? input.appGroupName : null;
@@ -32,4 +32,4 @@ export async function startAllApps(
     message: `Started ${targets.length} App group${targets.length === 1 ? "" : "s"}`,
     ok: true,
   };
-}
+};

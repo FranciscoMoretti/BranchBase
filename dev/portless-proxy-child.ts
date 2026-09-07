@@ -18,7 +18,7 @@ const servers: ProxyServer[] = [];
 const sockets = new Set<Socket>();
 let closePromise: Promise<void> | undefined;
 
-function createServer(): ProxyServer {
+const createServer = (): ProxyServer => {
   const server = createProxyServer({
     getRoutes: () => store.loadRoutes(),
     onError: () => undefined,
@@ -32,32 +32,33 @@ function createServer(): ProxyServer {
     socket.once("close", () => sockets.delete(socket));
   });
   return server;
-}
+};
 
-function listen(server: ProxyServer, host: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onError = (error: Error) => {
-      server.off("listening", onListening);
-      reject(error);
+const listen = (server: ProxyServer, host: string): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const handlers = {
+      onError(error: Error) {
+        server.off("listening", handlers.onListening);
+        reject(error);
+      },
+      onListening() {
+        server.off("error", handlers.onError);
+        resolve();
+      },
     };
-    const onListening = () => {
-      server.off("error", onError);
-      resolve();
-    };
-    server.once("error", onError);
-    server.once("listening", onListening);
+    server.once("error", handlers.onError);
+    server.once("listening", handlers.onListening);
     server.listen({ host, ipv6Only: true, port });
   });
-}
 
-function closeServer(server: ProxyServer): Promise<void> {
+const closeServer = (server: ProxyServer): Promise<void> => {
   if (!server.listening) {
     return Promise.resolve();
   }
   return new Promise((resolve) => server.close(() => resolve()));
-}
+};
 
-function close(): Promise<void> {
+const close = (): Promise<void> => {
   closePromise ??= (async () => {
     for (const socket of sockets) {
       socket.destroy();
@@ -65,12 +66,12 @@ function close(): Promise<void> {
     await Promise.all(servers.map((server) => closeServer(server)));
   })();
   return closePromise;
-}
+};
 
-async function exit(): Promise<void> {
+const exit = async (): Promise<void> => {
   await close();
   process.exit(0);
-}
+};
 
 process.once("disconnect", () => {
   exit().catch(() => process.exit(1));

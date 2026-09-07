@@ -4,10 +4,10 @@ import { appGroupIsRunning } from "../controller/workspace-snapshot";
 import { requiredString, selectRequestedWorktrees } from "./command";
 import { stopApps } from "./stop-apps";
 
-export async function stopAllApps(
+export const stopAllApps = async (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): Promise<CommandReceipt> {
+): Promise<CommandReceipt> => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const requestedGroup =
     typeof input.appGroupName === "string" ? input.appGroupName : null;
@@ -34,4 +34,4 @@ export async function stopAllApps(
     message: `Stopped ${targets.length} App group${targets.length === 1 ? "" : "s"}`,
     ok: true,
   };
-}
+};

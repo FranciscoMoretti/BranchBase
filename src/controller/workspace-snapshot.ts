@@ -130,60 +130,49 @@ export type WorktreeSnapshot = z.infer<typeof WorktreeSnapshotSchema>;
 export type WorkspaceSnapshot = z.infer<typeof WorkspaceSnapshotSchema>;
 export type CommandReceipt = z.infer<typeof CommandReceiptSchema>;
 
-export function appGroupIsRunning(
+export const appGroupIsRunning = (
   group: Pick<AppGroupSnapshot, "cleanupOnly" | "health" | "processRunning">
-): boolean {
-  return (
-    group.cleanupOnly === true ||
-    group.health !== "not-running" ||
-    group.processRunning
-  );
-}
+): boolean =>
+  group.cleanupOnly === true ||
+  group.health !== "not-running" ||
+  group.processRunning;
 
-export function appGroupIsStopped(
+export const appGroupIsStopped = (
   group: Pick<AppGroupSnapshot, "cleanupOnly" | "health" | "processRunning">
-): boolean {
-  return !appGroupIsRunning(group);
-}
+): boolean => !appGroupIsRunning(group);
 
-export function appGroupCanRestart(
+export const appGroupCanRestart = (
   group: Pick<AppGroupSnapshot, "cleanupOnly" | "health" | "processRunning">
-): boolean {
-  return group.cleanupOnly !== true && appGroupIsRunning(group);
-}
+): boolean => group.cleanupOnly !== true && appGroupIsRunning(group);
 
-export function worktreeHasRunningAppGroups(
+export const worktreeHasRunningAppGroups = (
   worktree: Pick<WorktreeSnapshot, "appGroups">
-): boolean {
-  return worktree.appGroups.some(
+): boolean =>
+  worktree.appGroups.some(
     (group) =>
       appGroupIsRunning(group) ||
       group.instances.some((instance) => instance.running)
   );
-}
 
-export function appsAreRunning(
+export const appsAreRunning = (
   worktree: Pick<WorktreeSnapshot, "health" | "processRunning"> &
     Partial<Pick<WorktreeSnapshot, "appGroups">>
-): boolean {
+): boolean => {
   if (worktree.appGroups) {
     return worktree.appGroups.some(appGroupIsRunning);
   }
   return worktree.health !== "not-running" || worktree.processRunning;
-}
+};
 
-export function appsAreStopped(
+export const appsAreStopped = (
   worktree: Pick<WorktreeSnapshot, "health" | "processRunning"> &
     Partial<Pick<WorktreeSnapshot, "appGroups">>
-): boolean {
-  return !appsAreRunning(worktree);
-}
+): boolean => !appsAreRunning(worktree);
 
-export function appsCanRestart(
+export const appsCanRestart = (
   worktree: Pick<WorktreeSnapshot, "health" | "processRunning"> &
     Partial<Pick<WorktreeSnapshot, "appGroups">>
-): boolean {
-  return worktree.appGroups
+): boolean =>
+  worktree.appGroups
     ? worktree.appGroups.some(appGroupCanRestart)
     : appsAreRunning(worktree);
-}

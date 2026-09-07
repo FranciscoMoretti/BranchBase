@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import pathModule from "node:path";
 
-export function ensurePrivateDirectory(directory: string): void {
+export const ensurePrivateDirectory = (directory: string): void => {
   mkdirSync(directory, { mode: 0o700, recursive: true });
   const stat = lstatSync(directory);
   if (!(stat.isDirectory() && !stat.isSymbolicLink())) {
@@ -24,13 +24,12 @@ export function ensurePrivateDirectory(directory: string): void {
     throw new Error("Codex control path must be owned by the current user");
   }
   chmodSync(directory, 0o700);
-}
+};
 
-export function readPrivateJsonFile(file: string): unknown {
-  return JSON.parse(readFileSync(file, "utf-8"));
-}
+export const readPrivateJsonFile = (file: string): unknown =>
+  JSON.parse(readFileSync(file, "utf-8"));
 
-export function writePrivateJsonFile(file: string, value: unknown): void {
+export const writePrivateJsonFile = (file: string, value: unknown): void => {
   const directory = pathModule.dirname(file);
   ensurePrivateDirectory(directory);
   const temporary = pathModule.join(
@@ -51,4 +50,4 @@ export function writePrivateJsonFile(file: string, value: unknown): void {
     rmSync(temporary, { force: true });
     throw error;
   }
-}
+};

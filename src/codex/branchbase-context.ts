@@ -30,51 +30,42 @@ interface BranchBaseContextSnapshot {
   path: string;
 }
 
-function processState(running: boolean): string {
-  return running ? "running" : "stopped";
-}
+const processState = (running: boolean): string =>
+  running ? "running" : "stopped";
 
-function listenerState(listening: boolean): string {
-  return listening ? "listening" : "not listening";
-}
+const listenerState = (listening: boolean): string =>
+  listening ? "listening" : "not listening";
 
-function encodedData(value: string): string {
-  return JSON.stringify(value);
-}
+const encodedData = (value: string): string => JSON.stringify(value);
 
-function contextSnapshot(
+const contextSnapshot = (
   worktree: WorktreeSnapshot
-): BranchBaseContextSnapshot {
-  return {
-    appGroups: worktree.appGroups.map((group) => ({
-      apps: group.apps.map((app) => ({
-        label: app.label,
-        listening: app.listening,
-        ownership: app.ownership,
-        port: app.port,
-        readiness: app.readiness,
-        routeState: app.routeState,
-        url: app.url,
-      })),
-      health: group.health,
-      name: group.name,
-      processRunning: group.processRunning,
+): BranchBaseContextSnapshot => ({
+  appGroups: worktree.appGroups.map((group) => ({
+    apps: group.apps.map((app) => ({
+      label: app.label,
+      listening: app.listening,
+      ownership: app.ownership,
+      port: app.port,
+      readiness: app.readiness,
+      routeState: app.routeState,
+      url: app.url,
     })),
-    branch: worktree.branch,
-    path: worktree.path,
-  };
-}
+    health: group.health,
+    name: group.name,
+    processRunning: group.processRunning,
+  })),
+  branch: worktree.branch,
+  path: worktree.path,
+});
 
-function contextFingerprint(snapshot: BranchBaseContextSnapshot): string {
-  return createHash("sha256")
-    .update(JSON.stringify(snapshot))
-    .digest("base64url");
-}
+const contextFingerprint = (snapshot: BranchBaseContextSnapshot): string =>
+  createHash("sha256").update(JSON.stringify(snapshot)).digest("base64url");
 
-function renderBranchBaseContext(
+const renderBranchBaseContext = (
   snapshot: BranchBaseContextSnapshot,
   observedAt: Date
-): string {
+): string => {
   const lines = [
     "BranchBase context (full replacement snapshot)",
     "BranchBase owns preview lifecycle for this worktree. Do not start or replace competing development servers.",
@@ -105,11 +96,10 @@ function renderBranchBaseContext(
   }
 
   return lines.join("\n");
-}
+};
 
-function contextKey(cwd: string, sessionId: string): string {
-  return `${cwd}\0${sessionId}`;
-}
+const contextKey = (cwd: string, sessionId: string): string =>
+  `${cwd}\0${sessionId}`;
 
 export class CodexContextStore {
   private readonly records = new Map<string, ContextRecord>();

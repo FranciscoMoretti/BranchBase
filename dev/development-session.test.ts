@@ -16,7 +16,7 @@ import type { DevelopmentRouting } from "./development-routing";
 import { openDevelopmentSession } from "./development-session";
 import { acquireExclusiveFileLock } from "./exclusive-file-lock";
 
-function listenOnPort(port: number): Promise<() => Promise<void>> {
+const listenOnPort = (port: number): Promise<() => Promise<void>> => {
   const server = createServer();
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -31,7 +31,7 @@ function listenOnPort(port: number): Promise<() => Promise<void>> {
       )
     );
   });
-}
+};
 
 it("isolates development resources from the production runtime", async () => {
   const temporary = mkdtempSync(

@@ -6,21 +6,21 @@ import type {
 } from "../controller/workspace-snapshot";
 import { requiredString } from "./command";
 
-export function findAppGroup(
+export const findAppGroup = (
   worktree: WorktreeSnapshot,
   appGroupName: string
-): AppGroupSnapshot {
+): AppGroupSnapshot => {
   const group = worktree.appGroups.find((item) => item.id === appGroupName);
   if (!group) {
     throw new Error(`Unknown App group "${appGroupName}"`);
   }
   return group;
-}
+};
 
-export async function startApps(
+export const startApps = async (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): Promise<CommandReceipt> {
+): Promise<CommandReceipt> => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const worktreeId = requiredString(input.worktreeId, "Worktree");
   const appGroupName = requiredString(input.appGroupName, "App group");
@@ -39,4 +39,4 @@ export async function startApps(
     ok: true,
     worktreeId,
   };
-}
+};

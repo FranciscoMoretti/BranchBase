@@ -14,10 +14,12 @@ import {
   DevelopmentRouting,
 } from "./development-routing";
 
-function listenBackend(port = 0): Promise<{
+const listenBackend = (
+  port = 0
+): Promise<{
   close: () => Promise<void>;
   port: number;
-}> {
+}> => {
   const server = createHttpServer((_request, response) => {
     response.end("backend");
   });
@@ -40,15 +42,15 @@ function listenBackend(port = 0): Promise<{
       });
     });
   });
-}
+};
 
-function proxyResponse(
+const proxyResponse = (
   port: number,
   hostname: string,
   proxyHost = "127.0.0.1",
   timeoutMs = 1000
-): Promise<{ body: string; status: number }> {
-  return new Promise((resolve, reject) => {
+): Promise<{ body: string; status: number }> =>
+  new Promise((resolve, reject) => {
     const proxyRequest = request(
       {
         headers: { host: `${hostname}:${port}` },
@@ -74,12 +76,11 @@ function proxyResponse(
     );
     proxyRequest.end();
   });
-}
 
-function listenOnPort(
+const listenOnPort = (
   port: number,
   host: string
-): Promise<() => Promise<void>> {
+): Promise<() => Promise<void>> => {
   const server = createServer();
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -94,52 +95,53 @@ function listenOnPort(
       )
     );
   });
-}
+};
 
-function waitForChildReady(child: ChildProcess): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onError = (error: Error) => {
-      cleanup();
-      reject(error);
+const waitForChildReady = (child: ChildProcess): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const handlers = {
+      cleanup() {
+        child.off("error", handlers.onError);
+        child.off("exit", handlers.onExit);
+        child.off("message", handlers.onMessage);
+      },
+      onError(error: Error) {
+        handlers.cleanup();
+        reject(error);
+      },
+      onExit() {
+        handlers.cleanup();
+        reject(new Error("Development routing harness exited before startup"));
+      },
+      onMessage(message: unknown) {
+        if (
+          typeof message === "object" &&
+          message !== null &&
+          "type" in message &&
+          message.type === "ready"
+        ) {
+          handlers.cleanup();
+          resolve();
+        }
+      },
     };
-    const onExit = () => {
-      cleanup();
-      reject(new Error("Development routing harness exited before startup"));
-    };
-    const onMessage = (message: unknown) => {
-      if (
-        typeof message === "object" &&
-        message !== null &&
-        "type" in message &&
-        message.type === "ready"
-      ) {
-        cleanup();
-        resolve();
-      }
-    };
-    const cleanup = () => {
-      child.off("error", onError);
-      child.off("exit", onExit);
-      child.off("message", onMessage);
-    };
-    child.once("error", onError);
-    child.once("exit", onExit);
-    child.on("message", onMessage);
+    child.once("error", handlers.onError);
+    child.once("exit", handlers.onExit);
+    child.on("message", handlers.onMessage);
   });
-}
 
-function waitForExit(child: ChildProcess): Promise<void> {
+const waitForExit = (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return Promise.resolve();
   }
   return new Promise((resolve) => child.once("exit", () => resolve()));
-}
+};
 
-async function waitForProxyStatus(
+const waitForProxyStatus = async (
   port: number,
   hostname: string,
   expected: number
-): Promise<void> {
+): Promise<void> => {
   const deadline = Date.now() + 5000;
   do {
     try {
@@ -152,12 +154,12 @@ async function waitForProxyStatus(
     await new Promise((resolve) => setTimeout(resolve, 25));
   } while (Date.now() < deadline);
   throw new Error(`Proxy did not return status ${expected}`);
-}
+};
 
-async function reopenAfterParentExit(
+const reopenAfterParentExit = async (
   port: number,
   stateDirectory: string
-): Promise<DevelopmentRouting> {
+): Promise<DevelopmentRouting> => {
   const deadline = Date.now() + 5000;
   do {
     try {
@@ -172,7 +174,7 @@ async function reopenAfterParentExit(
   throw new Error(
     `Development proxy on port ${port} remained after parent exit`
   );
-}
+};
 
 it("routes through the embedded development proxy", async () => {
   const temporary = mkdtempSync(

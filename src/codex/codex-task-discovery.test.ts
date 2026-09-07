@@ -11,25 +11,23 @@ const openAdapters: CodexTaskDiscoveryAdapter[] = [];
 const localIntegrationIt =
   process.env.BRANCHBASE_CODEX_INTEGRATION === "1" ? it : it.skip;
 
-function fakeCommand(
+const fakeCommand = (
   scenario: string,
   env: Readonly<Record<string, string>> = {}
-) {
-  return {
-    args: [
-      fileURLToPath(
-        new URL("fixtures/fake-codex-app-server.ts", import.meta.url)
-      ),
-    ],
-    env: { ...env, BRANCHBASE_FAKE_CODEX_SCENARIO: scenario },
-    executable: process.execPath,
-  };
-}
+) => ({
+  args: [
+    fileURLToPath(
+      new URL("fixtures/fake-codex-app-server.ts", import.meta.url)
+    ),
+  ],
+  env: { ...env, BRANCHBASE_FAKE_CODEX_SCENARIO: scenario },
+  executable: process.execPath,
+});
 
-function fakeAdapter(
+const fakeAdapter = (
   scenario: string,
   options: { requestTimeoutMs?: number } = {}
-): CodexTaskDiscoveryAdapter {
+): CodexTaskDiscoveryAdapter => {
   const adapter = new CodexTaskDiscoveryAdapter({
     command: fakeCommand(scenario),
     now: () => new Date("2026-07-18T15:00:00.000Z"),
@@ -37,7 +35,7 @@ function fakeAdapter(
   });
   openAdapters.push(adapter);
   return adapter;
-}
+};
 
 afterEach(async () => {
   await Promise.all(openAdapters.splice(0).map((adapter) => adapter.close()));

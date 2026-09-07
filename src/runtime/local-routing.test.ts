@@ -63,15 +63,14 @@ it("accepts Portless routes with supported tunnel metadata", () => {
   }
 });
 
-function packageFile(packageName: string, ...parts: string[]): string {
-  return pathModule.join(
+const packageFile = (packageName: string, ...parts: string[]): string =>
+  pathModule.join(
     pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
-}
 
-function listen(server: Server, port: number): Promise<number> {
-  return new Promise((resolve, reject) => {
+const listen = (server: Server, port: number): Promise<number> =>
+  new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", () => {
       const address = server.address();
@@ -82,11 +81,9 @@ function listen(server: Server, port: number): Promise<number> {
       resolve(address.port);
     });
   });
-}
 
-function close(server: Server): Promise<void> {
-  return new Promise((resolve) => server.close(() => resolve()));
-}
+const close = (server: Server): Promise<void> =>
+  new Promise((resolve) => server.close(() => resolve()));
 
 it("activates a Portless route when the backing app resets connections", async () => {
   const temporary = mkdtempSync(

@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 
-export function codexExecutableCandidates(): string[] {
+export const codexExecutableCandidates = (): string[] => {
   const candidates = ["codex"];
   if (process.platform === "darwin") {
     candidates.push(
@@ -9,4 +9,4 @@ export function codexExecutableCandidates(): string[] {
     );
   }
   return candidates;
-}
+};

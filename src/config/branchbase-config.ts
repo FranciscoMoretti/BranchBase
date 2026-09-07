@@ -56,20 +56,23 @@ export interface BranchBaseConfigDocument {
   revision: string;
 }
 
-function group(config: BranchBaseConfig, groupId: string): BranchBaseAppGroup {
+const group = (
+  config: BranchBaseConfig,
+  groupId: string
+): BranchBaseAppGroup => {
   const value = config.appGroups[groupId];
   if (!value) {
     throw new Error(`Unknown App group "${groupId}"`);
   }
   return value;
-}
+};
 
-export function branchbaseCommandEnvironment(
+export const branchbaseCommandEnvironment = (
   config: BranchBaseConfig,
   groupId: string,
   appGroups: ResolvedBranchBaseAppGroups
-): Record<string, string> {
-  return Object.fromEntries(
+): Record<string, string> =>
+  Object.fromEntries(
     Object.entries(group(config, groupId).env ?? {}).map(([name, template]) => [
       name,
       renderBranchBaseTemplate(template, {
@@ -78,20 +81,18 @@ export function branchbaseCommandEnvironment(
       }),
     ])
   );
-}
 
-export function findBranchBaseConfig(root: string): string | null {
+export const findBranchBaseConfig = (root: string): string | null => {
   const path = pathModule.join(root, ".branchbase.json");
   return existsSync(path) ? path : null;
-}
+};
 
-function contentRevision(content: string): string {
-  return createHash("sha256").update(content).digest("base64url");
-}
+const contentRevision = (content: string): string =>
+  createHash("sha256").update(content).digest("base64url");
 
-export function loadBranchBaseConfigDocument(
+export const loadBranchBaseConfigDocument = (
   path: string
-): BranchBaseConfigDocument {
+): BranchBaseConfigDocument => {
   const content = readFileSync(path, "utf-8");
   const result = BranchBaseConfigSchema.safeParse(JSON.parse(content));
   if (!result.success) {
@@ -100,17 +101,16 @@ export function loadBranchBaseConfigDocument(
     );
   }
   return { config: result.data, revision: contentRevision(content) };
-}
+};
 
-export function loadBranchBaseConfig(path: string): BranchBaseConfig {
-  return loadBranchBaseConfigDocument(path).config;
-}
+export const loadBranchBaseConfig = (path: string): BranchBaseConfig =>
+  loadBranchBaseConfigDocument(path).config;
 
-export function updateBranchBaseConfig(
+export const updateBranchBaseConfig = (
   configPath: string,
   config: BranchBaseConfig,
   expectedRevision: string
-): BranchBaseConfigDocument {
+): BranchBaseConfigDocument => {
   const currentContent = readFileSync(configPath, "utf-8");
   if (contentRevision(currentContent) !== expectedRevision) {
     throw new Error(
@@ -128,14 +128,14 @@ export function updateBranchBaseConfig(
     throw error;
   }
   return { config: validated, revision: contentRevision(content) };
-}
+};
 
-function resolveCommand(
+const resolveCommand = (
   config: BranchBaseConfig,
   groupId: string,
   command: BranchBaseCommand,
   appGroups: ResolvedBranchBaseAppGroups
-): ResolvedBranchBaseCommand {
+): ResolvedBranchBaseCommand => {
   const context = { appGroups, currentGroup: groupId };
   return {
     argv: command.argv.map((argument) =>
@@ -144,38 +144,30 @@ function resolveCommand(
     ...(command.cwd ? { cwd: command.cwd } : {}),
     env: branchbaseCommandEnvironment(config, groupId, appGroups),
   };
-}
+};
 
-export function resolveStartCommand(
+export const resolveStartCommand = (
   config: BranchBaseConfig,
   groupId: string,
   appGroups: ResolvedBranchBaseAppGroups
-): ResolvedBranchBaseCommand {
-  return resolveCommand(
-    config,
-    groupId,
-    group(config, groupId).start,
-    appGroups
-  );
-}
+): ResolvedBranchBaseCommand =>
+  resolveCommand(config, groupId, group(config, groupId).start, appGroups);
 
-export function resolveStopCommand(
+export const resolveStopCommand = (
   config: BranchBaseConfig,
   groupId: string,
   appGroups: ResolvedBranchBaseAppGroups
-): ResolvedBranchBaseCommand | null {
+): ResolvedBranchBaseCommand | null => {
   const stop = group(config, groupId).stop;
   return stop === "process"
     ? null
     : resolveCommand(config, groupId, stop, appGroups);
-}
+};
 
-export function resolveSetupCommand(
+export const resolveSetupCommand = (
   config: BranchBaseConfig
-): ResolvedBranchBaseCommand {
-  return {
-    argv: [...config.setup.argv],
-    ...(config.setup.cwd ? { cwd: config.setup.cwd } : {}),
-    env: {},
-  };
-}
+): ResolvedBranchBaseCommand => ({
+  argv: [...config.setup.argv],
+  ...(config.setup.cwd ? { cwd: config.setup.cwd } : {}),
+  env: {},
+});

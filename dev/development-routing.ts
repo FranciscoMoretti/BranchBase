@@ -28,7 +28,7 @@ type ProxyMessage =
   | { message: string; type: "error" }
   | { type: "ready" };
 
-function proxyMessage(message: unknown): ProxyMessage | null {
+const proxyMessage = (message: unknown): ProxyMessage | null => {
   if (!(typeof message === "object" && message !== null && "type" in message)) {
     return null;
   }
@@ -40,35 +40,29 @@ function proxyMessage(message: unknown): ProxyMessage | null {
     return { message: candidate.message, type: "error" };
   }
   return null;
-}
+};
 
-function packageFile(packageName: string, ...parts: string[]): string {
-  return pathModule.join(
+const packageFile = (packageName: string, ...parts: string[]): string =>
+  pathModule.join(
     pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
-}
 
-function routeInStore(store: RouteStore, hostname: string) {
-  return (
-    store.loadRoutes().find((route) => route.hostname === hostname) ?? null
-  );
-}
+const routeInStore = (store: RouteStore, hostname: string) =>
+  store.loadRoutes().find((route) => route.hostname === hostname) ?? null;
 
-function routeKey(hostname: string, port: number): string {
-  return `${hostname}\0${port}`;
-}
+const routeKey = (hostname: string, port: number): string =>
+  `${hostname}\0${port}`;
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+const delay = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-function waitForExit(child: ChildProcess): Promise<void> {
+const waitForExit = (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return Promise.resolve();
   }
   return new Promise((resolve) => child.once("close", () => resolve()));
-}
+};
 
 export class DevelopmentProxyPortConflictError extends Error {
   constructor(port: number) {
@@ -205,40 +199,42 @@ export class DevelopmentRouting implements LocalRoutingEngine {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       let timeout: ReturnType<typeof setTimeout>;
-      const cleanup = () => {
-        clearTimeout(timeout);
-        child.off("error", onError);
-        child.off("exit", onExit);
-        child.off("message", onMessage);
-      };
-      const onError = (error: Error) => {
-        cleanup();
-        reject(error);
-      };
-      const onExit = () => {
-        cleanup();
-        reject(new Error(`Portless proxy did not start on port ${port}`));
-      };
-      const onMessage = (message: unknown) => {
-        const received = proxyMessage(message);
-        if (received?.type === "ready") {
-          cleanup();
-          resolve();
-        } else if (received?.type === "conflict") {
-          cleanup();
-          reject(new DevelopmentProxyPortConflictError(port));
-        } else if (received?.type === "error") {
-          cleanup();
-          reject(new Error(received.message));
-        }
+      const handlers = {
+        cleanup() {
+          clearTimeout(timeout);
+          child.off("error", handlers.onError);
+          child.off("exit", handlers.onExit);
+          child.off("message", handlers.onMessage);
+        },
+        onError(error: Error) {
+          handlers.cleanup();
+          reject(error);
+        },
+        onExit() {
+          handlers.cleanup();
+          reject(new Error(`Portless proxy did not start on port ${port}`));
+        },
+        onMessage(message: unknown) {
+          const received = proxyMessage(message);
+          if (received?.type === "ready") {
+            handlers.cleanup();
+            resolve();
+          } else if (received?.type === "conflict") {
+            handlers.cleanup();
+            reject(new DevelopmentProxyPortConflictError(port));
+          } else if (received?.type === "error") {
+            handlers.cleanup();
+            reject(new Error(received.message));
+          }
+        },
       };
       timeout = setTimeout(() => {
-        cleanup();
+        handlers.cleanup();
         reject(new Error(`Portless proxy did not start on port ${port}`));
       }, START_TIMEOUT_MS);
-      child.once("error", onError);
-      child.once("exit", onExit);
-      child.on("message", onMessage);
+      child.once("error", handlers.onError);
+      child.once("exit", handlers.onExit);
+      child.on("message", handlers.onMessage);
     });
   }
 

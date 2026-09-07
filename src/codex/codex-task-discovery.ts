@@ -46,7 +46,7 @@ interface CodexTaskDiscoveryOptions {
   versionTimeoutMs?: number;
 }
 
-function timestamp(seconds: number): string {
+const timestamp = (seconds: number): string => {
   const value = new Date(seconds * 1000);
   if (Number.isNaN(value.valueOf())) {
     throw new CodexIntegrationUnavailableError(
@@ -54,7 +54,7 @@ function timestamp(seconds: number): string {
     );
   }
   return value.toISOString();
-}
+};
 
 export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
   private cache:
