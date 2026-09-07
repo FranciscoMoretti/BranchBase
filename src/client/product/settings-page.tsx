@@ -17,14 +17,60 @@ import {
 } from "./discovery-dialog";
 import { CopyButton, ErrorNotice, PageHeading, Status } from "./primitives";
 
-function connectionLabel(error: boolean, loading: boolean): string {
+const connectionLabel = (error: boolean, loading: boolean): string => {
   if (error) {
     return "Discovery unavailable";
   }
   return loading ? "Connecting" : "Task discovery connected";
-}
+};
 
-export function SettingsPage({
+const IntegrationSettings = ({ repoPath }: { repoPath: string }) => {
+  const codex = useCodexIntegration(repoPath);
+  return (
+    <section className="product-settings-panel">
+      <h2>Codex</h2>
+      <Status
+        label={connectionLabel(codex.isError, codex.isLoading)}
+        value={codex.isError || codex.isLoading ? "partial" : "running"}
+      />
+      <p className="product-muted">
+        Task discovery matches conversations to their exact worktree paths. Live
+        activity requires the optional BranchBase Codex plugin.
+      </p>
+      <Button
+        disabled={codex.isFetching}
+        onClick={() => codex.refetch()}
+        variant="outline"
+      >
+        {codex.isFetching ? "Checking connection…" : "Refresh connection"}
+      </Button>
+      <h3>Enable live activity</h3>
+      <p>Install the plugin, restart Codex, and review its hooks.</p>
+      <code className="product-command-preview">
+        codex plugin marketplace add FranciscoMoretti/BranchBase --ref main
+        {"\n"}codex plugin add branchbase@branchbase
+      </code>
+      <CopyButton
+        label="Copy plugin installation commands"
+        value="codex plugin marketplace add FranciscoMoretti/BranchBase --ref main\ncodex plugin add branchbase@branchbase"
+      />
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        className="product-form-feedback"
+      >
+        {codex.error ? (
+          <p>
+            Task discovery is unavailable. Refresh the connection to try again.
+            App controls remain available.
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+};
+
+export const SettingsPage = ({
   data,
   project,
   review,
@@ -36,7 +82,7 @@ export function SettingsPage({
   review: () => void;
   section: string;
   onSectionChange: (value: string) => void;
-}) {
+}) => {
   const [name, setName] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const mutation = useProductCommand();
@@ -278,8 +324,8 @@ export function SettingsPage({
       </div>
     </>
   );
-}
-export function BranchBaseSettings() {
+};
+export const BranchBaseSettings = () => {
   const [adding, setAdding] = useState(false);
   return (
     <>
@@ -326,50 +372,4 @@ export function BranchBaseSettings() {
       ) : null}
     </>
   );
-}
-
-function IntegrationSettings({ repoPath }: { repoPath: string }) {
-  const codex = useCodexIntegration(repoPath);
-  return (
-    <section className="product-settings-panel">
-      <h2>Codex</h2>
-      <Status
-        label={connectionLabel(codex.isError, codex.isLoading)}
-        value={codex.isError || codex.isLoading ? "partial" : "running"}
-      />
-      <p className="product-muted">
-        Task discovery matches conversations to their exact worktree paths. Live
-        activity requires the optional BranchBase Codex plugin.
-      </p>
-      <Button
-        disabled={codex.isFetching}
-        onClick={() => codex.refetch()}
-        variant="outline"
-      >
-        {codex.isFetching ? "Checking connection…" : "Refresh connection"}
-      </Button>
-      <h3>Enable live activity</h3>
-      <p>Install the plugin, restart Codex, and review its hooks.</p>
-      <code className="product-command-preview">
-        codex plugin marketplace add FranciscoMoretti/BranchBase --ref main
-        {"\n"}codex plugin add branchbase@branchbase
-      </code>
-      <CopyButton
-        label="Copy plugin installation commands"
-        value="codex plugin marketplace add FranciscoMoretti/BranchBase --ref main\ncodex plugin add branchbase@branchbase"
-      />
-      <div
-        aria-atomic="true"
-        aria-live="polite"
-        className="product-form-feedback"
-      >
-        {codex.error ? (
-          <p>
-            Task discovery is unavailable. Refresh the connection to try again.
-            App controls remain available.
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
-}
+};

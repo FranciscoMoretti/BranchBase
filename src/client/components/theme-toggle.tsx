@@ -18,11 +18,10 @@ const THEMES = [
   { icon: MonitorIcon, label: "System", value: "system" },
 ] as const;
 
-function isTheme(value: string): value is Theme {
-  return value === "dark" || value === "light" || value === "system";
-}
+const isTheme = (value: string): value is Theme =>
+  value === "dark" || value === "light" || value === "system";
 
-export function ThemeToggle() {
+export const ThemeToggle = () => {
   const { setTheme, theme } = useTheme();
   const activeTheme = THEMES.find((option) => option.value === theme);
   const ActiveIcon = activeTheme?.icon ?? MonitorIcon;
@@ -65,4 +64,4 @@ export function ThemeToggle() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+};

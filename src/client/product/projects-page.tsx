@@ -40,18 +40,15 @@ import {
   Status,
 } from "./primitives";
 
-export function projectIsActive(project: ProjectOverview): boolean {
-  return (
-    (project.workspace?.globalRunningCount ?? 0) > 0 ||
-    Boolean(
-      project.observation?.worktrees.some(
-        (worktree) => worktree.services.length > 0
-      )
+export const projectIsActive = (project: ProjectOverview): boolean =>
+  (project.workspace?.globalRunningCount ?? 0) > 0 ||
+  Boolean(
+    project.observation?.worktrees.some(
+      (worktree) => worktree.services.length > 0
     )
   );
-}
-function projectNeedsAttention(project: ProjectOverview): boolean {
-  return Boolean(
+const projectNeedsAttention = (project: ProjectOverview): boolean =>
+  Boolean(
     project.error ||
     project.observation?.warning ||
     project.workspace?.worktrees.some(
@@ -64,27 +61,25 @@ function projectNeedsAttention(project: ProjectOverview): boolean {
         )
     )
   );
-}
-function attentionHref(
+const attentionHref = (
   repo: string,
   worktree: {
     id: string;
     primaryAppGroup: string;
     configuration: { trusted: boolean };
   }
-): string {
-  return hrefFor({
+): string =>
+  hrefFor({
     repo,
     worktree: worktree.id,
     group: worktree.primaryAppGroup,
     panel: worktree.configuration.trusted ? "logs" : "configuration",
   });
-}
-function projectSummary(
+const projectSummary = (
   project: ProjectOverview,
   active: number,
   detected: number
-) {
+) => {
   if (project.workspace) {
     return `${countLabel(project.workspace.worktrees.length, "worktree")} · ${active} active · ${countLabel(project.workspace.globalRunningCount, "group")} running`;
   }
@@ -92,22 +87,21 @@ function projectSummary(
     return `${countLabel(project.observation.worktrees.length, "worktree")} · ${countLabel(detected, "service")} detected`;
   }
   return "Inspection unavailable";
-}
-function projectStateLabel(project: ProjectOverview) {
+};
+const projectStateLabel = (project: ProjectOverview) => {
   if (projectIsActive(project)) {
     return "Services running";
   }
   return project.workspace ? "All stopped" : "Observing";
-}
-function projectResources(project: ProjectOverview) {
-  return project.workspace?.resources ?? project.observation?.resources;
-}
-function attentionNotice(
+};
+const projectResources = (project: ProjectOverview) =>
+  project.workspace?.resources ?? project.observation?.resources;
+const attentionNotice = (
   project: ProjectOverview,
   warning:
     | NonNullable<ProjectOverview["workspace"]>["worktrees"][number]
     | undefined
-) {
+) => {
   if (project.observation?.warning) {
     return {
       href: hrefFor({ repo: project.path, view: "activity" }),
@@ -123,8 +117,8 @@ function attentionNotice(
     };
   }
   return null;
-}
-function ProjectRow({ project }: { project: ProjectOverview }) {
+};
+const ProjectRow = ({ project }: { project: ProjectOverview }) => {
   const workspace = project.workspace;
   const detected =
     project.observation?.worktrees.flatMap((worktree) =>
@@ -340,8 +334,8 @@ function ProjectRow({ project }: { project: ProjectOverview }) {
       </Dialog>
     </article>
   );
-}
-function projectsSummary(projects: ProjectOverview[]) {
+};
+const projectsSummary = (projects: ProjectOverview[]) => {
   const groups = projects.reduce(
     (total, project) => total + (project.workspace?.globalRunningCount ?? 0),
     0
@@ -355,8 +349,8 @@ function projectsSummary(projects: ProjectOverview[]) {
     0
   );
   return `${countLabel(projects.length, "project")} · ${countLabel(groups, "group")} running · ${countLabel(detected, "service")} detected`;
-}
-export function ProjectsPage() {
+};
+export const ProjectsPage = () => {
   const projects = useProjects();
   const [search, setSearch] = useState("");
   const [add, setAdd] = useState<"project" | "folder" | null>(null);
@@ -455,4 +449,4 @@ export function ProjectsPage() {
       ) : null}
     </>
   );
-}
+};

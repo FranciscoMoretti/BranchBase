@@ -20,61 +20,53 @@ const alertVariants = cva(
   }
 );
 
-function Alert({
+const Alert = ({
   className,
   variant,
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
-  return (
-    <div
-      className={cn(alertVariants({ variant }), className)}
-      data-slot="alert"
-      role="alert"
-      {...props}
-    />
-  );
-}
+}: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) => (
+  <div
+    className={cn(alertVariants({ variant }), className)}
+    data-slot="alert"
+    role="alert"
+    {...props}
+  />
+);
 
-function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      className={cn(
-        "[&_a]:hover:text-foreground font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3",
-        className
-      )}
-      data-slot="alert-title"
-      {...props}
-    />
-  );
-}
+const AlertTitle = ({ className, ...props }: React.ComponentProps<"div">) => (
+  <div
+    className={cn(
+      "[&_a]:hover:text-foreground font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3",
+      className
+    )}
+    data-slot="alert-title"
+    {...props}
+  />
+);
 
-function AlertDescription({
+const AlertDescription = ({
   className,
   ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      className={cn(
-        "text-muted-foreground [&_a]:hover:text-foreground text-xs/relaxed text-balance md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-2",
-        className
-      )}
-      data-slot="alert-description"
-      {...props}
-    />
-  );
-}
+}: React.ComponentProps<"div">) => (
+  <div
+    className={cn(
+      "text-muted-foreground [&_a]:hover:text-foreground text-xs/relaxed text-balance md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-2",
+      className
+    )}
+    data-slot="alert-description"
+    {...props}
+  />
+);
 
-function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      className={cn(
-        "absolute top-[calc(--spacing(1.25))] right-[calc(--spacing(1.25))]",
-        className
-      )}
-      data-slot="alert-action"
-      {...props}
-    />
-  );
-}
+const AlertAction = ({ className, ...props }: React.ComponentProps<"div">) => (
+  <div
+    className={cn(
+      "absolute top-[calc(--spacing(1.25))] right-[calc(--spacing(1.25))]",
+      className
+    )}
+    data-slot="alert-action"
+    {...props}
+  />
+);
 
 export { Alert, AlertAction, AlertDescription, AlertTitle };

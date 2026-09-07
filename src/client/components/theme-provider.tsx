@@ -25,20 +25,19 @@ const ThemeProviderContext = createContext<ThemeProviderState | undefined>(
   undefined
 );
 
-function isTheme(value: string | null): value is Theme {
-  return value === "dark" || value === "light" || value === "system";
-}
+const isTheme = (value: string | null): value is Theme =>
+  value === "dark" || value === "light" || value === "system";
 
-function storedTheme(storageKey: string, fallback: Theme): Theme {
+const storedTheme = (storageKey: string, fallback: Theme): Theme => {
   try {
     const value = localStorage.getItem(storageKey);
     return isTheme(value) ? value : fallback;
   } catch {
     return fallback;
   }
-}
+};
 
-function applyTheme(theme: Theme, prefersDark: boolean) {
+const applyTheme = (theme: Theme, prefersDark: boolean) => {
   let resolvedTheme = theme;
   if (theme === "system") {
     resolvedTheme = prefersDark ? "dark" : "light";
@@ -48,13 +47,13 @@ function applyTheme(theme: Theme, prefersDark: boolean) {
   root.classList.remove("light", "dark");
   root.classList.add(resolvedTheme);
   root.style.colorScheme = resolvedTheme;
-}
+};
 
-export function ThemeProvider({
+export const ThemeProvider = ({
   children,
   defaultTheme = "system",
   storageKey = "branchbase:theme",
-}: ThemeProviderProps) {
+}: ThemeProviderProps) => {
   const [theme, setTheme] = useState<Theme>(() =>
     storedTheme(storageKey, defaultTheme)
   );
@@ -93,12 +92,12 @@ export function ThemeProvider({
       {children}
     </ThemeProviderContext.Provider>
   );
-}
+};
 
-export function useTheme(): ThemeProviderState {
+export const useTheme = (): ThemeProviderState => {
   const context = useContext(ThemeProviderContext);
   if (!context) {
     throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
-}
+};

@@ -21,7 +21,7 @@ import { EmptyMedia } from "./ui/empty";
 import { Field, FieldGroup, FieldLabel } from "./ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "./ui/input-group";
 
-export function Onboarding({
+export const Onboarding = ({
   initialError,
   onDraftChange,
   onOpened,
@@ -33,32 +33,32 @@ export function Onboarding({
   onOpened: (path: string, snapshot: WorkspaceSnapshot) => void;
   recents: string[];
   repoDraft: string;
-}) {
+}) => {
   const opener = useRepositoryOpen(onOpened, initialError);
-  function changeDraft(path: string) {
+  const changeDraft = (path: string) => {
     opener.clearError();
     onDraftChange(path);
-  }
+  };
   const picker = useRepositoryPicker();
-  async function openSelected(path: string) {
+  const openSelected = async (path: string) => {
     changeDraft(path);
     picker.clearError();
     await opener.open(path);
-  }
+  };
   const setup = useRepositorySetup({
     error: opener.error,
     onCreated: () => opener.open(repoDraft.trim()),
     repoPath: repoDraft.trim(),
   });
-  async function submit(event: FormEvent) {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     const path = repoDraft.trim();
     if (!path) {
       return;
     }
     await opener.open(path);
-  }
-  function feedback() {
+  };
+  const feedback = () => {
     if (setup.active) {
       return setup.notice();
     }
@@ -68,7 +68,7 @@ export function Onboarding({
         title="Could not open project"
       />
     );
-  }
+  };
   return (
     <main className="onboarding-shell brand-canvas min-h-screen">
       <header className="onboarding-header">
@@ -203,4 +203,4 @@ export function Onboarding({
       {setup.dialog}
     </main>
   );
-}
+};

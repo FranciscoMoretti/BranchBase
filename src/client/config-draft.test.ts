@@ -7,7 +7,7 @@ import {
 } from "./config-draft";
 import type { ConfigDraftStorage } from "./config-draft";
 
-function createMemoryStorage(): ConfigDraftStorage {
+const createMemoryStorage = (): ConfigDraftStorage => {
   const values = new Map<string, string>();
   return {
     getItem: (key) => values.get(key) ?? null,
@@ -18,7 +18,7 @@ function createMemoryStorage(): ConfigDraftStorage {
       values.set(key, value);
     },
   };
-}
+};
 
 describe("configuration drafts", () => {
   it("restores an in-progress slot-free JSON draft verbatim", () => {

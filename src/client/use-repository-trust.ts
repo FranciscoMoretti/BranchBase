@@ -25,15 +25,13 @@ interface TrustRequest {
   trusted: boolean;
 }
 
-export function repositoryTrustDialogOpen(
+export const repositoryTrustDialogOpen = (
   required: boolean,
   trusted: boolean,
   hasRequest: boolean
-): boolean {
-  return required && !trusted && hasRequest;
-}
+): boolean => required && !trusted && hasRequest;
 
-export function useRepositoryTrust({
+export const useRepositoryTrust = ({
   approval,
   commands,
   repoPath,
@@ -45,7 +43,7 @@ export function useRepositoryTrust({
   repoPath: string;
   required: boolean;
   trusted: boolean;
-}) {
+}) => {
   const [request, setRequest] = useState<TrustRequest | null>(null);
   const key = repoPath;
   const currentRequest = request?.key === key ? request : null;
@@ -108,4 +106,4 @@ export function useRepositoryTrust({
     open,
     requestTrust,
   };
-}
+};

@@ -13,8 +13,8 @@ export interface CommandMenuItem {
   variant?: "default" | "destructive";
 }
 
-export function CommandMenuItems({ items }: { items: CommandMenuItem[] }) {
-  return items.map((item) => {
+export const CommandMenuItems = ({ items }: { items: CommandMenuItem[] }) =>
+  items.map((item) => {
     const Icon = item.icon;
     const handleAction = item.onSelect;
     return (
@@ -31,4 +31,3 @@ export function CommandMenuItems({ items }: { items: CommandMenuItem[] }) {
       </Fragment>
     );
   });
-}

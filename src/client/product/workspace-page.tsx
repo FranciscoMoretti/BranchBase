@@ -43,8 +43,8 @@ import {
 } from "./primitives";
 import { SettingsPage } from "./settings-page";
 
-function needsAttention(worktree: WorktreeSnapshot): boolean {
-  return Boolean(
+const needsAttention = (worktree: WorktreeSnapshot): boolean =>
+  Boolean(
     worktree.configuration.error ||
     !worktree.configuration.trusted ||
     worktree.setupState === "failed" ||
@@ -52,23 +52,16 @@ function needsAttention(worktree: WorktreeSnapshot): boolean {
       (group) => appGroupDisplayStatus(group) === "partial"
     )
   );
-}
 
-function isMissingEnvironment(
+const isMissingEnvironment = (
   location: ProductLocation,
   selectedGroup: AppGroupSnapshot | undefined
-): boolean {
-  return (
-    location.view === "workspace" &&
-    Boolean(location.worktree) &&
-    !selectedGroup
-  );
-}
-function isEnvironmentList(location: ProductLocation): boolean {
-  return location.view === "workspace" && !location.worktree;
-}
+): boolean =>
+  location.view === "workspace" && Boolean(location.worktree) && !selectedGroup;
+const isEnvironmentList = (location: ProductLocation): boolean =>
+  location.view === "workspace" && !location.worktree;
 
-export function WorkspacePage({
+export const WorkspacePage = ({
   observation,
   data,
   project,
@@ -82,7 +75,7 @@ export function WorkspacePage({
   location: ProductLocation;
   navigate: (value: Partial<ProductLocation>) => void;
   refresh: () => void;
-}) {
+}) => {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -406,4 +399,4 @@ export function WorkspacePage({
       ) : null}
     </>
   );
-}
+};

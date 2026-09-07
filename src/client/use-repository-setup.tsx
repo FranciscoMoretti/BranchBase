@@ -5,7 +5,7 @@ import { RepositoryInitializeDialog } from "./components/repository-initialize-d
 import { RepositorySetupNotice } from "./components/repository-setup-notice";
 import { missingConfigPath } from "./repository-open-state";
 
-export function useRepositorySetup({
+export const useRepositorySetup = ({
   error,
   onCreated,
   repoPath,
@@ -13,17 +13,16 @@ export function useRepositorySetup({
   error: Error | null;
   onCreated: () => void | Promise<void>;
   repoPath: string;
-}) {
+}) => {
   const [open, setOpen] = useState(false);
   const configPath = missingConfigPath(error);
-  function notice(): ReactNode {
-    return configPath ? (
+  const notice = (): ReactNode =>
+    configPath ? (
       <RepositorySetupNotice
         configPath={configPath}
         onInitialize={() => setOpen(true)}
       />
     ) : null;
-  }
   const dialog = open ? (
     <RepositoryInitializeDialog
       onClose={() => setOpen(false)}
@@ -35,4 +34,4 @@ export function useRepositorySetup({
     />
   ) : null;
   return { active: configPath !== null, dialog, notice };
-}
+};

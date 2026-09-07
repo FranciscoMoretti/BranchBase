@@ -4,11 +4,11 @@ import { pickRepository } from "./api";
 
 type PickHandler = (path: string) => void | Promise<void>;
 
-export function useRepositoryPicker(onPick?: PickHandler) {
+export const useRepositoryPicker = (onPick?: PickHandler) => {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function handleBrowse(handler = onPick) {
+  const handleBrowse = async (handler = onPick) => {
     try {
       setPending(true);
       setError(null);
@@ -24,7 +24,7 @@ export function useRepositoryPicker(onPick?: PickHandler) {
     } finally {
       setPending(false);
     }
-  }
+  };
 
   return {
     clearError: () => setError(null),
@@ -32,4 +32,4 @@ export function useRepositoryPicker(onPick?: PickHandler) {
     handleBrowse,
     pending,
   };
-}
+};

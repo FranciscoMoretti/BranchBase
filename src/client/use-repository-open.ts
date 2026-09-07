@@ -3,14 +3,14 @@ import { useState } from "react";
 import type { WorkspaceSnapshot } from "../controller/workspace-snapshot";
 import { fetchWorkspace } from "./api";
 
-export function useRepositoryOpen(
+export const useRepositoryOpen = (
   onOpened: (path: string, snapshot: WorkspaceSnapshot) => void | Promise<void>,
   initialError: Error | null = null
-) {
+) => {
   const [error, setError] = useState<Error | null>(initialError);
   const [pending, setPending] = useState(false);
 
-  async function open(path: string) {
+  const open = async (path: string) => {
     try {
       setPending(true);
       setError(null);
@@ -26,7 +26,7 @@ export function useRepositoryOpen(
     } finally {
       setPending(false);
     }
-  }
+  };
 
   return { clearError: () => setError(null), error, open, pending };
-}
+};
