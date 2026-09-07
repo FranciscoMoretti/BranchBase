@@ -10,7 +10,9 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
 import { z } from "zod";
+
 import type { BranchBaseCommand } from "./branchbase-command";
 import type { BranchBaseConfig } from "./branchbase-config";
 

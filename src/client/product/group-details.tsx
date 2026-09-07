@@ -1,5 +1,6 @@
 import { ArrowLeftIcon, DownloadIcon, PinIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
 import type { CodexIntegrationSnapshot } from "../../codex/codex-integration";
 import type { ProjectOverview } from "../../controller/product-contract";
 import type {

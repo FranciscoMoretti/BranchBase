@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
+
 import { CodexContextStore } from "../codex/branchbase-context";
 import {
   CodexHookActivityStore,

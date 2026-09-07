@@ -1,5 +1,6 @@
 import { FolderGit2Icon, FolderOpenIcon } from "lucide-react";
 import type { FormEvent } from "react";
+
 import type { WorkspaceSnapshot } from "../../controller/workspace-snapshot";
 import { FormFeedback } from "../product/async-state";
 import { useRepositoryOpen } from "../use-repository-open";

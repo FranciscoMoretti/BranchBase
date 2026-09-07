@@ -92,9 +92,7 @@ export class FakeCodexIntegrationAdapter implements CodexIntegrationAdapter {
   }
 }
 
-export class UnavailableCodexIntegrationAdapter
-  implements CodexIntegrationAdapter
-{
+export class UnavailableCodexIntegrationAdapter implements CodexIntegrationAdapter {
   close(): Promise<void> {
     return Promise.resolve();
   }

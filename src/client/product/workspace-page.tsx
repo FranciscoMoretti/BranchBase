@@ -1,5 +1,6 @@
 import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
+
 import type { Observation } from "../../controller/discovery-contract";
 import type { ProjectOverview } from "../../controller/product-contract";
 import {
@@ -43,11 +44,11 @@ import { SettingsPage } from "./settings-page";
 function needsAttention(worktree: WorktreeSnapshot): boolean {
   return Boolean(
     worktree.configuration.error ||
-      !worktree.configuration.trusted ||
-      worktree.setupState === "failed" ||
-      worktree.appGroups.some(
-        (group) => appGroupDisplayStatus(group) === "partial"
-      )
+    !worktree.configuration.trusted ||
+    worktree.setupState === "failed" ||
+    worktree.appGroups.some(
+      (group) => appGroupDisplayStatus(group) === "partial"
+    )
   );
 }
 

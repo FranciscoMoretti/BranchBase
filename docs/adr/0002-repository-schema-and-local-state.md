@@ -2,9 +2,7 @@
 
 Status: Accepted on 2026-07-18.
 
-This decision defines the checked-in repository declaration and the user-local
-records needed by [ADR 0001](./0001-portless-runtime.md). It replaces the
-unreleased slot-based model without a compatibility requirement.
+This decision defines the checked-in repository declaration and the user-local records needed by [ADR 0001](./0001-portless-runtime.md). It replaces the unreleased slot-based model without a compatibility requirement.
 
 ## Sources of truth
 

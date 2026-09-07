@@ -1,5 +1,6 @@
 import { FolderOpenIcon } from "lucide-react";
 import { useState } from "react";
+
 import type { WorkspaceSnapshot } from "../../controller/workspace-snapshot";
 import { FormFeedback } from "../product/async-state";
 import { useRepositoryOpen } from "../use-repository-open";

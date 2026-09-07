@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+
 import {
   type BranchBaseCommand,
   defaultBranchBaseSetupCommand,

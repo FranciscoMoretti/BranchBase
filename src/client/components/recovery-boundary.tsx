@@ -1,5 +1,6 @@
 import { RotateCcwIcon, XIcon } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode } from "react";
+
 import { ErrorDetails } from "../product/async-state";
 import { Button } from "./ui/button";
 import {
@@ -48,7 +49,7 @@ export class RecoveryBoundary extends Component<
     }
 
     return (
-      <div className="grid h-full min-h-0 place-items-center bg-background p-6">
+      <div className="bg-background grid h-full min-h-0 place-items-center p-6">
         <Card className="w-full max-w-lg">
           <CardHeader>
             <CardTitle>{this.props.title}</CardTitle>

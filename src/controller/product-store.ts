@@ -8,7 +8,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+
 import { z } from "zod";
+
 import {
   DevelopmentFolderSchema,
   type Observation as RepositoryObservation,

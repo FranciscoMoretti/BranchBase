@@ -1,18 +1,11 @@
 # Approved project and tab screen direction
 
-Approved by the user on 2026-09-06, including the accompanying refinements below.
-These screens extend the accepted expandable-list direction. Approval establishes
-the product and visual direction; it does not claim implementation is complete or
-resolve every technical detail. Existing `.branchbase.json` configuration and
-command-fingerprint approval remain authoritative. Generated using built-in imagegen;
-the original image filenames, proposal labels, and prompts are retained as provenance.
+Approved by the user on 2026-09-06, including the accompanying refinements below. These screens extend the accepted expandable-list direction. Approval establishes the product and visual direction; it does not claim implementation is complete or resolve every technical detail. Existing `.branchbase.json` configuration and command-fingerprint approval remain authoritative. Generated using built-in imagegen; the original image filenames, proposal labels, and prompts are retained as provenance.
 
 ## Approved refinements
 
-- Projects uses pinned ready App links qualified by worktree, with one Add project
-  entry point and no redundant bottom Add button.
-- Infrastructure classification is explicit in repository configuration. Selected
-  worktrees and verified active consumers are distinct.
+- Projects uses pinned ready App links qualified by worktree, with one Add project entry point and no redundant bottom Add button.
+- Infrastructure classification is explicit in repository configuration. Selected worktrees and verified active consumers are distinct.
 - Activity focuses on operational history; raw logs remain in App-group details.
 - Settings displays one section at a time, with machine settings separate.
 
@@ -20,76 +13,39 @@ the original image filenames, proposal labels, and prompts are retained as prove
 
 ![Projects overview](screens/projects-proposed.png)
 
-Show repository identity and path, worktree and running-group counts, important
-exceptions, and a few ready App links qualified by worktree. Opening a project
-lands on its Environments list. Add project is the primary creation action. Avoid
-project-wide lifecycle controls without explicit group and instance scope.
+Show repository identity and path, worktree and running-group counts, important exceptions, and a few ready App links qualified by worktree. Opening a project lands on its Environments list. Add project is the primary creation action. Avoid project-wide lifecycle controls without explicit group and instance scope.
 
-Use the illustrated list direction and pinned links. Remaining implementation details
-include pin management and defining active from runtime activity rather than agent
-activity. Never assume a branch named main is a product convention.
+Use the illustrated list direction and pinned links. Remaining implementation details include pin management and defining active from runtime activity rather than agent activity. Never assume a branch named main is a product convention.
 
 ## Infrastructure
 
 ![Infrastructure instances](screens/infrastructure-proposed.png)
 
-Show each configured infrastructure instance once, its Apps and connection details,
-selected worktrees, current readiness, and instance-scoped lifecycle controls.
-Shared Stop reveals affected consumers. Differentiate worktrees selecting an
-instance from verified active consumers; selection alone does not prove usage.
+Show each configured infrastructure instance once, its Apps and connection details, selected worktrees, current readiness, and instance-scoped lifecycle controls. Shared Stop reveals affected consumers. Differentiate worktrees selecting an instance from verified active consumers; selection alone does not prove usage.
 
-Implementation constraints: classification must be explicit in repository configuration, not
-inferred from names such as Infrastructure, Postgres, or Redis. Infrastructure is
-not currently a distinct domain entity. A named selectable instance with one
-consumer is not automatically dedicated. Consider whether broader process discovery
-belongs in a machine-wide surface; only project-associated observations belong here.
-Resource attribution and external-process discovery are proposed capabilities.
-Connection URIs pictured are illustrative; do not fabricate credentials or expose
-secret values. The trusted Stop command determines consequences: do not universally
-promise that stopping preserves data without verifying its behavior.
+Implementation constraints: classification must be explicit in repository configuration, not inferred from names such as Infrastructure, Postgres, or Redis. Infrastructure is not currently a distinct domain entity. A named selectable instance with one consumer is not automatically dedicated. Consider whether broader process discovery belongs in a machine-wide surface; only project-associated observations belong here. Resource attribution and external-process discovery are proposed capabilities. Connection URIs pictured are illustrative; do not fabricate credentials or expose secret values. The trusted Stop command determines consequences: do not universally promise that stopping preserves data without verifying its behavior.
 
 ## Activity
 
 ![Operational activity](screens/activity-proposed.png)
 
-Show operational events: starts, stops, readiness failures, discoveries, configuration
-and trust changes. Include timestamp, worktree, group or instance, available evidence
-about initiator, and direct navigation to diagnostics. Filter by time, worktree, and
-event type. Raw logs belong in group details; this surface is not an agent transcript.
+Show operational events: starts, stops, readiness failures, discoveries, configuration and trust changes. Include timestamp, worktree, group or instance, available evidence about initiator, and direct navigation to diagnostics. Filter by time, worktree, and event type. Raw logs belong in group details; this surface is not an agent transcript.
 
-Durable event history, retention, attribution, and live updates are proposed work.
-Unknown initiators remain unknown. Historical events may link to current Apps only
-when their present Readiness and Route state make those links valid. A failure event
-is not necessarily an unresolved issue; attention counts require current evidence.
+Durable event history, retention, attribution, and live updates are proposed work. Unknown initiators remain unknown. Historical events may link to current Apps only when their present Readiness and Route state make those links valid. A failure event is not necessarily an unresolved issue; attention counts require current evidence.
 
 ## Settings
 
 ![Project settings](screens/settings-proposed.png)
 
-Separate General, Configuration, Command trust, and Integrations. Project default
-configuration and worktree override selection preserve the accepted configuration
-model. Show exact reviewed fingerprints and scope for command trust. Keep machine
-routing, daemon preferences, and appearance in machine settings.
+Separate General, Configuration, Command trust, and Integrations. Project default configuration and worktree override selection preserve the accepted configuration model. Show exact reviewed fingerprints and scope for command trust. Keep machine routing, daemon preferences, and appearance in machine settings.
 
-Open choices: editable project labels, approval revocation scope and consequences,
-project removal behavior, and integration availability. Review before removal must
-account for owned processes and shared-instance consumers. Removing a tracked project
-must not silently imply deleting repository files or worktrees. Images show proposed
-UI, not an implementation of these capabilities.
+Open choices: editable project labels, approval revocation scope and consequences, project removal behavior, and integration availability. Review before removal must account for owned processes and shared-instance consumers. Removing a tracked project must not silently imply deleting repository files or worktrees. Images show proposed UI, not an implementation of these capabilities.
 
 ## Visual review notes
 
-Numbers and state labels are illustrative. Summary counts must be derived from a
-consistent snapshot and shared instances counted once. Settings should open on one
-coherent section rather than displaying every subsection as duplicated overview
-content. Projects needs only one Add project entry point; remove redundant bottom
-creation action. Replace vague Healthy with a precise runtime summary.
+Numbers and state labels are illustrative. Summary counts must be derived from a consistent snapshot and shared instances counted once. Settings should open on one coherent section rather than displaying every subsection as duplicated overview content. Projects needs only one Add project entry point; remove redundant bottom creation action. Replace vague Healthy with a precise runtime summary.
 
-The generation prompts below are preserved as historical imagegen inputs. For
-current implementations, the approved guidance supersedes conflicting prompt
-details: Settings opens one section at a time; Projects has one Add project
-entry point with a runtime summary such as worktree and running-group counts;
-and the redundant bottom Add button is omitted.
+The generation prompts below are preserved as historical imagegen inputs. For current implementations, the approved guidance supersedes conflicting prompt details: Settings opens one section at a time; Projects has one Add project entry point with a runtime summary such as worktree and running-group counts; and the redundant bottom Add button is omitted.
 
 ## Generation prompts
 

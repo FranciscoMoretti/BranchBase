@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { BranchBaseConfigSchema } from "./branchbase-schema";
 import {
   repositoryCommandFingerprint,

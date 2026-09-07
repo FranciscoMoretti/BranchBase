@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { ProcessUsageSchema } from "./workspace-snapshot";
 
 export const DetectedServiceSchema = z.object({

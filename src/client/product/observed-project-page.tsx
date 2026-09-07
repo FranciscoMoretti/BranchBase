@@ -2,6 +2,7 @@ import { Popover } from "@base-ui/react/popover";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRightIcon, GitBranchIcon } from "lucide-react";
 import { useState } from "react";
+
 import type {
   DetectedService,
   Observation,

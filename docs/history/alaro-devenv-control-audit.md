@@ -111,7 +111,7 @@ Caveats for the generic design:
 ### Command catalogue
 
 | Action | Current command/behavior | Execution model | Generic disposition |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `start-apps` | `pnpm turbo run dev dev:worker dev:temporal-worker --filter=!alaro-dev-control` | Detached, tracked, normally under `direnv exec` | Replace with repo-configured start command(s). |
 | `stop-apps` | Kill tracked process group and repo-owned configured-port PIDs | Synchronous signal operation | Preserve ownership safety; define cross-platform process-tree behavior. |
 | `set-apps-instance` | Source `scripts/env-instance.sh`, generate/write APPS section | Synchronous shell | Replace with a generic slot-env writer/config adapter. |
@@ -138,7 +138,7 @@ Deletion is allowed only for a real non-main Git worktree, with no app/devenv li
 ### API endpoints
 
 | Method/path | Behavior |
-|---|---|
+| --- | --- |
 | `GET /api/health` | `{ ok: true }` |
 | `GET /api/instances` | Complete recomputed workspace state |
 | `GET /api/instances/:id/logs` | Tail managed logs (default 10,000 lines; configurable up to 100,000) |
@@ -211,7 +211,7 @@ Potential interpretation conflict: requested change 7 says “Actions to only be
 ## Requested changes mapped to current source
 
 | # | Request | Current `main` | Spec consequence |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Generic name/title, possibly a “tree organized” wordplay | Branding is Alaro throughout. | Decide product name before final UI copy, package IDs, storage keys, config directory, and env namespace. Candidate direction: **Treeboard**, **Treehouse**, **Worktree Control**, **Treeyard**, or **Arbor**. “Treeboard” communicates an organized control board most directly. |
 | 2 | React Query; one command per file in `commands/` | React Query already handles queries/mutations/invalidation, but browser API functions are one `api.ts`, backend action logic is in `server.mjs`, and all command builders share `dev-control-scripts.mjs`. | Preserve React Query. Create a command contract/registry and one command module per operation; keep transport/API modules separate from executable commands. |
 | 3 | Refresh overlay countdown right-to-left; default 30s or Query default; click refresh | Overlay behavior already exists and moves right-to-left, but polls at 10s and bypasses the otherwise global Query defaults with an explicit interval. | Change default to 30s, keep manual refetch, and have a single source of truth for interval/progress. Decide whether countdown pauses in background/offline and whether failed refetch resets it. |
@@ -226,7 +226,7 @@ Potential interpretation conflict: requested change 7 says “Actions to only be
 ### Runtime and configuration
 
 | File | Responsibility | Reuse/genericity notes |
-|---|---|---|
+| --- | --- | --- |
 | `index.html` | SPA root, viewport, favicon, Alaro page title. | Keep structure; replace brand assets/copy. |
 | `package.json` | Daemon/lint/type/build scripts and React/Radix/Query/Vite/Zod dependencies. | Stack is reusable. No test script exists. |
 | `tsconfig.json` | Strict browser TS config. | Reusable. |
@@ -238,7 +238,7 @@ Potential interpretation conflict: requested change 7 says “Actions to only be
 ### Client entry, API, and model
 
 | File | Responsibility | Reuse/genericity notes |
-|---|---|---|
+| --- | --- | --- |
 | `src/main.tsx` | Mount React and provide Query client. | Reuse. |
 | `src/app.tsx` | Compose toolbar/table/details, filtering, selection, next slot, action/query state. | Reuse composition after removing Devenv. |
 | `src/query-client.ts` | Query defaults: focus refetch, one retry, 1.5s stale time. | Reuse; define product defaults. |
@@ -259,7 +259,7 @@ Potential interpretation conflict: requested change 7 says “Actions to only be
 ### Hooks
 
 | File | Responsibility | Reuse/genericity notes |
-|---|---|---|
+| --- | --- | --- |
 | `hooks/use-instance-queries.ts` | Poll workspace and selected logs; manual combined refresh. | Reuse with 30s default and generic names. |
 | `hooks/use-instance-actions.ts` | Mutations, pending maps, global error, invalidation, inspect-on-action. | Reuse pattern; split mutations/commands to reduce one large hook. |
 | `hooks/use-now.ts` | One-second clock for durations. | Reuse. |
@@ -269,7 +269,7 @@ Potential interpretation conflict: requested change 7 says “Actions to only be
 ### Feature components
 
 | File | Responsibility | Reuse/genericity notes |
-|---|---|---|
+| --- | --- | --- |
 | `components/control-toolbar.tsx` | Brand/path, view toggle, workspace menu, refresh progress. | Core design to reuse; interval becomes 30s. |
 | `components/instance-table.tsx` | Headers, skeleton switch, rows, bulk stop menus. | Remove Devenv column/bulk state; keep Apps bulk stop if desired. |
 | `components/instance-table-row.tsx` | Derive row health/actions and render all cells. | Core target; remove Devenv and formalize partial behavior. |

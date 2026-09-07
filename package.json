@@ -2,18 +2,25 @@
   "name": "branchbase",
   "version": "0.4.0",
   "description": "A local control plane for running apps across Git worktrees.",
+  "keywords": [
+    "branchbase",
+    "dev-server",
+    "developer-tools",
+    "development",
+    "git",
+    "git-worktrees",
+    "local-development",
+    "ports"
+  ],
+  "homepage": "https://github.com/FranciscoMoretti/BranchBase",
+  "bugs": "https://github.com/FranciscoMoretti/BranchBase/issues",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FranciscoMoretti/BranchBase.git"
   },
-  "homepage": "https://github.com/FranciscoMoretti/BranchBase",
-  "bugs": "https://github.com/FranciscoMoretti/BranchBase/issues",
   "bin": {
     "branchbase": "scripts/daemon.ts"
-  },
-  "exports": {
-    "./config": "./src/config/public.ts"
   },
   "files": [
     "dist",
@@ -24,17 +31,10 @@
     "README.md",
     "LICENSE"
   ],
-  "keywords": [
-    "branchbase",
-    "developer-tools",
-    "git",
-    "git-worktrees",
-    "local-development",
-    "development",
-    "ports",
-    "dev-server"
-  ],
   "type": "module",
+  "exports": {
+    "./config": "./src/config/public.ts"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -44,16 +44,14 @@
     "daemon:status": "bun scripts/daemon.ts status",
     "daemon:stop": "bun scripts/daemon.ts stop",
     "dev": "bun dev/server.ts",
-    "lint": "bunx ultracite@7.4.3 check",
+    "lint": "ultracite check",
     "prepack": "bun run build",
-    "schema:generate": "bun scripts/generate-config-schema.ts && bunx biome format --write schema/branchbase.schema.json",
+    "schema:generate": "bun scripts/generate-config-schema.ts && oxfmt --write schema/branchbase.schema.json",
     "test": "bun test ./dev ./src/client ./src/codex ./src/commands ./src/config ./src/controller ./src/host ./src/runtime ./src/server",
     "test:integration": "bun test --path-ignore-patterns=__branchbase_no_ignored_tests__ ./src/integration/portless-routing.test.ts",
     "test:pack": "bun scripts/test-packed-artifact.ts",
-    "test:types": "tsc --noEmit"
-  },
-  "engines": {
-    "bun": ">=1.3.0"
+    "test:types": "tsc --noEmit",
+    "lint:fix": "ultracite fix"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -76,7 +74,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.10",
     "@tailwindcss/vite": "^4.3.2",
     "@types/bun": "latest",
     "@types/node": "^22.8.6",
@@ -84,8 +81,13 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "happy-dom": "^20.14.0",
+    "oxfmt": "0.67.0",
+    "oxlint": "1.82.0",
     "tailwindcss": "^4.3.2",
     "typescript": "6.0.2",
-    "ultracite": "7.4.3"
+    "ultracite": "7.11.0"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
   }
 }

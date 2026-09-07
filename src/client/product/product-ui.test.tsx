@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
+
 import type { AppGroupSnapshot } from "../../controller/workspace-snapshot";
 import {
   CodexTasksSection,

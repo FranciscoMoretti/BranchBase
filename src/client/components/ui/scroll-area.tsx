@@ -1,6 +1,6 @@
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
-
 import type { Ref } from "react";
+
 import { cn } from "@/client/lib/utils";
 
 interface ScrollAreaProps extends ScrollAreaPrimitive.Root.Props {
@@ -22,7 +22,7 @@ function ScrollArea({
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
-        className="size-full rounded-[inherit] outline-none transition-[color,box-shadow] focus-visible:outline-1 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
         data-slot="scroll-area-viewport"
         ref={viewportRef}
       >
@@ -44,7 +44,7 @@ function ScrollBar({
   return (
     <ScrollAreaPrimitive.Scrollbar
       className={cn(
-        "flex touch-none select-none p-px transition-colors data-horizontal:h-2.5 data-vertical:h-full data-vertical:w-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:border-l data-vertical:border-l-transparent",
+        "flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent",
         className
       )}
       data-orientation={orientation}
@@ -53,7 +53,7 @@ function ScrollBar({
       {...props}
     >
       <ScrollAreaPrimitive.Thumb
-        className="relative flex-1 rounded-none bg-border"
+        className="bg-border relative flex-1 rounded-none"
         data-slot="scroll-area-thumb"
       />
     </ScrollAreaPrimitive.Scrollbar>

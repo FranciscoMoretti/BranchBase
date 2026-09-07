@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+
 import type {
   DetectedService,
   Observation,

@@ -1,5 +1,6 @@
 import { ArrowLeftIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
 import {
   type BranchBaseConfig,
   BranchBaseConfigSchema,
@@ -109,8 +110,8 @@ export function RepositoryConfigPage({
   }
 
   return (
-    <section className="flex min-w-0 flex-col bg-background">
-      <header className="shrink-0 border-b bg-background">
+    <section className="bg-background flex min-w-0 flex-col">
+      <header className="bg-background shrink-0 border-b">
         <div className="mx-auto flex w-full max-w-5xl items-start gap-3 px-6 py-5">
           <Button
             aria-label="Back to project settings"
@@ -121,7 +122,7 @@ export function RepositoryConfigPage({
             <ArrowLeftIcon />
           </Button>
           <div>
-            <h1 className="font-heading font-medium text-xl">Configuration</h1>
+            <h1 className="font-heading text-xl font-medium">Configuration</h1>
             <p className="text-muted-foreground text-sm">
               Checked-in App groups, lifecycle commands, environment templates,
               and readiness.
@@ -158,11 +159,11 @@ export function RepositoryConfigPage({
           />
         </div>
       </div>
-      <footer className="shrink-0 border-t bg-background">
+      <footer className="bg-background shrink-0 border-t">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-end gap-2 px-6 py-4">
           {discardOpen ? (
             <>
-              <p className="mr-auto text-muted-foreground">
+              <p className="text-muted-foreground mr-auto">
                 Discard unsaved configuration changes?
               </p>
               <Button onClick={keepEditing} variant="outline">

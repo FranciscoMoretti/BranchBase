@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+
 import { parseProcessSamples, processTreeUsage } from "./process-usage";
 
 test("resource snapshots reject invalid rows and convert RSS from KiB", () => {

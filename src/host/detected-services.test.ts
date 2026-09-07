@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
+
 import { serve } from "bun";
+
 import {
   DetectedServices,
   NEGATIVE_PROBE_TTL_MS,

@@ -1,26 +1,18 @@
 # BranchBase
 
-BranchBase is an open-source, macOS-first local development control plane for
-Git worktrees. It keeps each worktree's apps, ports, processes, logs, and Codex
-tasks in one place, so parallel work does not turn into a collection of
-terminals and forgotten conversations.
+BranchBase is an open-source, macOS-first local development control plane for Git worktrees. It keeps each worktree's apps, ports, processes, logs, and Codex tasks in one place, so parallel work does not turn into a collection of terminals and forgotten conversations.
 
-Use it when you regularly create worktrees, run several copies of the same app,
-or have multiple Codex tasks working in the same repository.
+Use it when you regularly create worktrees, run several copies of the same app, or have multiple Codex tasks working in the same repository.
 
 ## What it gives you
 
 - One dashboard for every worktree in a repository.
-- Independently startable app groups, such as product apps and local
-  infrastructure.
-- Stable Friendly URLs, collision-free backing ports, listener detection,
-  process ownership, and managed logs. App groups can be isolated per worktree
-  or use explicitly selected named instances.
+- Independently startable app groups, such as product apps and local infrastructure.
+- Stable Friendly URLs, collision-free backing ports, listener detection, process ownership, and managed logs. App groups can be isolated per worktree or use explicitly selected named instances.
 - Command review and trust before repository setup or lifecycle commands run.
 - Every non-archived Codex task associated with each exact worktree path.
 - Direct **Open task** and **New task** links into the Codex desktop app.
-- Optional live Codex activity and automatic BranchBase context through the
-  bundled plugin.
+- Optional live Codex activity and automatic BranchBase context through the bundled plugin.
 
 The core model is:
 
@@ -36,13 +28,10 @@ repository
 
 ### Requirements
 
-- Core BranchBase: macOS, Git, [Bun](https://bun.sh/) 1.3 or newer, and `lsof`
-  (included with macOS).
+- Core BranchBase: macOS, Git, [Bun](https://bun.sh/) 1.3 or newer, and `lsof` (included with macOS).
 - Codex task discovery: a compatible Codex CLI or ChatGPT desktop app bundle.
-- **Open task** and **New task**: ChatGPT desktop, which handles `codex://`
-  links.
-- Live status and automatic context: the bundled BranchBase plugin installed in
-  Codex, with its hooks trusted.
+- **Open task** and **New task**: ChatGPT desktop, which handles `codex://` links.
+- Live status and automatic context: the bundled BranchBase plugin installed in Codex, with its hooks trusted.
 
 Codex is optional, and the integration does not require an OpenAI API key.
 
@@ -58,8 +47,7 @@ bun run build
 bun scripts/daemon.ts start --repo /path/to/your/repository
 ```
 
-Open <http://127.0.0.1:3999>. BranchBase will inspect the repository's worktrees
-and ask you to review any repository commands before trusting them.
+Open <http://127.0.0.1:3999>. BranchBase will inspect the repository's worktrees and ask you to review any repository commands before trusting them.
 
 Use these commands to manage the source-run daemon:
 
@@ -68,14 +56,11 @@ bun scripts/daemon.ts status
 bun scripts/daemon.ts stop
 ```
 
-BranchBase has not yet been published to npm. Use the source installation above
-until the first package release is available.
+BranchBase has not yet been published to npm. Use the source installation above until the first package release is available.
 
 ## Codex integration
 
-BranchBase matches Codex tasks to worktrees using the task's exact canonical
-working directory. It exposes every matching non-archived top-level task; the
-UI may emphasize the newest one, but the backend does not discard the others.
+BranchBase matches Codex tasks to worktrees using the task's exact canonical working directory. It exposes every matching non-archived top-level task; the UI may emphasize the newest one, but the backend does not discard the others.
 
 ### Task discovery and desktop links
 
@@ -84,70 +69,38 @@ No plugin is required for the basic integration:
 1. Start BranchBase for a repository.
 2. Open that repository in the dashboard.
 3. Select a worktree to see all of its associated Codex tasks.
-4. Use **Open task** to continue an existing conversation or **New task** to
-   open Codex at that worktree's path.
+4. Use **Open task** to continue an existing conversation or **New task** to open Codex at that worktree's path.
 
-BranchBase starts a private `codex app-server` process and decodes only task
-names, IDs, timestamps, Git metadata, and exact working directories. Although a
-task-list response can contain a preview, BranchBase does not retain, project, or
-expose it, and it never requests full turns or transcripts with `thread/read`.
-If task discovery is unavailable, the rest of BranchBase continues to work; the
-**New task** link is still rendered and works when ChatGPT desktop is installed.
+BranchBase starts a private `codex app-server` process and decodes only task names, IDs, timestamps, Git metadata, and exact working directories. Although a task-list response can contain a preview, BranchBase does not retain, project, or expose it, and it never requests full turns or transcripts with `thread/read`. If task discovery is unavailable, the rest of BranchBase continues to work; the **New task** link is still rendered and works when ChatGPT desktop is installed.
 
 ### Optional live status and automatic context
 
-Install the bundled BranchBase plugin to add **Working**, **Waiting for
-approval**, **Ready**, and **Unknown** activity plus automatic BranchBase context:
+Install the bundled BranchBase plugin to add **Working**, **Waiting for approval**, **Ready**, and **Unknown** activity plus automatic BranchBase context:
 
 ```sh
 codex plugin marketplace add FranciscoMoretti/BranchBase --ref main
 codex plugin add branchbase@branchbase
 ```
 
-Then restart the ChatGPT desktop app, keep the BranchBase daemon running, and
-open or resume a Codex task at a worktree whose root contains a valid
-`.branchbase.json`. Review and trust the BranchBase plugin hooks when Codex asks.
+Then restart the ChatGPT desktop app, keep the BranchBase daemon running, and open or resume a Codex task at a worktree whose root contains a valid `.branchbase.json`. Review and trust the BranchBase plugin hooks when Codex asks.
 
-The context uses an explicit allowlist: canonical worktree path, branch, app and
-group labels, ports, URLs, and process/readiness state. This helps Codex use the
-correct running app instead of starting a competing server. Managed logs,
-environment values, repository command definitions, prompts, transcripts, and
-tool arguments or results are omitted. Hooks are fail-open: if BranchBase is
-stopped or the plugin is disabled, Codex continues normally and live activity
-eventually becomes Unknown.
+The context uses an explicit allowlist: canonical worktree path, branch, app and group labels, ports, URLs, and process/readiness state. This helps Codex use the correct running app instead of starting a competing server. Managed logs, environment values, repository command definitions, prompts, transcripts, and tool arguments or results are omitted. Hooks are fail-open: if BranchBase is stopped or the plugin is disabled, Codex continues normally and live activity eventually becomes Unknown.
 
-See the official [Codex plugin](https://learn.chatgpt.com/docs/plugins) and
-[hook](https://learn.chatgpt.com/docs/hooks) documentation for the underlying
-installation and trust model.
+See the official [Codex plugin](https://learn.chatgpt.com/docs/plugins) and [hook](https://learn.chatgpt.com/docs/hooks) documentation for the underlying installation and trust model.
 
 ## Discover projects without configuration
 
-Use **Add project → Development folder** to watch a folder containing Git
-repositories, or choose **Single project** to add one repository. BranchBase
-includes linked worktrees even when their checkouts live outside that folder.
-No `.branchbase.json` is needed for observation.
+Use **Add project → Development folder** to watch a folder containing Git repositories, or choose **Single project** to add one repository. BranchBase includes linked worktrees even when their checkouts live outside that folder. No `.branchbase.json` is needed for observation.
 
-On macOS, observed projects show associated TCP listeners, process start times,
-and sampled CPU and memory. Verified HTTP listeners have Open links; other
-listeners have copyable addresses. Processes are associated by working directory
-and Git root. BranchBase does not infer app groups, claim who launched a process,
-retrieve an external process's logs, or take control of it.
+On macOS, observed projects show associated TCP listeners, process start times, and sampled CPU and memory. Verified HTTP listeners have Open links; other listeners have copyable addresses. Processes are associated by working directory and Git root. BranchBase does not infer app groups, claim who launched a process, retrieve an external process's logs, or take control of it.
 
-Development-folder scans run every 30 seconds while the dashboard is active;
-**Development folders → Scan now** refreshes them immediately. Scans go three
-levels deep, skip hidden and dependency directories and symlinks, and stop
-traversing once a repository is found. Each folder scan is limited to 2,000
-visited directories and 100 repositories; up to 20 development folders can be
-watched. Removing a folder keeps discovered projects. Removing a project
-suppresses its rediscovery until it is explicitly added again.
+Development-folder scans run every 30 seconds while the dashboard is active; **Development folders → Scan now** refreshes them immediately. Scans go three levels deep, skip hidden and dependency directories and symlinks, and stop traversing once a repository is found. Each folder scan is limited to 2,000 visited directories and 100 repositories; up to 20 development folders can be watched. Removing a folder keeps discovered projects. Removing a project suppresses its rediscovery until it is explicitly added again.
 
-**Configure app groups** creates a reviewed starter configuration. Command
-approval remains a separate step before Start or Setup can execute anything.
+**Configure app groups** creates a reviewed starter configuration. Command approval remains a separate step before Start or Setup can execute anything.
 
 ## Repository configuration
 
-Commit `.branchbase.json` at the repository root. The setup command prepares one
-worktree; each app group can then be started and stopped independently.
+Commit `.branchbase.json` at the repository root. The setup command prepares one worktree; each app group can then be started and stopped independently.
 
 ```json
 {
@@ -191,39 +144,19 @@ worktree; each app group can then be started and stopped independently.
 
 Important configuration behavior:
 
-- The Primary worktree's `.branchbase.json` is the Project default. Every
-  worktree inherits it unless **This worktree** is selected as its Configuration
-  source in App-group details → Configuration.
-- A worktree-specific selection reads `.branchbase.json` from that worktree, so
-  a branch can test different commands or App groups without changing its
-  siblings. If the selected file is missing or invalid, BranchBase visibly falls
-  back to the Project default while preserving the worktree-specific preference.
+- The Primary worktree's `.branchbase.json` is the Project default. Every worktree inherits it unless **This worktree** is selected as its Configuration source in App-group details → Configuration.
+- A worktree-specific selection reads `.branchbase.json` from that worktree, so a branch can test different commands or App groups without changing its siblings. If the selected file is missing or invalid, BranchBase visibly falls back to the Project default while preserving the worktree-specific preference.
 - Commands are argv arrays and run from the selected worktree root.
-- With `"stop": "process"`, Start must remain in the foreground. BranchBase owns
-  that process and terminates it on Stop.
-- A command-based Stop is useful for detached infrastructure such as Docker
-  Compose.
-- Set `"category": "infrastructure"` on an App group to include its instances in
-  the Infrastructure tab. The default is `"application"`; names do not determine
-  category. Shared instances appear once, with their selecting worktrees.
-- App groups default to `"instances": { "mode": "per-worktree" }`, which gives
-  every worktree its own stable endpoints without any slot or port setup.
-- `"mode": "selectable"` creates a shared Default instance and lets each
-  worktree select or create named alternatives—for example, an isolated Docker
-  Compose database for a migration experiment.
-- BranchBase assigns each instance collision-free loopback backing ports and
-  keeps them stable across Stop and Restart.
-- HTTP Apps receive stable `*.localhost` Friendly URLs through Portless. TCP
-  Apps expose their assigned host and port to command templates.
-- App-group environment values can be literals or templates such as
-  `{apps.Web.port}`, `{apps.Web.directUrl}`, and `{apps.Web.url}`. A group may
-  reference another selected instance's host, port, direct URL, or Friendly URL
-  with tokens such as `{appGroups.Local Infrastructure.apps.Postgres.port}`.
+- With `"stop": "process"`, Start must remain in the foreground. BranchBase owns that process and terminates it on Stop.
+- A command-based Stop is useful for detached infrastructure such as Docker Compose.
+- Set `"category": "infrastructure"` on an App group to include its instances in the Infrastructure tab. The default is `"application"`; names do not determine category. Shared instances appear once, with their selecting worktrees.
+- App groups default to `"instances": { "mode": "per-worktree" }`, which gives every worktree its own stable endpoints without any slot or port setup.
+- `"mode": "selectable"` creates a shared Default instance and lets each worktree select or create named alternatives—for example, an isolated Docker Compose database for a migration experiment.
+- BranchBase assigns each instance collision-free loopback backing ports and keeps them stable across Stop and Restart.
+- HTTP Apps receive stable `*.localhost` Friendly URLs through Portless. TCP Apps expose their assigned host and port to command templates.
+- App-group environment values can be literals or templates such as `{apps.Web.port}`, `{apps.Web.directUrl}`, and `{apps.Web.url}`. A group may reference another selected instance's host, port, direct URL, or Friendly URL with tokens such as `{appGroups.Local Infrastructure.apps.Postgres.port}`.
 
-For a repository without configuration, BranchBase can prepare a starter file
-based on common runtime markers. Undetected commands are clearly labeled and
-require editing for the project. Creating the file does not approve commands;
-you review and trust the resulting fingerprint before anything runs.
+For a repository without configuration, BranchBase can prepare a starter file based on common runtime markers. Undetected commands are clearly labeled and require editing for the project. Creating the file does not approve commands; you review and trust the resulting fingerprint before anything runs.
 
 ### Repository tooling API
 
@@ -239,10 +172,7 @@ import {
 } from "branchbase/config";
 ```
 
-The public API exposes configuration schemas and types, discovery/loading, and
-command resolution against an active run's endpoint values. Endpoint allocation,
-Portless routing, process ownership, command execution, trust, and controller
-internals remain private.
+The public API exposes configuration schemas and types, discovery/loading, and command resolution against an active run's endpoint values. Endpoint allocation, Portless routing, process ownership, command execution, trust, and controller internals remain private.
 
 ## Architecture
 
@@ -264,30 +194,15 @@ bun run test:integration
 bun run build
 ```
 
-`bun run dev` uses an isolated development session for the current BranchBase
-checkout. It chooses collision-free dashboard and Portless ports, prints the
-dashboard URL, and keeps its state, trust decisions, managed-process records,
-logs, routes, and Codex hook capability separate from the production daemon
-under `~/.branchbase/development/`. An installed or source-run daemon may remain
-running while BranchBase is developed.
+`bun run dev` uses an isolated development session for the current BranchBase checkout. It chooses collision-free dashboard and Portless ports, prints the dashboard URL, and keeps its state, trust decisions, managed-process records, logs, routes, and Codex hook capability separate from the production daemon under `~/.branchbase/development/`. An installed or source-run daemon may remain running while BranchBase is developed.
 
-Only one development server may own a checkout's session at a time. Different
-BranchBase checkouts receive different sessions and can run concurrently.
-Before development starts an app group, it checks the production BranchBase
-state and refuses to run the repository Start command if production still has a
-verified process or listener for the same worktree. This guard is read-only and
-only affects BranchBase development.
+Only one development server may own a checkout's session at a time. Different BranchBase checkouts receive different sessions and can run concurrently. Before development starts an app group, it checks the production BranchBase state and refuses to run the repository Start command if production still has a verified process or listener for the same worktree. This guard is read-only and only affects BranchBase development.
 
-Stopping the foreground development server releases its ownership lease and
-stops only its own Portless proxy. Codex task discovery remains available, but
-the isolated development hook capability does not replace a running production
-daemon's capability.
+Stopping the foreground development server releases its ownership lease and stops only its own Portless proxy. Codex task discovery remains available, but the isolated development hook capability does not replace a running production daemon's capability.
 
-`BRANCHBASE_PORT` and `BRANCHBASE_PORTLESS_PORT` may be used when a fixed
-development port is required. They are not needed for normal development.
+`BRANCHBASE_PORT` and `BRANCHBASE_PORTLESS_PORT` may be used when a fixed development port is required. They are not needed for normal development.
 
-Git, configuration, port inspection, process ownership, and command rules stay
-behind `WorkspaceController` and its internal modules.
+Git, configuration, port inspection, process ownership, and command rules stay behind `WorkspaceController` and its internal modules.
 
 ## License
 

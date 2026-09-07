@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
+
 import type { DetectedService } from "../controller/discovery-contract";
 import {
   inspectProcessSamples,

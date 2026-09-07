@@ -1,7 +1,6 @@
 # BranchBase origin specification (historical)
 
-Status: Historical source material; see the current `README.md`, `CONTEXT.md`,
-and architectural decisions under `docs/adr/` for the active product model.
+Status: Historical source material; see the current `README.md`, `CONTEXT.md`, and architectural decisions under `docs/adr/` for the active product model.
 
 Product name: **BranchBase**
 
@@ -19,11 +18,7 @@ The primary source audit is [Alaro `devenv_control` source audit](./alaro-devenv
 
 ## Naming
 
-The finalized product name is **BranchBase**. A grove is a place containing a
-manageable collection of trees; the `work` prefix makes the Git worktree model
-explicit and gives the app a distinct command, package, storage, and search
-identity. The implementation lives in `apps/branchbase` as
-`@chatjs/branchbase`.
+The finalized product name is **BranchBase**. A grove is a place containing a manageable collection of trees; the `work` prefix makes the Git worktree model explicit and gives the app a distinct command, package, storage, and search identity. The implementation lives in `apps/branchbase` as `@chatjs/branchbase`.
 
 ## Goals
 
@@ -123,7 +118,7 @@ An app entry can participate in environment resolution, health aggregation, brow
 Aggregate health:
 
 | State | Rule | Primary Apps click |
-|---|---|---|
+| --- | --- | --- |
 | Not running | No required probed endpoints are owned/listening | Start |
 | Partially running | At least one but not all required probed endpoints are owned/listening | Stop |
 | Running | All required probed endpoints are owned/listening | Stop |
@@ -164,7 +159,7 @@ Extend the schema backward-compatibly. The resolver may ignore control-only meta
   "slot": {
     "env": "CHATJS_DEV_SLOT",
     "default": 0,
-    "file": ".env.worktree.local"
+    "file": ".env.worktree.local",
   },
   "range": { "base": 3000, "stride": 10 },
   "url": "http://localhost:{port}",
@@ -172,23 +167,23 @@ Extend the schema backward-compatibly. The resolver may ignore control-only meta
     "chat": {
       "offset": 0,
       "exports": { "APP_URL": "{url}", "PORT": "{port}" },
-      "control": { "probe": "tcp", "required": true, "open": true }
+      "control": { "probe": "tcp", "required": true, "open": true },
     },
     "electron": {
       "offset": 1,
       "exports": { "ELECTRON_APP_URL": "{apps.chat.url}" },
-      "control": { "probe": "none", "required": false, "open": false }
+      "control": { "probe": "none", "required": false, "open": false },
     },
     "site": {
       "offset": 2,
       "exports": { "PORT": "{port}" },
-      "control": { "probe": "tcp", "required": true, "open": true }
-    }
+      "control": { "probe": "tcp", "required": true, "open": true },
+    },
   },
   "control": {
     "start": { "argv": ["bun", "run", "dev:all"] },
-    "postCreate": { "argv": ["bun", "install"] }
-  }
+    "postCreate": { "argv": ["bun", "install"] },
+  },
 }
 ```
 
@@ -282,9 +277,7 @@ The Actions menu contains only capabilities that are currently valid:
 - Delete worktree for non-main worktrees;
 - future configured actions.
 
-Start/Stop never appears in this menu.
-The table and details panel render the same shared worktree actions menu, with
-one capability model and the same ordered item set in both locations.
+Start/Stop never appears in this menu. The table and details panel render the same shared worktree actions menu, with one capability model and the same ordered item set in both locations.
 
 ### Details panel
 

@@ -83,7 +83,7 @@ export function AppGroupInstanceControl({
                   className={
                     instance.running
                       ? "size-1.5 rounded-full bg-emerald-500"
-                      : "size-1.5 rounded-full bg-muted-foreground/50"
+                      : "bg-muted-foreground/50 size-1.5 rounded-full"
                   }
                 />
                 {instance.name}

@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { loadBranchBaseConfig } from "../config/branchbase-config";
 import { repositoryCommandFingerprint } from "../config/repository-trust";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
