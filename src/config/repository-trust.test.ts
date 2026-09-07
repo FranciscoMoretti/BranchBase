@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BranchBaseConfigSchema } from "./branchbase-schema";
@@ -60,9 +68,37 @@ describe("repository trust fingerprint", () => {
         "trust store is invalid"
       );
       expect(readFileSync(file, "utf8")).toBe(contents);
+      expect(existsSync(`${file}.write-lock`)).toBe(false);
       expect(
         repositoryIsTrusted("/code/valid", config("per-worktree"), directory)
       ).toBe(false);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("preserves approvals while another writer holds the filesystem lock", () => {
+    const directory = mkdtempSync(join(tmpdir(), "branchbase-trust-"));
+    const file = join(directory, "trusted-repositories.json");
+    const lockDirectory = `${file}.write-lock`;
+    const repoPath = "/code/existing";
+    const primary = config("per-worktree");
+    try {
+      trustRepository(repoPath, primary, directory);
+      const before = readFileSync(file, "utf8");
+      mkdirSync(lockDirectory);
+      expect(() => trustRepository("/code/new", primary, directory)).toThrow(
+        "retry the approval change"
+      );
+      expect(() => revokeRepositoryTrust(repoPath, directory)).toThrow(
+        lockDirectory
+      );
+      expect(readFileSync(file, "utf8")).toBe(before);
+      expect(existsSync(lockDirectory)).toBe(true);
+      rmdirSync(lockDirectory);
+      revokeRepositoryTrust(repoPath, directory);
+      expect(repositoryIsTrusted(repoPath, primary, directory)).toBe(false);
+      expect(existsSync(lockDirectory)).toBe(false);
     } finally {
       rmSync(directory, { force: true, recursive: true });
     }

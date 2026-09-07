@@ -1,10 +1,10 @@
-import { Database } from "bun:sqlite";
 import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
+  rmdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -33,29 +33,22 @@ function withTrustStoreLock<T>(
 ): T {
   const file = trustFile(controlDirectory);
   mkdirSync(controlDirectory, { recursive: true });
-  const database = new Database(`${file}.lock`, {
-    create: true,
-    strict: true,
-  });
+  const lockDirectory = `${file}.write-lock`;
   try {
-    try {
-      database.run("BEGIN IMMEDIATE");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "SQLITE_BUSY") {
-        throw new Error(
-          "Repository trust store is busy; retry the approval change.",
-          { cause: error }
-        );
-      }
-      throw error;
+    mkdirSync(lockDirectory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(
+        `Repository trust store is busy; retry the approval change. If a writer was interrupted, stop BranchBase processes before removing ${lockDirectory}.`,
+        { cause: error }
+      );
     }
-    try {
-      return action(file);
-    } finally {
-      database.run("ROLLBACK");
-    }
+    throw error;
+  }
+  try {
+    return action(file);
   } finally {
-    database.close(true);
+    rmdirSync(lockDirectory);
   }
 }
 
