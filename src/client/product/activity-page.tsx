@@ -20,6 +20,16 @@ function activityStatus(severity: string): string {
   return severity === "success" ? "running" : "stopped";
 }
 
+export const activityPeriodStart = (
+  period: string,
+  selectedAt: number,
+  refreshedAt: number
+): number =>
+  period === "all"
+    ? 0
+    : Math.max(selectedAt, refreshedAt) -
+      (period === "day" ? 1 : 7) * 86_400_000;
+
 export function ActivityPage({
   repoPath,
   groupId,
@@ -35,7 +45,6 @@ export function ActivityPage({
   const [period, setPeriod] = useState("all");
   const [worktree, setWorktree] = useState("all");
   const [initialNow, setInitialNow] = useState(() => Date.now());
-  const now = activity.dataUpdatedAt ?? initialNow;
   const worktrees = [
     ...new Map(
       (activity.data ?? [])
@@ -46,8 +55,7 @@ export function ActivityPage({
         ])
     ).entries(),
   ];
-  const since =
-    period === "all" ? 0 : now - (period === "day" ? 1 : 7) * 86_400_000;
+  const since = activityPeriodStart(period, initialNow, activity.dataUpdatedAt);
   const [kind, setKind] = useState("all");
   const events = (activity.data ?? []).filter(
     (event) =>
