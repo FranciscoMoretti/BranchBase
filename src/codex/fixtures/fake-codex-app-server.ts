@@ -20,9 +20,9 @@ const recoveryMarker = process.env.BRANCHBASE_FAKE_CODEX_RECOVERY_MARKER;
 let listRequestCount = 0;
 let ready = false;
 
-function send(value: unknown): void {
+const send = (value: unknown): void => {
   process.stdout.write(`${JSON.stringify(value)}\n`);
-}
+};
 
 const scenarios: Record<string, ScenarioHandler> = {
   changing(message, requestNumber) {
@@ -231,7 +231,7 @@ const scenarios: Record<string, ScenarioHandler> = {
   },
 };
 
-function handleInitialize(message: RequestMessage): void {
+const handleInitialize = (message: RequestMessage): void => {
   const capabilities = message.params?.capabilities as
     | Record<string, unknown>
     | undefined;
@@ -255,9 +255,9 @@ function handleInitialize(message: RequestMessage): void {
     return;
   }
   send({ id: message.id, result: {} });
-}
+};
 
-function handleMessage(message: RequestMessage): void {
+const handleMessage = (message: RequestMessage): void => {
   if (message.method === "initialize") {
     handleInitialize(message);
     return;
@@ -275,7 +275,7 @@ function handleMessage(message: RequestMessage): void {
   }
   listRequestCount += 1;
   scenarios[scenario]?.(message, listRequestCount);
-}
+};
 
 input.on("line", (line) => {
   handleMessage(JSON.parse(line) as RequestMessage);

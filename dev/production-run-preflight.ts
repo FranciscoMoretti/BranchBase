@@ -3,10 +3,10 @@ import pathModule from "node:path";
 
 import { findVerifiedWorktreeRun } from "../src/controller/recorded-worktree-run-inspection";
 
-export function assertProductionWorktreeAvailable(
+export const assertProductionWorktreeAvailable = (
   worktreePath: string,
   options: { productionControlDirectory?: string } = {}
-): void {
+): void => {
   const productionControlDirectory =
     options.productionControlDirectory ??
     pathModule.join(homedir(), ".branchbase");
@@ -27,4 +27,4 @@ export function assertProductionWorktreeAvailable(
   throw new Error(
     `Production BranchBase already has ${run.groupId} running in ${run.worktreePath} on port ${run.port} (PID ${run.pid})`
   );
-}
+};

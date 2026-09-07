@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-export function inspectHttpStatus(url: string): number | null {
+export const inspectHttpStatus = (url: string): number | null => {
   const result = spawnSync(
     "curl",
     [
@@ -17,4 +17,4 @@ export function inspectHttpStatus(url: string): number | null {
   );
   const status = Number(result.stdout);
   return result.status === 0 && Number.isInteger(status) ? status : null;
-}
+};

@@ -24,19 +24,19 @@ import type { AppGroupTarget } from "./app-group-runtime";
 import { WorkspaceController } from "./workspace-controller";
 
 const directories: string[] = [];
-function store() {
+const store = () => {
   const directory = realpathSync(
     mkdtempSync(pathModule.join(tmpdir(), "branchbase-product-"))
   );
   directories.push(directory);
   return { directory };
-}
+};
 afterEach(() => {
   for (const directory of directories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
 });
-function observedFixture() {
+const observedFixture = () => {
   const fixture = store();
   const repoPath = pathModule.join(fixture.directory, "repo");
   mkdirSync(repoPath);
@@ -87,7 +87,7 @@ function observedFixture() {
     repoPath,
     snapshot: controller.inspect(repoPath),
   };
-}
+};
 
 test("trust revocation preserves retained runtime ownership", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();

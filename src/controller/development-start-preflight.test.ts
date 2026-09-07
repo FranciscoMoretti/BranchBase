@@ -42,12 +42,12 @@ class InMemoryRoutingEngine implements LocalRoutingEngine {
   }
 }
 
-function git(cwd: string, ...args: string[]): void {
+const git = (cwd: string, ...args: string[]): void => {
   const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout);
   }
-}
+};
 
 it("runs the development Start preflight before local state or repository code", async () => {
   const temporary = mkdtempSync(

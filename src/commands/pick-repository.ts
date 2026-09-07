@@ -4,6 +4,6 @@ export interface PickRepositoryResult {
   path: string | null;
 }
 
-export function pickRepository(): PickRepositoryResult {
-  return { path: currentHost().pickRepository() };
-}
+export const pickRepository = (): PickRepositoryResult => ({
+  path: currentHost().pickRepository(),
+});

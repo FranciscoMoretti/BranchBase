@@ -7,10 +7,10 @@ export const BranchBaseCommandSchema = z.strictObject({
 
 export type BranchBaseCommand = z.infer<typeof BranchBaseCommandSchema>;
 
-export function defaultBranchBaseSetupCommand(): BranchBaseCommand {
-  return { argv: ["bun", "install"] };
-}
+export const defaultBranchBaseSetupCommand = (): BranchBaseCommand => ({
+  argv: ["bun", "install"],
+});
 
-export function defaultBranchBaseStartCommand(): BranchBaseCommand {
-  return { argv: ["bun", "run", "dev"] };
-}
+export const defaultBranchBaseStartCommand = (): BranchBaseCommand => ({
+  argv: ["bun", "run", "dev"],
+});

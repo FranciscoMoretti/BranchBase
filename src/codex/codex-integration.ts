@@ -104,21 +104,20 @@ export class UnavailableCodexIntegrationAdapter implements CodexIntegrationAdapt
   }
 }
 
-export function orderCodexTasks(
+export const orderCodexTasks = (
   tasks: readonly CodexTaskSnapshot[]
-): CodexTaskSnapshot[] {
-  return tasks
+): CodexTaskSnapshot[] =>
+  tasks
     .map((task) => CodexTaskSnapshotSchema.parse(task))
     .toSorted((left, right) => {
       const recency = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
       return recency === 0 ? left.id.localeCompare(right.id) : recency;
     });
-}
 
-export function projectCodexIntegration(
+export const projectCodexIntegration = (
   worktrees: readonly CodexWorktreeReference[],
   adapterSnapshot: CodexIntegrationAdapterSnapshot
-): CodexIntegrationSnapshot {
+): CodexIntegrationSnapshot => {
   const tasksByPath = new Map<string, CodexTaskSnapshot[]>();
   for (const { task, worktreePath } of adapterSnapshot.tasks) {
     const tasks = tasksByPath.get(worktreePath) ?? [];
@@ -135,4 +134,4 @@ export function projectCodexIntegration(
       ])
     ),
   };
-}
+};

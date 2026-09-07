@@ -21,21 +21,21 @@ interface TemplateValue {
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: token availability is most legible as one protocol-aware matrix.
-function templateValues(
+const templateValues = (
   appGroups: Record<
     string,
     BranchBaseAppGroup | BranchBaseTemplateContext["appGroups"][string]
   >,
   currentGroup: string
-): Map<string, TemplateValue> {
+): Map<string, TemplateValue> => {
   const values = new Map<string, TemplateValue>();
-  function add(token: string, value: string | null): void {
+  const add = (token: string, value: string | null): void => {
     const existing = values.get(token);
     values.set(token, {
       ambiguous: existing !== undefined,
       value: existing?.value ?? value,
     });
-  }
+  };
   for (const [groupId, group] of Object.entries(appGroups)) {
     for (const [appId, app] of Object.entries(group.apps)) {
       const resolved = app.port !== undefined;
@@ -66,13 +66,13 @@ function templateValues(
     }
   }
   return values;
-}
+};
 
-function replaceKnownTokens(
+const replaceKnownTokens = (
   template: string,
   values: Map<string, TemplateValue>,
   render: boolean
-): { error: string | null; value: string } {
+): { error: string | null; value: string } => {
   let value = template;
   const tokens = [...values.keys()].toSorted(
     (left, right) => right.length - left.length
@@ -101,24 +101,20 @@ function replaceKnownTokens(
     };
   }
   return { error: null, value };
-}
+};
 
-export function branchbaseTemplateError(
+export const branchbaseTemplateError = (
   template: string,
   appGroups: Record<string, BranchBaseAppGroup>,
   currentGroup: string
-): string | null {
-  return replaceKnownTokens(
-    template,
-    templateValues(appGroups, currentGroup),
-    false
-  ).error;
-}
+): string | null =>
+  replaceKnownTokens(template, templateValues(appGroups, currentGroup), false)
+    .error;
 
-export function renderBranchBaseTemplate(
+export const renderBranchBaseTemplate = (
   template: string,
   context: BranchBaseTemplateContext
-): string {
+): string => {
   const rendered = replaceKnownTokens(
     template,
     templateValues(context.appGroups, context.currentGroup),
@@ -128,29 +124,24 @@ export function renderBranchBaseTemplate(
     throw new Error(rendered.error);
   }
   return rendered.value;
-}
+};
 
-export function renameBranchBaseAppTemplateReferences(
+export const renameBranchBaseAppTemplateReferences = (
   template: string,
   groupId: string,
   previousId: string,
   nextId: string
-): string {
-  return template
+): string =>
+  template
     .replaceAll(`{apps.${previousId}.`, `{apps.${nextId}.`)
     .replaceAll(
       `{appGroups.${groupId}.apps.${previousId}.`,
       `{appGroups.${groupId}.apps.${nextId}.`
     );
-}
 
-export function renameBranchBaseAppGroupTemplateReferences(
+export const renameBranchBaseAppGroupTemplateReferences = (
   template: string,
   previousId: string,
   nextId: string
-): string {
-  return template.replaceAll(
-    `{appGroups.${previousId}.`,
-    `{appGroups.${nextId}.`
-  );
-}
+): string =>
+  template.replaceAll(`{appGroups.${previousId}.`, `{appGroups.${nextId}.`);

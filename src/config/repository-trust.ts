@@ -16,26 +16,22 @@ import { z } from "zod";
 import type { BranchBaseCommand } from "./branchbase-command";
 import type { BranchBaseConfig } from "./branchbase-config";
 
-function defaultControlDirectory(): string {
-  return (
-    process.env.BRANCHBASE_CONTROL_DIR ??
-    pathModule.join(homedir(), ".branchbase")
-  );
-}
+const defaultControlDirectory = (): string =>
+  process.env.BRANCHBASE_CONTROL_DIR ??
+  pathModule.join(homedir(), ".branchbase");
 
-function trustFile(controlDirectory = defaultControlDirectory()): string {
-  return pathModule.join(controlDirectory, "trusted-repositories.json");
-}
+const trustFile = (controlDirectory = defaultControlDirectory()): string =>
+  pathModule.join(controlDirectory, "trusted-repositories.json");
 
 const TrustStoreSchema = z.record(
   z.string(),
   z.union([z.boolean(), z.string(), z.array(z.string())])
 );
 
-function withTrustStoreLock<T>(
+const withTrustStoreLock = <T>(
   controlDirectory: string,
   action: (file: string) => T
-): T {
+): T => {
   const file = trustFile(controlDirectory);
   mkdirSync(controlDirectory, { recursive: true });
   const lockDirectory = `${file}.write-lock`;
@@ -55,12 +51,12 @@ function withTrustStoreLock<T>(
   } finally {
     rmdirSync(lockDirectory);
   }
-}
+};
 
-function writeTrustStore(
+const writeTrustStore = (
   file: string,
   store: Record<string, boolean | string | string[]>
-): void {
+): void => {
   const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
   try {
     writeFileSync(temporary, `${JSON.stringify(store, null, 2)}\n`, {
@@ -71,12 +67,12 @@ function writeTrustStore(
   } finally {
     rmSync(temporary, { force: true });
   }
-}
+};
 
-function trustStore(
+const trustStore = (
   controlDirectory?: string,
   failOnInvalid = false
-): Record<string, boolean | string | string[]> {
+): Record<string, boolean | string | string[]> => {
   const file = trustFile(controlDirectory);
   if (!existsSync(file)) {
     return {};
@@ -92,17 +88,19 @@ function trustStore(
     }
     return {};
   }
-}
+};
 
-export function repositoryRequiresTrust(_config: BranchBaseConfig): boolean {
-  return true;
-}
+export const repositoryRequiresTrust = (_config: BranchBaseConfig): boolean =>
+  true;
 
-function fingerprintCommand(command: BranchBaseCommand) {
-  return { argv: command.argv, ...(command.cwd ? { cwd: command.cwd } : {}) };
-}
+const fingerprintCommand = (command: BranchBaseCommand) => ({
+  argv: command.argv,
+  ...(command.cwd ? { cwd: command.cwd } : {}),
+});
 
-export function repositoryCommandFingerprint(config: BranchBaseConfig): string {
+export const repositoryCommandFingerprint = (
+  config: BranchBaseConfig
+): string => {
   const commands = {
     appGroups: Object.fromEntries(
       Object.entries(config.appGroups).map(([name, group]) => [
@@ -124,13 +122,25 @@ export function repositoryCommandFingerprint(config: BranchBaseConfig): string {
   return createHash("sha256")
     .update(JSON.stringify(commands))
     .digest("base64url");
-}
+};
 
-export function repositoryIsTrusted(
+export const repositoryFingerprintIsTrusted = (
+  repoPath: string,
+  fingerprint: string,
+  controlDirectory?: string,
+  knownValue?: boolean | string | string[]
+): boolean => {
+  const trusted = knownValue ?? trustStore(controlDirectory)[repoPath];
+  return Array.isArray(trusted)
+    ? trusted.includes(fingerprint)
+    : trusted === fingerprint;
+};
+
+export const repositoryIsTrusted = (
   repoPath: string,
   config: BranchBaseConfig,
   controlDirectory?: string
-): boolean {
+): boolean => {
   if (!repositoryRequiresTrust(config)) {
     return true;
   }
@@ -142,25 +152,13 @@ export function repositoryIsTrusted(
     controlDirectory,
     trusted
   );
-}
+};
 
-export function repositoryFingerprintIsTrusted(
-  repoPath: string,
-  fingerprint: string,
-  controlDirectory?: string,
-  knownValue?: boolean | string | string[]
-): boolean {
-  const trusted = knownValue ?? trustStore(controlDirectory)[repoPath];
-  return Array.isArray(trusted)
-    ? trusted.includes(fingerprint)
-    : trusted === fingerprint;
-}
-
-export function trustRepository(
+export const trustRepository = (
   repoPath: string,
   config: BranchBaseConfig,
   controlDirectory?: string
-): void {
+): void => {
   const directory = controlDirectory ?? defaultControlDirectory();
   const fingerprint = repositoryCommandFingerprint(config);
   withTrustStoreLock(directory, (file) => {
@@ -177,16 +175,16 @@ export function trustRepository(
       [repoPath]: [...new Set([...fingerprints, fingerprint])],
     });
   });
-}
+};
 
-export function revokeRepositoryTrust(
+export const revokeRepositoryTrust = (
   repoPath: string,
   controlDirectory?: string
-): void {
+): void => {
   const directory = controlDirectory ?? defaultControlDirectory();
   withTrustStoreLock(directory, (file) => {
     const store = trustStore(directory, true);
     delete store[repoPath];
     writeTrustStore(file, store);
   });
-}
+};

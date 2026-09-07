@@ -41,12 +41,12 @@ interface OpenDevelopmentSessionOptions {
   homeDirectory?: string;
 }
 
-function configuredPort(
+const configuredPort = (
   value: string | undefined,
   fallback: number,
   label: string,
   allowZero = false
-): number {
+): number => {
   if (value === undefined) {
     return fallback;
   }
@@ -56,16 +56,14 @@ function configuredPort(
     throw new Error(`${label} must be an integer between ${minimum} and 65535`);
   }
   return port;
-}
+};
 
-function developmentProfileId(appRoot: string): string {
-  return createHash("sha256")
-    .update(realpathSync(appRoot))
-    .digest("hex")
-    .slice(0, 16);
-}
+const developmentProfileId = (appRoot: string): string =>
+  createHash("sha256").update(realpathSync(appRoot)).digest("hex").slice(0, 16);
 
-function acquireDevelopmentOwnership(controlDirectory: string): () => void {
+const acquireDevelopmentOwnership = (
+  controlDirectory: string
+): (() => void) => {
   mkdirSync(controlDirectory, { mode: 0o700, recursive: true });
   try {
     return acquireExclusiveFileLock(
@@ -80,12 +78,12 @@ function acquireDevelopmentOwnership(controlDirectory: string): () => void {
     }
     throw error;
   }
-}
+};
 
-async function prepareDevelopmentRouting(
+const prepareDevelopmentRouting = async (
   stateDirectory: string,
   port: number
-): Promise<DevelopmentRouting> {
+): Promise<DevelopmentRouting> => {
   const routing = await DevelopmentRouting.open({ port, stateDirectory });
   try {
     mkdirSync(stateDirectory, { mode: 0o700, recursive: true });
@@ -98,9 +96,11 @@ async function prepareDevelopmentRouting(
     await routing.close();
     throw error;
   }
-}
+};
 
-function rememberedDevelopmentProxyPort(stateDirectory: string): number | null {
+const rememberedDevelopmentProxyPort = (
+  stateDirectory: string
+): number | null => {
   try {
     const port = Number(
       readFileSync(
@@ -112,12 +112,12 @@ function rememberedDevelopmentProxyPort(stateDirectory: string): number | null {
   } catch {
     return null;
   }
-}
+};
 
-async function openDevelopmentRouting(
+const openDevelopmentRouting = async (
   stateDirectory: string,
   configuredPortValue: string | undefined
-): Promise<DevelopmentRouting> {
+): Promise<DevelopmentRouting> => {
   const rememberedPort = rememberedDevelopmentProxyPort(stateDirectory);
   if (configuredPortValue !== undefined) {
     const requestedPort = configuredPort(
@@ -155,11 +155,11 @@ async function openDevelopmentRouting(
     lastConflict ??
     new Error("Could not allocate a Portless port for BranchBase development")
   );
-}
+};
 
-export async function openDevelopmentSession(
+export const openDevelopmentSession = async (
   options: OpenDevelopmentSessionOptions
-): Promise<DevelopmentSession> {
+): Promise<DevelopmentSession> => {
   const environment = options.environment ?? process.env;
   const homeDirectory = options.homeDirectory ?? homedir();
   const controlDirectory = pathModule.join(
@@ -239,4 +239,4 @@ export async function openDevelopmentSession(
     }
     throw error;
   }
-}
+};

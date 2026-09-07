@@ -117,22 +117,18 @@ export type BranchBaseCommandInput<Name extends BranchBaseCommandName> =
 export type BranchBaseCommandResult<Name extends BranchBaseCommandName> =
   z.infer<(typeof RESULT_SCHEMAS)[Name]>;
 
-export function isBranchBaseCommandName(
+export const isBranchBaseCommandName = (
   value: string
-): value is BranchBaseCommandName {
-  return value in INPUT_SCHEMAS;
-}
+): value is BranchBaseCommandName => value in INPUT_SCHEMAS;
 
-export function parseCommandInput<Name extends BranchBaseCommandName>(
+export const parseCommandInput = <Name extends BranchBaseCommandName>(
   name: Name,
   input: unknown
-): BranchBaseCommandInput<Name> {
-  return INPUT_SCHEMAS[name].parse(input) as BranchBaseCommandInput<Name>;
-}
+): BranchBaseCommandInput<Name> =>
+  INPUT_SCHEMAS[name].parse(input) as BranchBaseCommandInput<Name>;
 
-export function parseCommandResult<Name extends BranchBaseCommandName>(
+export const parseCommandResult = <Name extends BranchBaseCommandName>(
   name: Name,
   result: unknown
-): BranchBaseCommandResult<Name> {
-  return RESULT_SCHEMAS[name].parse(result) as BranchBaseCommandResult<Name>;
-}
+): BranchBaseCommandResult<Name> =>
+  RESULT_SCHEMAS[name].parse(result) as BranchBaseCommandResult<Name>;

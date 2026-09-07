@@ -25,12 +25,12 @@ import {
 } from "../src/runtime/readiness";
 import { assertProductionWorktreeAvailable } from "./production-run-preflight";
 
-function recordProductionRun(
+const recordProductionRun = (
   productionControlDirectory: string,
   worktreePath: string,
   port: number,
   options: { listenerClaimed?: boolean } = {}
-): { instanceId: string } {
+): { instanceId: string } => {
   const state = new FileBranchBaseStateStore(
     pathModule.join(productionControlDirectory, "state.json")
   );
@@ -76,15 +76,15 @@ function recordProductionRun(
     }
   );
   return { instanceId: instance.id };
-}
+};
 
-async function stopChild(child: ChildProcess): Promise<void> {
+const stopChild = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
   child.kill("SIGKILL");
   await once(child, "exit");
-}
+};
 
 it("rejects a worktree with a verified production run", async () => {
   const temporary = mkdtempSync(

@@ -5,10 +5,10 @@ import { requiredString } from "./command";
 import { findAppGroup, startApps } from "./start-apps";
 import { stopAppsAndWait } from "./stop-apps-and-wait";
 
-export async function restartApps(
+export const restartApps = async (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): Promise<CommandReceipt> {
+): Promise<CommandReceipt> => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const worktreeId = requiredString(input.worktreeId, "Worktree");
   const appGroupName = requiredString(input.appGroupName, "App group");
@@ -36,4 +36,4 @@ export async function restartApps(
     command: "restart-apps",
     message: `Restarted ${appGroupName}`,
   };
-}
+};

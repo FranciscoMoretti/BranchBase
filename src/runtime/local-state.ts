@@ -98,11 +98,9 @@ type WorktreeRecord = z.infer<typeof WorktreeRecordSchema>;
 type RepositoryRecord = z.infer<typeof RepositoryRecordSchema>;
 export type BranchBaseLocalState = z.infer<typeof BranchBaseLocalStateSchema>;
 
-export function parseCurrentBranchBaseLocalState(
+export const parseCurrentBranchBaseLocalState = (
   value: unknown
-): BranchBaseLocalState {
-  return BranchBaseLocalStateSchema.parse(value);
-}
+): BranchBaseLocalState => BranchBaseLocalStateSchema.parse(value);
 
 export interface InstanceRequest {
   configFingerprint: string;
@@ -162,11 +160,12 @@ const PersistedBranchBaseLocalStateSchema = z.discriminatedUnion("version", [
 
 const DEFAULT_INSTANCE_NAME = "Default";
 
-function emptyState(): BranchBaseLocalState {
-  return { repositories: {}, version: 2 };
-}
+const emptyState = (): BranchBaseLocalState => ({
+  repositories: {},
+  version: 2,
+});
 
-function routeLabel(value: string): string {
+const routeLabel = (value: string): string => {
   const normalized = value
     .normalize("NFKD")
     .replaceAll(/[\u0300-\u036F]/g, "")
@@ -176,38 +175,33 @@ function routeLabel(value: string): string {
     .slice(0, 48)
     .replaceAll(/-+$/g, "");
   return normalized || "app";
-}
+};
 
-function uniqueLabel(base: string, used: Set<string>, id: string): string {
+const uniqueLabel = (base: string, used: Set<string>, id: string): string => {
   const candidate = routeLabel(base);
   if (!used.has(candidate)) {
     return candidate;
   }
   return `${candidate}-${id.replaceAll("-", "").slice(0, 6)}`;
-}
+};
 
-function endpointKey(groupId: string, appId: string): string {
-  return `${groupId}\0${appId}`;
-}
+const endpointKey = (groupId: string, appId: string): string =>
+  `${groupId}\0${appId}`;
 
-function instanceSelectionKey(
+const instanceSelectionKey = (
   groupId: string,
   configFingerprint: string
-): string {
-  return `${groupId}\0${configFingerprint}`;
-}
+): string => `${groupId}\0${configFingerprint}`;
 
-function namesEqual(left: string, right: string): boolean {
-  return left.localeCompare(right, undefined, { sensitivity: "base" }) === 0;
-}
+const namesEqual = (left: string, right: string): boolean =>
+  left.localeCompare(right, undefined, { sensitivity: "base" }) === 0;
 
-function cloneInstance(instance: AppGroupInstance): AppGroupInstance {
-  return structuredClone(instance);
-}
+const cloneInstance = (instance: AppGroupInstance): AppGroupInstance =>
+  structuredClone(instance);
 
-function migrateLegacyState(
+const migrateLegacyState = (
   legacy: LegacyBranchBaseLocalState
-): BranchBaseLocalState {
+): BranchBaseLocalState => {
   const repositories: Record<string, RepositoryRecord> = {};
   for (const [repoPath, repository] of Object.entries(legacy.repositories)) {
     const migrated: RepositoryRecord = {
@@ -269,7 +263,7 @@ function migrateLegacyState(
     repositories[repoPath] = migrated;
   }
   return { repositories, version: 2 };
-}
+};
 
 export class FileBranchBaseStateStore {
   readonly path: string;

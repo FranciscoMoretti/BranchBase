@@ -27,23 +27,20 @@ interface Capability {
   version: 1;
 }
 
-function boundedString(value: unknown, maximum: number): string | undefined {
-  return typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= maximum
+const boundedString = (value: unknown, maximum: number): string | undefined =>
+  typeof value === "string" && value.length > 0 && value.length <= maximum
     ? value
     : undefined;
-}
 
-function processStartMarker(pid: number): string {
+const processStartMarker = (pid: number): string => {
   const result = spawnSync("ps", ["-p", String(pid), "-o", "lstart="], {
     encoding: "utf-8",
     timeout: 250,
   });
   return result.status === 0 ? result.stdout.trim() : "";
-}
+};
 
-function readCapability(path: string): Capability {
+const readCapability = (path: string): Capability => {
   const stat = lstatSync(path);
   const uid = process.getuid?.();
   if (
@@ -88,9 +85,9 @@ function readCapability(path: string): Capability {
     token,
     version: 1,
   };
-}
+};
 
-async function readStdin(): Promise<unknown> {
+const readStdin = async (): Promise<unknown> => {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of process.stdin) {
@@ -102,9 +99,9 @@ async function readStdin(): Promise<unknown> {
     chunks.push(value);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}");
-}
+};
 
-async function readBoundedResponse(response: Response): Promise<string> {
+const readBoundedResponse = async (response: Response): Promise<string> => {
   if (!response.body) {
     return "";
   }
@@ -124,9 +121,9 @@ async function readBoundedResponse(response: Response): Promise<string> {
     }
     chunks.push(chunk);
   }
-}
+};
 
-function normalize(event: string, raw: unknown): Record<string, unknown> {
+const normalize = (event: string, raw: unknown): Record<string, unknown> => {
   if (!(raw && typeof raw === "object" && !Array.isArray(raw))) {
     throw new Error("Invalid hook input");
   }
@@ -164,9 +161,9 @@ function normalize(event: string, raw: unknown): Record<string, unknown> {
     payload.source = source;
   }
   return payload;
-}
+};
 
-async function main(): Promise<unknown> {
+const main = async (): Promise<unknown> => {
   const event = process.argv[2] ?? "";
   const capabilityPath =
     process.env.BRANCHBASE_CODEX_CAPABILITY_PATH ??
@@ -204,7 +201,7 @@ async function main(): Promise<unknown> {
     };
   }
   return {};
-}
+};
 
 try {
   process.stdout.write(`${JSON.stringify(await main())}\n`);

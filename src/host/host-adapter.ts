@@ -43,8 +43,7 @@ class UnsupportedHostAdapter implements HostAdapter {
   }
 }
 
-export function currentHost(): HostAdapter {
-  return process.platform === "darwin"
+export const currentHost = (): HostAdapter =>
+  process.platform === "darwin"
     ? new MacOSHostAdapter()
     : new UnsupportedHostAdapter();
-}

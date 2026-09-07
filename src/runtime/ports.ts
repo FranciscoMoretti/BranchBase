@@ -9,42 +9,45 @@ interface PortSnapshot {
   pidsByPort: Map<number, Set<number>>;
 }
 
-function runLsof(args: string[]): string {
+const runLsof = (args: string[]): string => {
   const result = spawnSync("lsof", args, {
     encoding: "utf-8",
     maxBuffer: 8 * 1024 * 1024,
   });
   return result.status === 0 ? (result.stdout ?? "") : "";
-}
+};
 
-function canonical(path: string): string {
+const canonical = (path: string): string => {
   try {
     return realpathSync(path);
   } catch {
     return path;
   }
-}
+};
 
-export function pathInside(path: string, root: string): boolean {
+export const pathInside = (path: string, root: string): boolean => {
   const candidate = pathModule.relative(canonical(root), canonical(path));
   return (
     candidate === "" ||
     !(candidate.startsWith("..") || pathModule.isAbsolute(candidate))
   );
-}
+};
 
-function processCwd(pid: number): string | null {
+const processCwd = (pid: number): string | null => {
   const output = runLsof(["-a", "-p", String(pid), "-d", "cwd", "-Fn"]);
   const line = output.split(LINE_BREAK).find((value) => value.startsWith("n"));
   return line ? line.slice(1) : null;
-}
+};
 
-export function pidOwnedByWorktree(pid: number, worktreePath: string): boolean {
+export const pidOwnedByWorktree = (
+  pid: number,
+  worktreePath: string
+): boolean => {
   const cwd = processCwd(pid);
   return cwd !== null && pathInside(cwd, worktreePath);
-}
+};
 
-export function inspectListeningPorts(): PortSnapshot {
+export const inspectListeningPorts = (): PortSnapshot => {
   const output = runLsof(["-nP", "-sTCP:LISTEN", "-iTCP", "-Fpn"]);
   const pidsByPort = new Map<number, Set<number>>();
   let currentPid: number | null = null;
@@ -68,13 +71,13 @@ export function inspectListeningPorts(): PortSnapshot {
     pidsByPort.set(port, pids);
   }
   return { pidsByPort };
-}
+};
 
-export function portOwnership(
+export const portOwnership = (
   snapshot: PortSnapshot,
   port: number,
   worktreePath: string
-): "owned" | "foreign" | "none" {
+): "owned" | "foreign" | "none" => {
   const pids = snapshot.pidsByPort.get(port);
   if (!pids || pids.size === 0) {
     return "none";
@@ -86,22 +89,21 @@ export function portOwnership(
     }
   }
   return "foreign";
-}
+};
 
-export function listeningPortPids(
+export const listeningPortPids = (
   snapshot: PortSnapshot,
   port: number
-): number[] {
-  return [...(snapshot.pidsByPort.get(port) ?? [])].toSorted(
+): number[] =>
+  [...(snapshot.pidsByPort.get(port) ?? [])].toSorted(
     (left, right) => left - right
   );
-}
 
-export function ownedPortPids(
+export const ownedPortPids = (
   snapshot: PortSnapshot,
   ports: readonly number[],
   worktreePath: string
-): number[] {
+): number[] => {
   const owned = new Set<number>();
   for (const port of ports) {
     for (const pid of snapshot.pidsByPort.get(port) ?? []) {
@@ -112,4 +114,4 @@ export function ownedPortPids(
     }
   }
   return [...owned];
-}
+};

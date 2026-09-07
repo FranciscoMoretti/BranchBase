@@ -4,10 +4,10 @@ import { appGroupCanRestart } from "../controller/workspace-snapshot";
 import { requiredString, selectRequestedWorktrees } from "./command";
 import { restartApps } from "./restart-apps";
 
-export async function restartRunningApps(
+export const restartRunningApps = async (
   controller: WorkspaceController,
   input: Record<string, unknown>
-): Promise<CommandReceipt> {
+): Promise<CommandReceipt> => {
   const repoPath = requiredString(input.repoPath, "Repository path");
   const requestedGroup =
     typeof input.appGroupName === "string" ? input.appGroupName : null;
@@ -34,4 +34,4 @@ export async function restartRunningApps(
     message: `Restarted ${targets.length} App group${targets.length === 1 ? "" : "s"}`,
     ok: true,
   };
-}
+};

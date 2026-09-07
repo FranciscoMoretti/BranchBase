@@ -11,7 +11,7 @@ const WHITESPACE = /\s+/;
 const POSITIVE_PROBE_TTL = 30_000;
 export const NEGATIVE_PROBE_TTL_MS = 1000;
 export const PROBE_TIMEOUT_MS = 700;
-export function parseListeners(output: string) {
+export const parseListeners = (output: string) => {
   let pid = 0,
     command = "Process";
   const rows: {
@@ -48,8 +48,8 @@ export function parseListeners(output: string) {
   return [
     ...new Map(rows.map((row) => [`${row.pid}:${row.port}`, row])).values(),
   ];
-}
-export function parseCwds(output: string) {
+};
+export const parseCwds = (output: string) => {
   let pid = 0;
   const result = new Map<number, string>();
   for (const line of output.split(LINES)) {
@@ -61,15 +61,14 @@ export function parseCwds(output: string) {
     }
   }
   return result;
-}
-function run(program: string, args: string[]) {
-  return spawnSync(program, args, {
+};
+const run = (program: string, args: string[]) =>
+  spawnSync(program, args, {
     encoding: "utf-8",
     timeout: 3000,
     maxBuffer: 8 * 1024 * 1024,
   });
-}
-function startedTimes() {
+const startedTimes = () => {
   const result = new Map<number, string>();
   for (const line of run("ps", ["-axo", "pid=,lstart="])
     .stdout?.trim()
@@ -81,8 +80,8 @@ function startedTimes() {
     }
   }
   return result;
-}
-function descendants(samples: ProcessSample[] | null, roots: number[]) {
+};
+const descendants = (samples: ProcessSample[] | null, roots: number[]) => {
   const owned = new Set(roots);
   let changed = true;
   while (changed) {
@@ -95,11 +94,11 @@ function descendants(samples: ProcessSample[] | null, roots: number[]) {
     }
   }
   return owned;
-}
-function evictProbes(
+};
+const evictProbes = (
   probes: Map<string, { at: number; url: string | null }>,
   now: number
-) {
+) => {
   if (probes.size <= 1024) {
     return;
   }
@@ -115,7 +114,7 @@ function evictProbes(
     );
     probes.delete(oldest[0]);
   }
-}
+};
 /** Observation only. These PIDs are never authority to terminate a process. */
 export class DetectedServices {
   private cached: {

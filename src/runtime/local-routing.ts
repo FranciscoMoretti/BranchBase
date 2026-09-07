@@ -51,16 +51,14 @@ const DEFAULT_PROXY_PORT = 1355;
 const OBSERVATION_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_MS = 50;
 
-function packageFile(packageName: string, ...parts: string[]): string {
-  return pathModule.join(
+const packageFile = (packageName: string, ...parts: string[]): string =>
+  pathModule.join(
     pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
-}
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+const delay = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class PortlessRoutingEngine implements LocalRoutingEngine {
   private readonly cliPath: string;

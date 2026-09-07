@@ -9,10 +9,10 @@ if (!(Number.isInteger(port) && stateDirectory)) {
 const routing = await DevelopmentRouting.open({ port, stateDirectory });
 process.send?.({ type: "ready" });
 
-async function exit(): Promise<void> {
+const exit = async (): Promise<void> => {
   await routing.close();
   process.exit(0);
-}
+};
 
 process.once("disconnect", () => {
   exit().catch(() => process.exit(1));

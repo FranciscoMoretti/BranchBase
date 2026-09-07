@@ -65,11 +65,12 @@ const ACTIVITY_TTL_MS: Record<ActivityRecord["state"], number> = {
   working: 15 * 60 * 1000,
 };
 
-function activityKey(cwd: string, sessionId: string): string {
-  return `${cwd}\0${sessionId}`;
-}
+const activityKey = (cwd: string, sessionId: string): string =>
+  `${cwd}\0${sessionId}`;
 
-function observationKey(observation: CodexHookObservation): string | undefined {
+const observationKey = (
+  observation: CodexHookObservation
+): string | undefined => {
   if (!observation.turnId) {
     return undefined;
   }
@@ -78,12 +79,12 @@ function observationKey(observation: CodexHookObservation): string | undefined {
     observation.event,
     observation.agentId ?? "",
   ].join("\0");
-}
+};
 
-function nextState(
+const nextState = (
   event: CodexHookEvent,
   source?: CodexHookObservation["source"]
-): ActivityRecord["state"] | undefined {
+): ActivityRecord["state"] | undefined => {
   if (event === "UserPromptSubmit" || event === "PostToolUse") {
     return "working";
   }
@@ -97,7 +98,7 @@ function nextState(
     return "ready";
   }
   return undefined;
-}
+};
 
 export class CodexHookActivityStore {
   private readonly file: string | null;

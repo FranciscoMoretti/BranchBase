@@ -6,15 +6,14 @@ import { stopApps } from "./stop-apps";
 const STOP_ATTEMPTS = 50;
 const STOP_POLL_MS = 100;
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+const delay = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-export async function stopAppsAndWait(
+export const stopAppsAndWait = async (
   controller: WorkspaceController,
   input: { appGroupName: string; repoPath: string; worktreeId: string },
   timeoutMessage: string
-): Promise<void> {
+): Promise<void> => {
   await stopApps(controller, input);
   for (let attempt = 0; attempt < STOP_ATTEMPTS; attempt += 1) {
     const group = findAppGroup(
@@ -27,4 +26,4 @@ export async function stopAppsAndWait(
     await delay(STOP_POLL_MS);
   }
   throw new Error(timeoutMessage);
-}
+};

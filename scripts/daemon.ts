@@ -30,33 +30,32 @@ const selectedRepoPath = repositoryPathFromArgs(
 );
 const repoPath = selectedRepoPath ? pathModule.resolve(selectedRepoPath) : null;
 
-function appUrl(): string {
-  return repositoryUrl(
+const appUrl = (): string =>
+  repositoryUrl(
     `http://127.0.0.1:${process.env.BRANCHBASE_PORT ?? 3999}/`,
     repoPath
   );
-}
 
-function openApp(): void {
+const openApp = (): void => {
   if (process.env.BRANCHBASE_NO_OPEN === "1") {
     return;
   }
   currentHost().openUrl(appUrl());
-}
+};
 
 interface DaemonRecord {
   pid: number;
   startMarker: string;
 }
 
-function startMarker(pid: number): string {
+const startMarker = (pid: number): string => {
   const result = spawnSync("ps", ["-p", String(pid), "-o", "lstart="], {
     encoding: "utf-8",
   });
   return result.status === 0 ? result.stdout.trim() : "";
-}
+};
 
-function readPid(file = PID_FILE): number | null {
+const readPid = (file = PID_FILE): number | null => {
   if (!existsSync(file)) {
     return null;
   }
@@ -71,18 +70,18 @@ function readPid(file = PID_FILE): number | null {
   } catch {
     return null;
   }
-}
+};
 
-function alive(pid: number): boolean {
+const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);
     return true;
   } catch {
     return false;
   }
-}
+};
 
-async function waitForHealth(expectedPid: number): Promise<void> {
+const waitForHealth = async (expectedPid: number): Promise<void> => {
   const url = `http://127.0.0.1:${process.env.BRANCHBASE_PORT ?? 3999}/api/health`;
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
@@ -104,9 +103,9 @@ async function waitForHealth(expectedPid: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`BranchBase did not become healthy; inspect ${LOG_FILE}`);
-}
+};
 
-async function start(): Promise<void> {
+const start = async (): Promise<void> => {
   mkdirSync(CONTROL_DIR, { recursive: true });
   const existing = readPid();
   if (existing && alive(existing)) {
@@ -134,9 +133,9 @@ async function start(): Promise<void> {
   await waitForHealth(child.pid);
   openApp();
   console.log(`BranchBase started: ${appUrl()}`);
-}
+};
 
-function status(): void {
+const status = (): void => {
   const pid = readPid();
   if (pid && alive(pid)) {
     console.log(`BranchBase is running (pid ${pid})`);
@@ -144,9 +143,9 @@ function status(): void {
   }
   console.log("BranchBase is stopped");
   process.exitCode = 1;
-}
+};
 
-function stop(): void {
+const stop = (): void => {
   const pid = readPid();
   if (!(pid && alive(pid))) {
     rmSync(PID_FILE, { force: true });
@@ -160,7 +159,7 @@ function stop(): void {
   }
   rmSync(PID_FILE, { force: true });
   console.log("BranchBase stopped");
-}
+};
 
 if (command === "start") {
   await start();

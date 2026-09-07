@@ -6,18 +6,17 @@ import type { RunEndpoint } from "./local-state";
 
 const POLL_INTERVAL_MS = 50;
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+const delay = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export interface BackingPortLease {
   port: number;
   release: () => Promise<void>;
 }
 
-export async function reserveBackingPort(
+export const reserveBackingPort = async (
   excluded: ReadonlySet<number> = new Set()
-): Promise<BackingPortLease> {
+): Promise<BackingPortLease> => {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const reserved = await new Promise<BackingPortLease>((resolve, reject) => {
       const server = createServer();
@@ -51,10 +50,10 @@ export async function reserveBackingPort(
     await reserved.release();
   }
   throw new Error("Could not allocate an unused Backing endpoint");
-}
+};
 
-function tcpReady(endpoint: RunEndpoint): Promise<boolean> {
-  return new Promise((resolve) => {
+const tcpReady = (endpoint: RunEndpoint): Promise<boolean> =>
+  new Promise((resolve) => {
     const socket = createConnection({
       host: endpoint.host,
       port: endpoint.port,
@@ -67,9 +66,8 @@ function tcpReady(endpoint: RunEndpoint): Promise<boolean> {
     socket.once("connect", () => finish(true));
     socket.once("error", () => finish(false));
   });
-}
 
-function acceptedStatusRange(app: BranchBaseApp): [number, number] {
+const acceptedStatusRange = (app: BranchBaseApp): [number, number] => {
   if (app.readiness === "tcp") {
     return [200, 399];
   }
@@ -78,12 +76,12 @@ function acceptedStatusRange(app: BranchBaseApp): [number, number] {
     number,
   ];
   return [minimum, maximum];
-}
+};
 
-async function httpReady(
+const httpReady = async (
   app: BranchBaseApp,
   endpoint: RunEndpoint
-): Promise<boolean> {
+): Promise<boolean> => {
   if (!(endpoint.directUrl && app.readiness !== "tcp")) {
     return false;
   }
@@ -97,22 +95,19 @@ async function httpReady(
   } catch {
     return false;
   }
-}
+};
 
-export function appIsReady(
+export const appIsReady = (
   app: BranchBaseApp,
   endpoint: RunEndpoint
-): Promise<boolean> {
-  return app.readiness === "tcp"
-    ? tcpReady(endpoint)
-    : httpReady(app, endpoint);
-}
+): Promise<boolean> =>
+  app.readiness === "tcp" ? tcpReady(endpoint) : httpReady(app, endpoint);
 
-export function appIsReadySync(
+export const appIsReadySync = (
   app: BranchBaseApp,
   endpoint: RunEndpoint,
   listening: boolean
-): boolean {
+): boolean => {
   if (!listening) {
     return false;
   }
@@ -127,12 +122,12 @@ export function appIsReadySync(
     new URL(app.readiness.path, endpoint.directUrl).toString()
   );
   return status !== null && status >= minimum && status <= maximum;
-}
+};
 
-export async function waitForAppReadiness(
+export const waitForAppReadiness = async (
   app: BranchBaseApp,
   endpoint: RunEndpoint
-): Promise<void> {
+): Promise<void> => {
   const timeoutSeconds =
     app.readiness === "tcp" ? 60 : app.readiness.timeoutSeconds;
   const deadline = Date.now() + timeoutSeconds * 1000;
@@ -145,4 +140,4 @@ export async function waitForAppReadiness(
   throw new Error(
     `${app.name ?? endpoint.appId} did not become ready within ${timeoutSeconds} seconds`
   );
-}
+};

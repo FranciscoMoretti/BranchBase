@@ -1,13 +1,13 @@
 import { spawnSync } from "node:child_process";
 
-export function processStartMarker(pid: number): string {
+export const processStartMarker = (pid: number): string => {
   const result = spawnSync("ps", ["-p", String(pid), "-o", "lstart="], {
     encoding: "utf-8",
   });
   return result.status === 0 ? result.stdout.trim() : "";
-}
+};
 
-export function processIsLive(pid: number): boolean {
+export const processIsLive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);
     return true;
@@ -21,4 +21,4 @@ export function processIsLive(pid: number): boolean {
     }
     throw error;
   }
-}
+};
