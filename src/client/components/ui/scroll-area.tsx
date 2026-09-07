@@ -3,6 +3,8 @@ import type { Ref } from "react";
 
 import { cn } from "@/client/lib/utils";
 
+const DEFAULT_SCROLLBARS = ["vertical"] satisfies ("horizontal" | "vertical")[];
+
 interface ScrollAreaProps extends ScrollAreaPrimitive.Root.Props {
   scrollbars?: ("horizontal" | "vertical")[];
   viewportRef?: Ref<HTMLDivElement>;
@@ -11,7 +13,7 @@ interface ScrollAreaProps extends ScrollAreaPrimitive.Root.Props {
 function ScrollArea({
   className,
   children,
-  scrollbars = ["vertical"],
+  scrollbars = DEFAULT_SCROLLBARS,
   viewportRef,
   ...props
 }: ScrollAreaProps) {

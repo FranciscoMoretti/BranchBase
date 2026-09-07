@@ -140,7 +140,9 @@ export function SettingsPage({
                   {mutation.isPending ? "Saving…" : "Save changes"}
                 </Button>
                 {mutation.isSuccess ? (
-                  <p role="status">Project saved.</p>
+                  <p aria-atomic="true" aria-live="polite">
+                    Project saved.
+                  </p>
                 ) : null}
               </form>
               <section className="product-settings-panel">
@@ -356,7 +358,11 @@ function IntegrationSettings({ repoPath }: { repoPath: string }) {
         label="Copy plugin installation commands"
         value="codex plugin marketplace add FranciscoMoretti/BranchBase --ref main\ncodex plugin add branchbase@branchbase"
       />
-      <div aria-live="polite" className="product-form-feedback">
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        className="product-form-feedback"
+      >
         {codex.error ? (
           <p>
             Task discovery is unavailable. Refresh the connection to try again.

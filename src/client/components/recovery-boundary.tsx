@@ -29,7 +29,10 @@ export class RecoveryBoundary extends Component<
   RecoveryBoundaryProps,
   RecoveryBoundaryState
 > {
-  state: RecoveryBoundaryState = { error: null };
+  constructor(props: RecoveryBoundaryProps) {
+    super(props);
+    this.state = { error: null };
+  }
 
   static getDerivedStateFromError(error: Error): RecoveryBoundaryState {
     return { error };
@@ -40,7 +43,8 @@ export class RecoveryBoundary extends Component<
     // the rest of the dashboard usable in production.
   }
 
-  private readonly reset = (): void => {
+  private readonly handleReset = (): void => {
+    // oxlint-disable-next-line react/no-set-state -- Error boundaries must clear captured errors to retry their children.
     this.setState({ error: null });
   };
 
@@ -73,7 +77,7 @@ export class RecoveryBoundary extends Component<
                 Reload page
               </Button>
             )}
-            <Button onClick={this.reset}>
+            <Button onClick={this.handleReset}>
               <RotateCcwIcon data-icon="inline-start" />
               Try again
             </Button>

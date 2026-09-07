@@ -135,9 +135,9 @@ export function RepositoryConfigPage({
             <p className="text-muted-foreground text-sm">
               HTTP Apps receive stable Friendly URLs and dynamic backing ports.
               Use tokens such as {"{apps.web.port}"} and {"{apps.web.url}"} in
-              group environment variables. Set an app group's category to
-              "infrastructure" to include its instances in the Infrastructure
-              tab.
+              group environment variables. Set an app group&apos;s category to
+              &quot;infrastructure&quot; to include its instances in the
+              Infrastructure tab.
             </p>
           </div>
           <Textarea

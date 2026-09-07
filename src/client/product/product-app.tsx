@@ -4,6 +4,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -67,7 +68,10 @@ export function ProductApp() {
   const dirty = useRef(false);
   const historyInitialized = useRef(false);
   const historyIndex = useRef<number | null>(null);
-  if (!historyInitialized.current) {
+  useLayoutEffect(() => {
+    if (historyInitialized.current) {
+      return;
+    }
     const existingIndex = readHistoryIndex(window.history.state);
     historyIndex.current = existingIndex ?? 0;
     if (existingIndex === null) {
@@ -78,7 +82,7 @@ export function ProductApp() {
       );
     }
     historyInitialized.current = true;
-  }
+  }, []);
   const historyAction = useRef<
     { kind: "restore" | "accept"; index: number } | undefined
   >(undefined);

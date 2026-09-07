@@ -325,7 +325,8 @@ export function GroupDetails({
         <section className="product-settings-panel">
           <h2>Dependencies</h2>
           <p className="product-muted">
-            Instances referenced by this group's environment or start command.
+            Instances referenced by this group&apos;s environment or start
+            command.
           </p>
           {group.dependencies.map((dependency) => {
             const selected = worktree.appGroups.find(
