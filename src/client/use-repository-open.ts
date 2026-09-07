@@ -22,6 +22,7 @@ export function useRepositoryOpen(
           ? caught
           : new Error("Could not open repository")
       );
+      // oxlint-disable-next-line react/todo -- React Compiler currently cannot lower try/finally in this hook.
     } finally {
       setPending(false);
     }

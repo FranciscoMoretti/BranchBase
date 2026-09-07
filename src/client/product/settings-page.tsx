@@ -140,7 +140,7 @@ export function SettingsPage({
                   {mutation.isPending ? "Saving…" : "Save changes"}
                 </Button>
                 {mutation.isSuccess ? (
-                  <p role="status">Project saved.</p>
+                  <p aria-live="polite">Project saved.</p>
                 ) : null}
               </form>
               <section className="product-settings-panel">

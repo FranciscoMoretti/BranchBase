@@ -89,7 +89,11 @@ export function DiscoveryDialog({
             }
             value={path}
           />
-          <Button disabled={pending} onClick={picker.browse} variant="outline">
+          <Button
+            disabled={pending}
+            onClick={() => picker.handleBrowse()}
+            variant="outline"
+          >
             <FolderOpenIcon />
             Browse
           </Button>

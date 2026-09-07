@@ -120,7 +120,7 @@ export function DetectedServicesSection({ data }: { data?: Observation }) {
         BranchBase; lifecycle and logs are managed by their launcher.
       </p>
       {data.warning ? (
-        <p className="product-warning" role="status">
+        <p aria-live="polite" className="product-warning">
           {data.warning}
         </p>
       ) : null}
@@ -190,7 +190,9 @@ function ObservedSettings({
         >
           {command.isPending ? "Saving…" : "Save changes"}
         </Button>
-        <span role="status">{command.isSuccess ? " Project saved." : ""}</span>
+        <span aria-live="polite">
+          {command.isSuccess ? " Project saved." : ""}
+        </span>
         <FormFeedback error={command.error} />
       </section>
       <section className="product-settings-panel">
@@ -310,7 +312,7 @@ export function ObservedProjectPage({
             </fieldset>
           </div>
           {data.warning ? (
-            <div className="product-observation-warning" role="status">
+            <div aria-live="polite" className="product-observation-warning">
               {data.warning}
             </div>
           ) : null}

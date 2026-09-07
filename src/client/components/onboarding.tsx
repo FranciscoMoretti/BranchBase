@@ -37,14 +37,14 @@ export function Onboarding({
   const opener = useRepositoryOpen(onOpened, initialError);
   function changeDraft(path: string) {
     opener.clearError();
-    picker.clearError();
     onDraftChange(path);
   }
+  const picker = useRepositoryPicker();
   async function openSelected(path: string) {
     changeDraft(path);
+    picker.clearError();
     await opener.open(path);
   }
-  const picker = useRepositoryPicker(openSelected);
   const setup = useRepositorySetup({
     error: opener.error,
     onCreated: () => opener.open(repoDraft.trim()),
@@ -145,7 +145,10 @@ export function Onboarding({
                         autoFocus
                         disabled={opener.pending || picker.pending}
                         id="onboarding-repo-path"
-                        onChange={(event) => changeDraft(event.target.value)}
+                        onChange={(event) => {
+                          changeDraft(event.target.value);
+                          picker.clearError();
+                        }}
                         placeholder="/Users/you/code/project"
                         value={repoDraft}
                       />
@@ -153,7 +156,7 @@ export function Onboarding({
                     <Button
                       aria-label="Choose repository folder"
                       disabled={opener.pending || picker.pending}
-                      onClick={picker.browse}
+                      onClick={() => picker.handleBrowse(openSelected)}
                       variant="outline"
                     >
                       <FolderOpenIcon data-icon="inline-start" />

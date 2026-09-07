@@ -29,11 +29,11 @@ function ButtonGroup({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof buttonGroupVariants>) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: shadcn uses a generic group wrapper so it can compose non-form controls.
     <div
       className={cn(buttonGroupVariants({ orientation }), className)}
       data-orientation={orientation}
       data-slot="button-group"
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- This composable primitive groups arbitrary controls, so a fieldset would impose the wrong form semantics.
       role="group"
       {...props}
     />

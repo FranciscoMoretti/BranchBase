@@ -34,6 +34,8 @@ export function ActivityPage({
   const [limit, setLimit] = useState(50);
   const [period, setPeriod] = useState("all");
   const [worktree, setWorktree] = useState("all");
+  const [initialNow, setInitialNow] = useState(() => Date.now());
+  const now = activity.dataUpdatedAt ?? initialNow;
   const worktrees = [
     ...new Map(
       (activity.data ?? [])
@@ -45,7 +47,7 @@ export function ActivityPage({
     ).entries(),
   ];
   const since =
-    period === "all" ? 0 : Date.now() - (period === "day" ? 1 : 7) * 86_400_000;
+    period === "all" ? 0 : now - (period === "day" ? 1 : 7) * 86_400_000;
   const [kind, setKind] = useState("all");
   const events = (activity.data ?? []).filter(
     (event) =>
@@ -102,7 +104,10 @@ export function ActivityPage({
           </Select>
         </div>
         <Select
-          onValueChange={(value) => setPeriod(value ?? "all")}
+          onValueChange={(value) => {
+            setInitialNow(Date.now());
+            setPeriod(value ?? "all");
+          }}
           value={period}
         >
           <SelectTrigger aria-label="Time range">
@@ -200,7 +205,7 @@ export function ActivityPage({
         {events.length === 0 ? (
           <Blank
             description="New operations and observed runtime changes will appear here."
-            title={"No matching activity"}
+            title="No matching activity"
           />
         ) : null}
         {events.length > limit ? (

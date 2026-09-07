@@ -1,5 +1,5 @@
 import { AlertCircleIcon, RefreshCwIcon, XIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 
 import { Button } from "../components/ui/button";
@@ -148,6 +148,7 @@ function QueryPlaceholder({
     );
   }
   return (
+    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Skeleton rows are flow content; this container exposes their loading state to assistive technology.
     <div className="product-loading" role="status">
       <span className="sr-only">Loading {label.toLowerCase()}</span>
       {[0, 1, 2].map((row) => (
@@ -177,28 +178,41 @@ export function QueryContent({
   resetKey?: string;
 }) {
   const hasData = query.data !== undefined;
-  const [lastFailure, setLastFailure] = useState<{
+  const [rememberedFailure, setRememberedFailure] = useState<{
     error: Error;
     key?: string;
   } | null>(null);
-  useEffect(() => {
+  const [previous, setPrevious] = useState(() => ({
+    data: query.data,
+    error: query.error,
+    resetKey,
+  }));
+  if (
+    previous.data !== query.data ||
+    previous.error !== query.error ||
+    previous.resetKey !== resetKey
+  ) {
+    setPrevious({ data: query.data, error: query.error, resetKey });
     if (query.error) {
-      setLastFailure({ error: query.error, key: resetKey });
-    } else if (query.data !== undefined) {
-      setLastFailure(null);
+      setRememberedFailure({ error: query.error, key: resetKey });
+    } else if (query.data !== undefined || previous.resetKey !== resetKey) {
+      setRememberedFailure(null);
+    } else if (previous.error) {
+      setRememberedFailure({ error: previous.error, key: resetKey });
     }
-  }, [query.error, query.data, resetKey]);
+  }
   // TanStack clears an initial error while retrying. Keep the recovery panel in
-  // place until data arrives instead of swapping it back to skeleton rows.
+  // place until data arrives by remembering the error before the query state
+  // clears during a retry.
+  const displayedFailure =
+    rememberedFailure && rememberedFailure.key === resetKey
+      ? rememberedFailure.error
+      : null;
   const displayed = hasData
     ? query
     : {
         ...query,
-        error:
-          query.error ??
-          (lastFailure && lastFailure.key === resetKey
-            ? lastFailure.error
-            : null),
+        error: query.error ?? displayedFailure,
       };
   return (
     <section

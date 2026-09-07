@@ -77,7 +77,7 @@ export function useRepositoryTrust({
     [approval, commands, key, required, trusted]
   );
 
-  const dismiss = useCallback(() => {
+  const handleDismiss = useCallback(() => {
     setRequest(null);
   }, []);
 
@@ -104,7 +104,7 @@ export function useRepositoryTrust({
     approvals: currentRequest?.approvals ?? [approval],
     approve,
     commands: currentRequest?.commands ?? commands,
-    dismiss,
+    handleDismiss,
     open,
     requestTrust,
   };

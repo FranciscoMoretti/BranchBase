@@ -55,7 +55,7 @@ export function ThemeProvider({
   defaultTheme = "system",
   storageKey = "branchbase:theme",
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(() =>
+  const [theme, setTheme] = useState<Theme>(() =>
     storedTheme(storageKey, defaultTheme)
   );
 
@@ -72,18 +72,21 @@ export function ThemeProvider({
     return () => media.removeEventListener("change", syncTheme);
   }, [theme]);
 
-  const setTheme = useCallback(
+  const updateTheme = useCallback(
     (nextTheme: Theme) => {
       try {
         localStorage.setItem(storageKey, nextTheme);
       } catch {
         // The selected theme still applies for this session when storage is blocked.
       }
-      setThemeState(nextTheme);
+      setTheme(nextTheme);
     },
     [storageKey]
   );
-  const value = useMemo(() => ({ setTheme, theme }), [setTheme, theme]);
+  const value = useMemo(
+    () => ({ setTheme: updateTheme, theme }),
+    [theme, updateTheme]
+  );
 
   return (
     <ThemeProviderContext.Provider value={value}>
