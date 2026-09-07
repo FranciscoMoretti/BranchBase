@@ -7,8 +7,8 @@ import type { CommandReceiptSchema } from "./command-contract";
 export type { WorktreeConfigSource } from "../config/worktree-config-source";
 
 export const ProcessUsageSchema = z.object({
-  memoryBytes: z.number().nonnegative(),
   cpuPercent: z.number().nonnegative(),
+  memoryBytes: z.number().nonnegative(),
   processCount: z.number().int().nonnegative(),
 });
 
@@ -29,13 +29,9 @@ export const AppEndpointSnapshotSchema = z.strictObject({
 });
 
 export const AppGroupSnapshotSchema = z.strictObject({
+  apps: z.array(AppEndpointSnapshotSchema),
   category: z.enum(["application", "infrastructure"]).optional(),
-  pending: z.boolean().optional(),
-  resources: ProcessUsageSchema.nullable().optional(),
-  run: z
-    .strictObject({ startedAt: z.string(), worktreePath: z.string() })
-    .nullable()
-    .optional(),
+  cleanupOnly: z.boolean().optional(),
   dependencies: z
     .array(
       z.strictObject({
@@ -45,8 +41,6 @@ export const AppGroupSnapshotSchema = z.strictObject({
       })
     )
     .optional(),
-  apps: z.array(AppEndpointSnapshotSchema),
-  cleanupOnly: z.boolean().optional(),
   health: AppHealthSchema,
   id: z.string().min(1),
   instance: z.strictObject({
@@ -62,7 +56,13 @@ export const AppGroupSnapshotSchema = z.strictObject({
     })
   ),
   name: z.string().min(1),
+  pending: z.boolean().optional(),
   processRunning: z.boolean(),
+  resources: ProcessUsageSchema.nullable().optional(),
+  run: z
+    .strictObject({ startedAt: z.string(), worktreePath: z.string() })
+    .nullable()
+    .optional(),
   stop: z.enum(["command", "process"]),
 });
 
@@ -104,7 +104,6 @@ export const WorkspaceSnapshotSchema = z.strictObject({
     })
   ),
   globalRunningCount: z.number().int().nonnegative(),
-  resources: ProcessUsageSchema.nullable().optional(),
   mainWorktreePath: z.string(),
   projectDefaultConfig: BranchBaseConfigSchema,
   projectDefaultConfigPath: z.string(),
@@ -112,6 +111,7 @@ export const WorkspaceSnapshotSchema = z.strictObject({
   projectDefaultPrimaryAppGroup: z.string().min(1),
   repoName: z.string(),
   repoPath: z.string(),
+  resources: ProcessUsageSchema.nullable().optional(),
   trustCommands: z.array(z.string()),
   trustFingerprint: z.string().min(1),
   trustRequired: z.boolean(),

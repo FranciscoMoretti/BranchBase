@@ -146,10 +146,12 @@ try {
   writeFileSync(
     pathModule.join(fixtureDirectory, ".branchbase.json"),
     `${JSON.stringify(
+      // oxlint-disable-next-line sort-keys -- Preserve the serialized starter configuration contract.
       {
         version: 1,
         setup: { argv: ["bun", "install"] },
         appGroups: {
+          // oxlint-disable-next-line sort-keys -- Preserve the serialized starter configuration contract.
           Apps: {
             start: { argv: ["bun", "run", "dev"] },
             stop: "process",
@@ -171,9 +173,9 @@ try {
 
   const port = await unusedPort();
   daemonEnvironment = {
-    HOME: homeDirectory,
     BRANCHBASE_NO_OPEN: "1",
     BRANCHBASE_PORT: String(port),
+    HOME: homeDirectory,
   };
   const startOutput = run(cliPath, ["start", "--repo", fixtureDirectory], {
     cwd: installDirectory,

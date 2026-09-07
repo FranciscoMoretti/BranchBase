@@ -139,9 +139,9 @@ export function GroupDetails({
         </div>
         {group.apps.map((app) => {
           const pin = {
-            worktreeId: worktree.id,
-            groupId: group.id,
             appId: app.id,
+            groupId: group.id,
+            worktreeId: worktree.id,
           };
           const pinned = project?.pins.some(
             (item) =>
@@ -182,7 +182,6 @@ export function GroupDetails({
                   onClick={() =>
                     save.mutate({
                       command: "save-project",
-                      repoPath,
                       pins: pinned
                         ? project?.pins.filter(
                             (item) =>
@@ -193,6 +192,7 @@ export function GroupDetails({
                               )
                           )
                         : [...(project?.pins ?? []), pin],
+                      repoPath,
                     })
                   }
                   size="icon-sm"

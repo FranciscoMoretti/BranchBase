@@ -96,7 +96,7 @@ export function CopyButton({
     >
       {state === "copied" ? <CheckIcon /> : <CopyIcon />}
       <span className="sr-only" role="status">
-        {{ failed: "Clipboard unavailable", copied: "Copied", idle: "" }[state]}
+        {{ copied: "Copied", failed: "Clipboard unavailable", idle: "" }[state]}
       </span>
     </Button>
   );

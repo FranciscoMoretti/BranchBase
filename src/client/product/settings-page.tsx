@@ -99,8 +99,8 @@ export function SettingsPage({
                   event.preventDefault();
                   mutation.mutate({
                     command: "save-project",
-                    repoPath: data.repoPath,
                     name: name ?? project?.name ?? data.repoName,
+                    repoPath: data.repoPath,
                   });
                 }}
               >
@@ -213,10 +213,10 @@ export function SettingsPage({
                   <a
                     className="product-link"
                     href={hrefFor({
-                      repo: data.repoPath,
-                      worktree: worktree.id,
                       group: worktree.primaryAppGroup,
                       panel: "configuration",
+                      repo: data.repoPath,
+                      worktree: worktree.id,
                     })}
                   >
                     {worktree.branch}

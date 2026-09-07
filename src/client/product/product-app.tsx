@@ -156,7 +156,7 @@ export function ProductApp() {
               targetIndex,
             },
           };
-          historyAction.current = { kind: "restore", index: currentIndex };
+          historyAction.current = { index: currentIndex, kind: "restore" };
           setPendingHref(target);
           window.history.go(currentIndex - targetIndex);
           return;
@@ -168,7 +168,7 @@ export function ProductApp() {
           "",
           currentHref.current
         );
-        pendingNavigation.current = { href: target, fallback: true };
+        pendingNavigation.current = { fallback: true, href: target };
         setPendingHref(target);
         return;
       }
@@ -246,8 +246,8 @@ export function ProductApp() {
     }
     const frame = requestAnimationFrame(() =>
       window.scrollTo({
-        top: scrollPositions.current.get(window.location.href) ?? 0,
         behavior: "instant",
+        top: scrollPositions.current.get(window.location.href) ?? 0,
       })
     );
     return () => cancelAnimationFrame(frame);
@@ -362,8 +362,8 @@ export function ProductApp() {
                   setPendingHref(null);
                   if (pending?.traversal) {
                     historyAction.current = {
-                      kind: "accept",
                       index: pending.traversal.targetIndex,
+                      kind: "accept",
                     };
                     window.history.go(pending.traversal.delta);
                   } else if (pending?.fallback) {

@@ -211,6 +211,7 @@ export async function openDevelopmentSession(
         })();
         return closePromise;
       },
+      // oxlint-disable-next-line sort-keys -- Preserve controller resource initialization order.
       controllerRuntime: {
         codexHooks: new CodexHookActivityStore({
           file: pathModule.join(codexControlDirectory, "activity.json"),

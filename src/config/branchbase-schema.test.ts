@@ -10,18 +10,8 @@ import {
 import type { BranchBaseConfig } from "./branchbase-schema";
 
 const validConfig = {
-  version: 1,
-  setup: { argv: ["bun", "install"] },
   appGroups: {
     development: {
-      instances: { mode: "per-worktree" },
-      name: "Development",
-      start: { argv: ["bun", "run", "dev"] },
-      stop: "process",
-      env: {
-        API_URL: "{apps.api.url}",
-        WEB_PORT: "{apps.web.port}",
-      },
       apps: {
         api: { protocol: "http", readiness: "tcp" },
         web: {
@@ -34,15 +24,25 @@ const validConfig = {
           },
         },
       },
+      env: {
+        API_URL: "{apps.api.url}",
+        WEB_PORT: "{apps.web.port}",
+      },
+      instances: { mode: "per-worktree" },
+      name: "Development",
+      start: { argv: ["bun", "run", "dev"] },
+      stop: "process",
     },
     services: {
+      apps: { database: { protocol: "tcp", readiness: "tcp" } },
+      env: { DATABASE_PORT: "{apps.database.port}" },
       instances: { mode: "selectable" },
       start: { argv: ["docker", "compose", "up", "-d"] },
       stop: { argv: ["docker", "compose", "down"] },
-      env: { DATABASE_PORT: "{apps.database.port}" },
-      apps: { database: { protocol: "tcp", readiness: "tcp" } },
     },
   },
+  setup: { argv: ["bun", "install"] },
+  version: 1,
 } satisfies BranchBaseConfig;
 
 describe("shared BranchBase schema", () => {
@@ -91,9 +91,9 @@ describe("shared BranchBase schema", () => {
         ...validConfig,
         appGroups: {
           empty: {
+            apps: {},
             start: { argv: ["true"] },
             stop: "process",
-            apps: {},
           },
         },
       }).success

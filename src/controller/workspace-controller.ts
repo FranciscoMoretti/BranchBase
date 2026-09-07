@@ -88,49 +88,9 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
   "add-development-folder": (controller, input) => {
     controller.addDevelopmentFolder(String(input.repoPath));
     return {
-      ok: true,
       command: "add-development-folder",
       message: "Development folder added",
-    };
-  },
-  "remove-development-folder": (controller, input) => {
-    controller.removeDevelopmentFolder(String(input.repoPath));
-    return {
       ok: true,
-      command: "remove-development-folder",
-      message: "Folder removed; projects kept",
-    };
-  },
-  "scan-development-folders": (controller) => {
-    controller.scanDevelopmentFolders();
-    return {
-      ok: true,
-      command: "scan-development-folders",
-      message: "Folder scan complete",
-    };
-  },
-  "save-project": (controller, input) => {
-    controller.saveProject(
-      String(input.repoPath),
-      input.name as string | undefined,
-      input.pins as AppPin[] | undefined
-    );
-    return { ok: true, command: "save-project", message: "Project saved" };
-  },
-  "remove-project": (controller, input) => {
-    controller.removeProject(String(input.repoPath));
-    return {
-      ok: true,
-      command: "remove-project",
-      message: "Project removed; files kept on disk",
-    };
-  },
-  "revoke-trust": (controller, input) => {
-    controller.revokeTrust(String(input.repoPath));
-    return {
-      ok: true,
-      command: "revoke-trust",
-      message: "Command approvals revoked",
     };
   },
   "clear-logs": clearLogs,
@@ -140,9 +100,49 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
   "initialize-repository": initializeRepositoryCommand,
   "pick-repository": pickRepository,
   "preview-repository-config": previewRepositoryConfig,
+  "remove-development-folder": (controller, input) => {
+    controller.removeDevelopmentFolder(String(input.repoPath));
+    return {
+      command: "remove-development-folder",
+      message: "Folder removed; projects kept",
+      ok: true,
+    };
+  },
+  "remove-project": (controller, input) => {
+    controller.removeProject(String(input.repoPath));
+    return {
+      command: "remove-project",
+      message: "Project removed; files kept on disk",
+      ok: true,
+    };
+  },
   "restart-apps": restartApps,
   "restart-running-apps": restartRunningApps,
   "retry-apps": retryApps,
+  "revoke-trust": (controller, input) => {
+    controller.revokeTrust(String(input.repoPath));
+    return {
+      command: "revoke-trust",
+      message: "Command approvals revoked",
+      ok: true,
+    };
+  },
+  "save-project": (controller, input) => {
+    controller.saveProject(
+      String(input.repoPath),
+      input.name as string | undefined,
+      input.pins as AppPin[] | undefined
+    );
+    return { command: "save-project", message: "Project saved", ok: true };
+  },
+  "scan-development-folders": (controller) => {
+    controller.scanDevelopmentFolders();
+    return {
+      command: "scan-development-folders",
+      message: "Folder scan complete",
+      ok: true,
+    };
+  },
   "select-app-group-instance": selectAppGroupInstance,
   "select-worktree-config-source": selectWorktreeConfigSource,
   "setup-all-apps": setupAllApps,
@@ -635,6 +635,7 @@ export class WorkspaceController {
       }
     }
 
+    // oxlint-disable-next-line sort-keys -- Preserve snapshot evaluation order around process inspection.
     const snapshot: WorkspaceSnapshot = {
       globalProcesses,
       resources: processTreeUsage(
@@ -712,6 +713,7 @@ export class WorkspaceController {
       let observation: Observation | null = null;
       try {
         observation = this.observeRepository(project.path);
+        // oxlint-disable-next-line sort-keys -- Preserve observation evaluation before derived fields.
         return {
           ...project,
           observation,
@@ -719,6 +721,7 @@ export class WorkspaceController {
           workspace: observation.configured ? this.inspect(project.path) : null,
         };
       } catch (error) {
+        // oxlint-disable-next-line sort-keys -- Preserve observation evaluation before derived fields.
         return {
           ...project,
           observation,
@@ -1026,8 +1029,8 @@ export class WorkspaceController {
       logId: worktree.id,
       ownerId: worktree.id,
       ownerRoot: worktree.path,
-      trackExitFailure: true,
       processId: setupProcessId(worktree.id),
+      trackExitFailure: true,
     });
   }
 

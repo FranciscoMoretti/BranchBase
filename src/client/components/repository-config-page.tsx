@@ -43,8 +43,8 @@ export function RepositoryConfigPage({
       return BranchBaseConfigSchema.safeParse(JSON.parse(source));
     } catch (caught) {
       return {
-        success: false as const,
         message: caught instanceof Error ? caught.message : "Invalid JSON",
+        success: false as const,
       };
     }
   }, [source]);

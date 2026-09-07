@@ -6,6 +6,7 @@ const SCHEMA_ID =
   "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json";
 
 export function branchbaseJsonSchema(): Record<string, unknown> {
+  // oxlint-disable-next-line sort-keys -- Preserve the published JSON Schema property order.
   return {
     ...z.toJSONSchema(BranchBaseConfigSchema, { io: "input" }),
     $id: SCHEMA_ID,

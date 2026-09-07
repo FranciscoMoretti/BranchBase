@@ -1,12 +1,13 @@
 import type { WorktreeSnapshot } from "../../controller/workspace-snapshot";
 
 export const worktree: WorktreeSnapshot = {
+  appGroups: [],
   appLabel: "App",
   apps: [
     {
+      directUrl: "http://127.0.0.1:3000",
       id: "chat",
       label: "Chat",
-      directUrl: "http://127.0.0.1:3000",
       listening: true,
       open: true,
       ownership: "owned",
@@ -17,9 +18,9 @@ export const worktree: WorktreeSnapshot = {
       url: "http://chat.project.repo.localhost:1355",
     },
     {
+      directUrl: "http://127.0.0.1:3002",
       id: "site",
       label: "Site",
-      directUrl: "http://127.0.0.1:3002",
       listening: false,
       open: false,
       ownership: "none",
@@ -30,7 +31,6 @@ export const worktree: WorktreeSnapshot = {
       url: null,
     },
   ],
-  appGroups: [],
   branch: "main",
   configuration: {
     changeBlocked: false,

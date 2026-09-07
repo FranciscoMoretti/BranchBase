@@ -37,10 +37,10 @@ export function parseListeners(output: string) {
         Number(match[1]) <= 65_535
       ) {
         rows.push({
-          pid,
-          command,
-          port: Number(match[1]),
           address: line.slice(1),
+          command,
+          pid,
+          port: Number(match[1]),
         });
       }
     }
@@ -65,8 +65,8 @@ export function parseCwds(output: string) {
 function run(program: string, args: string[]) {
   return spawnSync(program, args, {
     encoding: "utf-8",
-    timeout: 3000,
     maxBuffer: 8 * 1024 * 1024,
+    timeout: 3000,
   });
 }
 function startedTimes() {
@@ -193,6 +193,7 @@ export class DetectedServices {
         continue;
       }
       try {
+        // oxlint-disable-next-line sort-keys -- Preserve process inspection evaluation order.
         services.push({
           ...row,
           cwd: realpathSync(cwd),
@@ -213,7 +214,7 @@ export class DetectedServices {
       const limitWarning = "Showing the first 256 listeners.";
       warning = [warning, limitWarning].filter(Boolean).join(" ") || null;
     }
-    this.cached = { at: Date.now(), services, warning, samples };
+    this.cached = { at: Date.now(), samples, services, warning };
     return this.cached;
   }
   webUrl(service: DetectedService): string | null {

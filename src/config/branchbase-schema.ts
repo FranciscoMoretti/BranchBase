@@ -55,6 +55,7 @@ export const BranchBaseAppGroupInstancesSchema = z.discriminatedUnion("mode", [
   z.strictObject({ mode: z.literal("selectable") }),
 ]);
 
+// oxlint-disable-next-line sort-keys -- Preserve the published JSON Schema property order.
 export const BranchBaseAppGroupSchema = z.strictObject({
   category: z.enum(["application", "infrastructure"]).optional(),
   instances: BranchBaseAppGroupInstancesSchema.default({
@@ -69,6 +70,7 @@ export const BranchBaseAppGroupSchema = z.strictObject({
 
 export type BranchBaseAppGroup = z.infer<typeof BranchBaseAppGroupSchema>;
 
+// oxlint-disable-next-line sort-keys -- Preserve the published JSON Schema property order.
 const BranchBaseConfigObjectSchema = z.strictObject({
   $schema: z.string().optional(),
   version: z.literal(1),

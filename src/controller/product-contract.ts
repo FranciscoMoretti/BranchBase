@@ -26,8 +26,8 @@ export const ActivityEventSchema = z.strictObject({
   worktreeName: z.string().optional(),
 });
 export const ProjectOverviewSchema = ProjectRecordSchema.extend({
-  observation: ObservationSchema.nullable().optional(),
   error: z.string().nullable(),
+  observation: ObservationSchema.nullable().optional(),
   workspace: WorkspaceSnapshotSchema.nullable(),
 });
 export const ProjectsResponseSchema = z.object({

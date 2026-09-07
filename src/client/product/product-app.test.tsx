@@ -34,16 +34,16 @@ async function mount() {
     ])
   );
   Object.assign(globalThis, {
-    document: dom.document,
+    CustomEvent: dom.CustomEvent,
     Element: dom.Element,
     HTMLElement: dom.HTMLElement,
     IS_REACT_ACT_ENVIRONMENT: true,
-    CustomEvent: dom.CustomEvent,
-    navigator: dom.navigator,
-    Node: dom.Node,
-    requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
-    cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
     MutationObserver: dom.window.MutationObserver,
+    Node: dom.Node,
+    cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
+    document: dom.document,
+    navigator: dom.navigator,
+    requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
     window: dom,
   });
   const client = new QueryClient({

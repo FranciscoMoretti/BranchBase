@@ -22,10 +22,10 @@ import type {
 } from "./workspace-snapshot";
 
 const StoreSchema = z.strictObject({
-  folders: z.array(DevelopmentFolderSchema).default([]),
-  excludedPaths: z.array(z.string()).default([]),
   detected: z.record(z.string(), z.record(z.string(), z.string())).default({}),
   events: z.array(ActivityEventSchema).default([]),
+  excludedPaths: z.array(z.string()).default([]),
+  folders: z.array(DevelopmentFolderSchema).default([]),
   observations: z
     .record(z.string(), z.record(z.string(), z.string()))
     .default({}),
@@ -144,6 +144,7 @@ export class ProductStore {
         "You can watch up to 20 development folders. Remove one before adding another."
       );
     }
+    // oxlint-disable-next-line sort-keys -- Preserve timestamp evaluation after the path value.
     state.folders.push({ path, addedAt: new Date().toISOString() });
     this.write(state);
   }
@@ -180,6 +181,7 @@ export class ProductStore {
         }
         const action = current[key] ? "Detected" : "No longer detected";
         const worktreeId = key.split(":")[1];
+        // oxlint-disable-next-line sort-keys -- Preserve event field evaluation order and timestamps.
         state.events.push({
           worktreeId,
           worktreeName:
@@ -219,11 +221,11 @@ export class ProductStore {
     const current: Record<string, string> = {};
     const events: Omit<ActivityEvent, "id" | "at">[] = [];
     const observation = {
-      previous,
       current,
       events,
-      seen: new Set<string>(),
+      previous,
       repoPath: workspace.repoPath,
+      seen: new Set<string>(),
     };
     for (const worktree of workspace.worktrees) {
       observeWorktreeFields(worktree, observation);

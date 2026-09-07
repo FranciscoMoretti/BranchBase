@@ -35,7 +35,7 @@ export function parseProcessSamples(output: string): ProcessSample[] {
       ) {
         return [];
       }
-      return [{ pid, parentPid, memoryBytes: rss * 1024, cpuPercent }];
+      return [{ cpuPercent, memoryBytes: rss * 1024, parentPid, pid }];
     });
 }
 /**
@@ -53,8 +53,8 @@ export function inspectProcessSamples(): ProcessSample[] | null {
   }
   const result = spawnSync("ps", ["-axo", "pid=,ppid=,rss=,%cpu="], {
     encoding: "utf-8",
-    timeout: 2000,
     maxBuffer: 4 * 1024 * 1024,
+    timeout: 2000,
   });
   const samples =
     result.status === 0 ? parseProcessSamples(result.stdout) : null;
@@ -95,8 +95,8 @@ export function processTreeUsage(
     queue.push(...(children.get(pid) ?? []).map((child) => child.pid));
   }
   return {
-    memoryBytes,
     cpuPercent: Math.round(cpuPercent * 10) / 10,
+    memoryBytes,
     processCount: seen.size,
   };
 }

@@ -42,9 +42,9 @@ export function InfrastructurePage({
         existing.consumers.push(worktree);
       } else {
         instances.set(group.instance.id, {
+          consumers: [worktree],
           group,
           worktree,
-          consumers: [worktree],
         });
       }
     }
@@ -63,7 +63,7 @@ export function InfrastructurePage({
     )) {
       for (const instance of group.instances) {
         if (!(instances.has(instance.id) || unused.has(instance.id))) {
-          unused.set(instance.id, { instance, group, worktree });
+          unused.set(instance.id, { group, instance, worktree });
         }
       }
     }

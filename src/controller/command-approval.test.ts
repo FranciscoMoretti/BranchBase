@@ -33,7 +33,7 @@ function store() {
 }
 afterEach(() => {
   for (const directory of directories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { force: true, recursive: true });
   }
 });
 function observedFixture() {
@@ -50,16 +50,16 @@ function observedFixture() {
   writeFileSync(
     pathModule.join(repoPath, ".branchbase.json"),
     JSON.stringify({
-      version: 1,
-      setup: { argv: ["true"] },
       appGroups: {
         service: {
+          apps: { api: { protocol: "http", readiness: "tcp" } },
           instances: { mode: "selectable" },
           start: { argv: ["true"] },
           stop: "process",
-          apps: { api: { protocol: "http", readiness: "tcp" } },
         },
       },
+      setup: { argv: ["true"] },
+      version: 1,
     })
   );
   git("add", ".branchbase.json");
@@ -83,9 +83,9 @@ function observedFixture() {
   return {
     ...fixture,
     controller,
-    state,
     repoPath,
     snapshot: controller.inspect(repoPath),
+    state,
   };
 }
 
@@ -100,19 +100,19 @@ test("trust revocation preserves retained runtime ownership", async () => {
     expect(controller.inspect(repoPath).trusted).toBe(true);
     const instanceId = snapshot.worktrees[0].appGroups[0].instance.id;
     state.saveRun(
-      { repoPath, instanceId },
+      { instanceId, repoPath },
       {
         apps: {},
         createdAt: new Date().toISOString(),
         groupId: "service",
         instanceId,
         instanceIdsByGroup: { service: instanceId },
-        worktreePath: repoPath,
         stop: "process",
+        worktreePath: repoPath,
       }
     );
     expect(() => controller.revokeTrust(repoPath)).toThrow("Stop App groups");
-    expect(state.run({ repoPath, instanceId })).not.toBeNull();
+    expect(state.run({ instanceId, repoPath })).not.toBeNull();
     expect(controller.inspect(repoPath).trusted).toBe(true);
   } finally {
     await controller.close();

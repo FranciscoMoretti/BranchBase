@@ -35,7 +35,7 @@ function temporary() {
   const path = realpathSync(
     mkdtempSync(pathModule.join(tmpdir(), "branchbase-discovery-"))
   );
-  cleanup.push(() => rmSync(path, { recursive: true, force: true }));
+  cleanup.push(() => rmSync(path, { force: true, recursive: true }));
   return path;
 }
 function git(path: string, ...args: string[]) {
@@ -63,10 +63,10 @@ function repository(path: string) {
 }
 function controller(directory: string) {
   return new WorkspaceController(undefined, {
+    processes: new ProcessSupervisor(pathModule.join(directory, "control")),
     state: new FileBranchBaseStateStore(
       pathModule.join(directory, "state.json")
     ),
-    processes: new ProcessSupervisor(pathModule.join(directory, "control")),
   });
 }
 test("folder scans are bounded and skip symlinks, dependencies and repository contents", () => {
@@ -182,7 +182,7 @@ test("watch folders persist, deduplicate linked worktrees and respect manual rem
         .folders()
         .map((item) => item.path)
     ).toEqual([linked]);
-    rmSync(linked, { recursive: true, force: true });
+    rmSync(linked, { force: true, recursive: true });
     workspace.scanDevelopmentFolders();
     expect(workspace.developmentFolders()[0]?.warning).toContain("unavailable");
   } finally {
@@ -218,15 +218,15 @@ test("associated services exclude managed, nested, and unrelated paths", () => {
   mkdirSync(inside, { recursive: true });
   const store = new ProductStore(pathModule.join(root, "state"));
   const service = (cwd: string, pid: number): DetectedService => ({
+    address: `127.0.0.1:${pid}`,
+    command: "bun",
     cwd,
+    managed: false,
     pid,
     port: pid,
-    command: "bun",
-    address: `127.0.0.1:${pid}`,
+    resources: null,
     startedAt: null,
     url: null,
-    resources: null,
-    managed: false,
   });
   let services = [
     service(inside, 1001),
@@ -238,7 +238,7 @@ test("associated services exclude managed, nested, and unrelated paths", () => {
   let warning: string | null = null;
   const discovery = new ProjectDiscovery(
     store,
-    () => [{ id: "main", path: repo, branch: "main" }],
+    () => [{ branch: "main", id: "main", path: repo }],
     (path) => git(path, "rev-parse", "--show-toplevel"),
     () => [],
     {
@@ -270,12 +270,12 @@ test("observation starts with a baseline and deduplicates unchanged worktrees", 
   const root = temporary();
   const store = new ProductStore(root);
   const observation: Observation = {
-    repoPath: "/repo",
     configured: false,
+    repoPath: "/repo",
     updatedAt: new Date().toISOString(),
     warning: null,
     worktrees: [
-      { id: "w", path: "/repo", branch: "main", isMain: true, services: [] },
+      { branch: "main", id: "w", isMain: true, path: "/repo", services: [] },
     ],
   };
   store.observeDetected(observation);
@@ -292,21 +292,21 @@ test("observation schema bounds service identities and resources", () => {
     warning: null,
     worktrees: [
       {
-        id: "main",
-        path: "/repo",
         branch: "main",
+        id: "main",
         isMain: true,
+        path: "/repo",
         services: [
           {
-            pid: 123,
-            port: 3000,
+            address: "127.0.0.1:3000",
             command: "server",
             cwd: "/repo",
+            managed: false,
+            pid: 123,
+            port: 3000,
+            resources: { cpuPercent: 1, memoryBytes: 1024, processCount: 1 },
             startedAt: null,
             url: null,
-            address: "127.0.0.1:3000",
-            resources: { cpuPercent: 1, memoryBytes: 1024, processCount: 1 },
-            managed: false,
           },
         ],
       },
@@ -365,7 +365,7 @@ test("version one metadata loads with no discovery fields", () => {
         "-e",
         "const server = Bun.serve({port:0,hostname:'127.0.0.1',fetch:()=>new Response('test')}); console.log(server.port);",
       ],
-      { cwd: linked, stdout: "pipe", stderr: "pipe" }
+      { cwd: linked, stderr: "pipe", stdout: "pipe" }
     );
     const workspace = controller(pathModule.join(root, "state"));
     try {

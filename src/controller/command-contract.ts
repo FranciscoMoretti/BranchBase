@@ -38,14 +38,6 @@ export const RepositoryInitializationPlanSchema = z.object({
 
 const INPUT_SCHEMAS = {
   "add-development-folder": RepositoryPathSchema,
-  "remove-development-folder": RepositoryPathSchema,
-  "scan-development-folders": z.object({}),
-  "save-project": RepositoryPathSchema.extend({
-    name: z.string().trim().min(1).max(100).optional(),
-    pins: z.array(AppPinSchema).max(24).optional(),
-  }),
-  "remove-project": RepositoryPathSchema,
-  "revoke-trust": RepositoryPathSchema,
   "clear-logs": StartStopSchema,
   "create-app-group-instance": StartStopSchema.extend({
     name: z.string().trim().min(1),
@@ -59,9 +51,17 @@ const INPUT_SCHEMAS = {
   "initialize-repository": RepositoryPathSchema,
   "pick-repository": z.object({}),
   "preview-repository-config": RepositoryPathSchema,
+  "remove-development-folder": RepositoryPathSchema,
+  "remove-project": RepositoryPathSchema,
   "restart-apps": StartStopSchema,
-  "retry-apps": StartStopSchema,
   "restart-running-apps": VisibleBulkSchema,
+  "retry-apps": StartStopSchema,
+  "revoke-trust": RepositoryPathSchema,
+  "save-project": RepositoryPathSchema.extend({
+    name: z.string().trim().min(1).max(100).optional(),
+    pins: z.array(AppPinSchema).max(24).optional(),
+  }),
+  "scan-development-folders": z.object({}),
   "select-app-group-instance": StartStopSchema.extend({
     instanceId: z.string().min(1),
   }),
@@ -85,11 +85,6 @@ const INPUT_SCHEMAS = {
 
 const RESULT_SCHEMAS = {
   "add-development-folder": CommandReceiptSchema,
-  "remove-development-folder": CommandReceiptSchema,
-  "scan-development-folders": CommandReceiptSchema,
-  "save-project": CommandReceiptSchema,
-  "remove-project": CommandReceiptSchema,
-  "revoke-trust": CommandReceiptSchema,
   "clear-logs": CommandReceiptSchema,
   "create-app-group-instance": CommandReceiptSchema,
   "create-worktree": CommandReceiptSchema,
@@ -97,9 +92,14 @@ const RESULT_SCHEMAS = {
   "initialize-repository": RepositoryInitializationPlanSchema,
   "pick-repository": PickRepositoryResultSchema,
   "preview-repository-config": RepositoryInitializationPlanSchema,
+  "remove-development-folder": CommandReceiptSchema,
+  "remove-project": CommandReceiptSchema,
   "restart-apps": CommandReceiptSchema,
-  "retry-apps": CommandReceiptSchema,
   "restart-running-apps": CommandReceiptSchema,
+  "retry-apps": CommandReceiptSchema,
+  "revoke-trust": CommandReceiptSchema,
+  "save-project": CommandReceiptSchema,
+  "scan-development-folders": CommandReceiptSchema,
   "select-app-group-instance": CommandReceiptSchema,
   "select-worktree-config-source": CommandReceiptSchema,
   "setup-all-apps": CommandReceiptSchema,

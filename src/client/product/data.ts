@@ -12,48 +12,48 @@ import { getJson, runCommand } from "../api";
 
 export function useObservation(repoPath: string) {
   return useQuery({
-    queryKey: ["observation", repoPath],
     enabled: Boolean(repoPath),
     queryFn: async () =>
       ObservationSchema.parse(
         await getJson(`/api/observation?${new URLSearchParams({ repoPath })}`)
       ),
+    queryKey: ["observation", repoPath],
     refetchInterval: 5000,
     retry: 1,
   });
 }
 export function useDevelopmentFolders() {
   return useQuery({
-    queryKey: ["development-folders"],
     queryFn: async () =>
       FoldersResponseSchema.parse(await getJson("/api/development-folders"))
         .folders,
+    queryKey: ["development-folders"],
     refetchInterval: 30_000,
     retry: 1,
   });
 }
 export function useProjects(poll = true) {
   return useQuery({
-    retry: 1,
-    retryDelay: 750,
-    queryKey: ["projects"],
     queryFn: async () =>
       ProjectsResponseSchema.parse(await getJson("/api/projects")).projects,
+    queryKey: ["projects"],
     refetchInterval: poll ? 5000 : false,
+    retry: 1,
+    retryDelay: 750,
   });
 }
 export function useActivity(repoPath?: string) {
   return useQuery({
-    retry: 1,
-    retryDelay: 750,
-    queryKey: ["activity", repoPath ?? "all"],
     queryFn: async () =>
       ActivityResponseSchema.parse(
         await getJson(
           `/api/activity?${new URLSearchParams(repoPath ? { repoPath } : {})}`
         )
       ).events,
+    queryKey: ["activity", repoPath ?? "all"],
     refetchInterval: 5000,
+    retry: 1,
+    retryDelay: 750,
   });
 }
 export function useProductCommand() {
@@ -94,21 +94,13 @@ export function readLocation(): ProductLocation {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") ?? params.get("page");
   return {
-    repo: params.get("repo") ?? "",
-    view:
-      view === "infrastructure" ||
-      view === "activity" ||
-      view === "settings" ||
-      view === "machine"
-        ? view
-        : "workspace",
-    worktree: params.get("worktree") ?? "",
     group: params.get("group") ?? "",
     panel: ["logs", "activity", "configuration", "tasks"].includes(
       params.get("panel") ?? ""
     )
       ? (params.get("panel") ?? "logs")
       : "logs",
+    repo: params.get("repo") ?? "",
     section: [
       "general",
       "configuration",
@@ -117,6 +109,14 @@ export function readLocation(): ProductLocation {
     ].includes(params.get("section") ?? "")
       ? (params.get("section") ?? "general")
       : "general",
+    view:
+      view === "infrastructure" ||
+      view === "activity" ||
+      view === "settings" ||
+      view === "machine"
+        ? view
+        : "workspace",
+    worktree: params.get("worktree") ?? "",
   };
 }
 export function hrefFor(location: Partial<ProductLocation>): string {

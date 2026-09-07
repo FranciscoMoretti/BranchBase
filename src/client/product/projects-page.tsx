@@ -74,10 +74,10 @@ function attentionHref(
   }
 ): string {
   return hrefFor({
-    repo,
-    worktree: worktree.id,
     group: worktree.primaryAppGroup,
     panel: worktree.configuration.trusted ? "logs" : "configuration",
+    repo,
+    worktree: worktree.id,
   });
 }
 function projectSummary(
@@ -294,10 +294,10 @@ function ProjectRow({ project }: { project: ProjectOverview }) {
                       onClick={() =>
                         mutation.mutate({
                           command: "save-project",
-                          repoPath: project.path,
                           pins: project.pins.filter(
                             (_, position) => position !== index
                           ),
+                          repoPath: project.path,
                         })
                       }
                       variant="ghost"

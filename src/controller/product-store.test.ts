@@ -27,13 +27,13 @@ function store() {
 }
 afterEach(() => {
   for (const directory of directories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { force: true, recursive: true });
   }
 });
 test("project metadata and pins survive restart without authorizing commands", () => {
   const { directory, product } = store();
   product.saveProject("/repo", "App", [
-    { worktreeId: "w", groupId: "g", appId: "a" },
+    { appId: "a", groupId: "g", worktreeId: "w" },
   ]);
   product.saveProject("/repo", "Renamed");
   expect(new ProductStore(directory).projects()).toEqual([
@@ -41,7 +41,7 @@ test("project metadata and pins survive restart without authorizing commands", (
       addedAt: expect.any(String),
       name: "Renamed",
       path: "/repo",
-      pins: [{ worktreeId: "w", groupId: "g", appId: "a" }],
+      pins: [{ appId: "a", groupId: "g", worktreeId: "w" }],
     },
   ]);
 });
@@ -49,9 +49,9 @@ test("removal preserves operational history", () => {
   const { product } = store();
   product.saveProject("/repo", "App");
   product.append({
-    repoPath: "/repo",
     kind: "command",
     message: "Start completed",
+    repoPath: "/repo",
     severity: "success",
   });
   product.removeProject("/repo");
@@ -110,17 +110,17 @@ function observedFixture() {
   writeFileSync(
     pathModule.join(repoPath, ".branchbase.json"),
     JSON.stringify({
-      version: 1,
-      setup: { argv: ["true"] },
       appGroups: {
         service: {
+          apps: { api: { protocol: "http", readiness: "tcp" } },
           category: "infrastructure",
           instances: { mode: "selectable" },
           start: { argv: ["true"] },
           stop: "process",
-          apps: { api: { protocol: "http", readiness: "tcp" } },
         },
       },
+      setup: { argv: ["true"] },
+      version: 1,
     })
   );
   git("add", ".branchbase.json");
@@ -144,9 +144,9 @@ function observedFixture() {
   return {
     ...fixture,
     controller,
-    state,
     repoPath,
     snapshot: controller.inspect(repoPath),
+    state,
   };
 }
 
@@ -156,8 +156,8 @@ test("observed shared runtime transitions are durable, deduplicated, and include
     const worktree = snapshot.worktrees[0];
     snapshot.worktrees.push({
       ...structuredClone(worktree),
-      id: "second",
       branch: "second",
+      id: "second",
     });
     product.observe(snapshot);
     expect(product.events()).toHaveLength(0);
@@ -194,7 +194,7 @@ test("observed shared runtime transitions are durable, deduplicated, and include
 test("saved projects survive controller restart and unavailable configuration can be removed safely", async () => {
   const { controller, repoPath, directory } = observedFixture();
   try {
-    await controller.execute("save-project", { repoPath, name: "My project" });
+    await controller.execute("save-project", { name: "My project", repoPath });
     expect(controller.projects()[0]).toMatchObject({
       name: "My project",
       path: repoPath,
@@ -232,21 +232,21 @@ test("project removal and trust revocation preserve retained runtime ownership",
     controller.saveProject(repoPath);
     const instanceId = snapshot.worktrees[0].appGroups[0].instance.id;
     state.saveRun(
-      { repoPath, instanceId },
+      { instanceId, repoPath },
       {
         apps: {},
         createdAt: new Date().toISOString(),
         groupId: "service",
         instanceId,
         instanceIdsByGroup: { service: instanceId },
-        worktreePath: repoPath,
         stop: "process",
+        worktreePath: repoPath,
       }
     );
     expect(() => controller.removeProject(repoPath)).toThrow("Retained runs");
     expect(() => controller.revokeTrust(repoPath)).toThrow("Stop App groups");
     expect(controller.projects()).toHaveLength(1);
-    expect(state.run({ repoPath, instanceId })).not.toBeNull();
+    expect(state.run({ instanceId, repoPath })).not.toBeNull();
   } finally {
     await controller.close();
   }
@@ -270,9 +270,9 @@ test("activity history initializes when upgrading a project-only catalog", () =>
   );
   expect(product.events()).toEqual([]);
   product.append({
-    repoPath: "/repo",
     kind: "command",
     message: "Saved",
+    repoPath: "/repo",
     severity: "success",
   });
   expect(product.projects()[0]?.name).toBe("App");

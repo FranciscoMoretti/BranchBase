@@ -111,12 +111,6 @@ export function WorkspacePage({
       worktree.appGroups.some((item) => item.instance.id === group.instance.id)
     );
   const controls: GroupControls = {
-    review: (worktree) =>
-      trust.requestTrust("Review worktree commands", () => undefined, {
-        trusted: false,
-        commands: worktree.configuration.trustCommands,
-        approvals: [{ fingerprint: worktree.configuration.trustFingerprint }],
-      }),
     blocked: (worktree, group) =>
       Boolean(group.pending) ||
       consumers(group).some((consumer) =>
@@ -126,26 +120,32 @@ export function WorkspacePage({
     inspect: (worktree, group, panel = "logs") =>
       navigate({
         ...location,
-        worktree: worktree.id,
         group: group.id,
         panel,
         view: "workspace",
+        worktree: worktree.id,
       }),
-    toggle: (worktree, group) => {
-      if (appGroupIsRunning(group) && consumers(group).length > 1) {
-        setShared({ group, worktree, restart: false });
-      } else {
-        actions.toggleAppGroup(worktree, group);
-      }
-    },
     restart: (worktree, group) => {
       if (consumers(group).length > 1) {
-        setShared({ group, worktree, restart: true });
+        setShared({ group, restart: true, worktree });
       } else {
         actions.restartAppGroup(worktree, group);
       }
     },
     retry: actions.retryAppGroup,
+    review: (worktree) =>
+      trust.requestTrust("Review worktree commands", () => undefined, {
+        approvals: [{ fingerprint: worktree.configuration.trustFingerprint }],
+        commands: worktree.configuration.trustCommands,
+        trusted: false,
+      }),
+    toggle: (worktree, group) => {
+      if (appGroupIsRunning(group) && consumers(group).length > 1) {
+        setShared({ group, restart: false, worktree });
+      } else {
+        actions.toggleAppGroup(worktree, group);
+      }
+    },
   };
   const selected = data.worktrees.find(
     (worktree) => worktree.id === location.worktree
@@ -175,9 +175,9 @@ export function WorkspacePage({
           project={project}
           review={() =>
             trust.requestTrust("Review commands", () => undefined, {
-              trusted: false,
-              commands: data.trustCommands,
               approvals: [{ fingerprint: data.trustFingerprint }],
+              commands: data.trustCommands,
+              trusted: false,
             })
           }
           section={location.section}
@@ -199,16 +199,16 @@ export function WorkspacePage({
           onBack={() => navigate({ repo: data.repoPath, view: "workspace" })}
           onClearLogs={() =>
             actions.commands.clearLogs.mutate({
+              appGroupName: selectedGroup.id,
               repoPath: data.repoPath,
               worktreeId: selected.id,
-              appGroupName: selectedGroup.id,
             })
           }
           onConfigSource={(source) =>
             actions.commands.selectWorktreeConfigSource.mutate({
               repoPath: data.repoPath,
-              worktreeId: selected.id,
               source,
+              worktreeId: selected.id,
             })
           }
           onCreateInstance={(name) =>

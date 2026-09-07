@@ -14,27 +14,27 @@ import { ObservedProjectPage, ServiceLink } from "./observed-project-page";
 import { ProjectsPage, projectIsActive } from "./projects-page";
 
 const service: DetectedService = {
+  address: "127.0.0.1:3000",
+  command: "node",
+  cwd: "/code/app",
+  managed: false,
   pid: 42,
   port: 3000,
-  cwd: "/code/app",
-  command: "node",
+  resources: null,
   startedAt: null,
   url: null,
-  address: "127.0.0.1:3000",
-  resources: null,
-  managed: false,
 };
 const data: Observation = {
-  repoPath: "/code/app",
   configured: false,
+  repoPath: "/code/app",
   updatedAt: "2026-09-06T12:00:00Z",
   warning: null,
   worktrees: [
     {
-      id: "main",
-      path: "/code/app",
       branch: "main",
+      id: "main",
       isMain: true,
+      path: "/code/app",
       services: [
         service,
         { ...service, pid: 43, port: 3001 },
@@ -44,21 +44,21 @@ const data: Observation = {
   ],
 };
 const project: ProjectOverview = {
-  path: data.repoPath,
-  name: "App",
   addedAt: data.updatedAt,
-  pins: [],
   error: null,
-  workspace: null,
+  name: "App",
   observation: data,
+  path: data.repoPath,
+  pins: [],
+  workspace: null,
 };
 const location: ProductLocation = {
+  group: "",
+  panel: "logs",
   repo: data.repoPath,
+  section: "general",
   view: "workspace",
   worktree: "",
-  group: "",
-  section: "general",
-  panel: "logs",
 };
 function render(child: ReactNode, projects: ProjectOverview[] = [project]) {
   const client = new QueryClient({
@@ -103,8 +103,8 @@ test("detected listeners make a project active and quiet unconfigured projects a
   const quiet = {
     ...project,
     name: "A quiet project",
-    path: "/code/quiet",
     observation: { ...data, worktrees: [] },
+    path: "/code/quiet",
   };
   expect(projectIsActive(project)).toBe(true);
   expect(projectIsActive(quiet)).toBe(false);

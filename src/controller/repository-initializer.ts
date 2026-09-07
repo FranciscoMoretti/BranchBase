@@ -104,12 +104,14 @@ export function planRepositoryInitialization(
   const defaults = projectDefaults(root);
   const setup = defaults.setup ?? defaultBranchBaseSetupCommand();
   const start = defaults.start ?? defaultBranchBaseStartCommand();
+  // oxlint-disable-next-line sort-keys -- Preserve the serialized starter configuration contract.
   const config: WorktreeEnvConfig = {
     $schema:
       "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json",
     version: 1,
     setup,
     appGroups: {
+      // oxlint-disable-next-line sort-keys -- Preserve the serialized starter configuration contract.
       Apps: {
         instances: { mode: "per-worktree" },
         start,

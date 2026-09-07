@@ -187,6 +187,7 @@ export class AppGroupRuntime {
         worktreePath: processPath,
       });
     });
+    // oxlint-disable-next-line sort-keys -- Preserve snapshot evaluation order around state inspection.
     return {
       apps,
       category: group.category ?? "application",
@@ -921,8 +922,8 @@ export class AppGroupRuntime {
         logId: context.processId,
         ownerId: context.processId,
         ownerRoot: context.processPath,
-        trackExitFailure: true,
         processId: context.processId,
+        trackExitFailure: true,
       });
     } catch (error) {
       throw new AppGroupLifecycleError("start-failed", errorMessage(error));

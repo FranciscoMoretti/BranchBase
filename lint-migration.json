@@ -38,7 +38,6 @@
     "react/todo": "off",
     "require-await": "off",
     "require-unicode-regexp": "off",
-    "sort-keys": "off",
     "sort-vars": "off",
     "typescript/no-dynamic-delete": "off",
     "unicorn/catch-error-name": "off",

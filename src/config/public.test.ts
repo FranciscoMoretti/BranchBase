@@ -9,23 +9,22 @@ import type {
 describe("public config contract", () => {
   it("resolves slot-free app endpoints through the package subpath", () => {
     const config: BranchBaseConfig = {
-      version: 1,
-      setup: { argv: ["bun", "install"] },
       appGroups: {
         Apps: {
+          apps: { web: { protocol: "http", readiness: "tcp" } },
+          env: { APP_URL: "{apps.web.url}" },
           instances: { mode: "per-worktree" },
           start: {
             argv: ["bun", "run", "dev", "--url", "{apps.web.url}"],
           },
           stop: "process",
-          env: { APP_URL: "{apps.web.url}" },
-          apps: { web: { protocol: "http", readiness: "tcp" } },
         },
       },
+      setup: { argv: ["bun", "install"] },
+      version: 1,
     };
     const appGroups: ResolvedBranchBaseAppGroups = {
       Apps: {
-        id: "Apps",
         apps: {
           web: {
             directUrl: "http://127.0.0.1:49152",
@@ -34,6 +33,7 @@ describe("public config contract", () => {
             url: "http://web.main.repo.localhost:1355",
           },
         },
+        id: "Apps",
       },
     };
 
