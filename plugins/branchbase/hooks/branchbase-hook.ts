@@ -109,6 +109,7 @@ const readBoundedResponse = async (response: Response): Promise<string> => {
   const reader = response.body.getReader();
   let size = 0;
   while (true) {
+    // oxlint-disable-next-line no-await-in-loop -- ReadableStream chunks must be consumed in order.
     const { done, value } = await reader.read();
     if (done) {
       return Buffer.concat(chunks).toString("utf-8");
@@ -116,6 +117,7 @@ const readBoundedResponse = async (response: Response): Promise<string> => {
     const chunk = Buffer.from(value);
     size += chunk.length;
     if (size > MAX_RESPONSE_BYTES) {
+      // oxlint-disable-next-line no-await-in-loop -- Cancellation follows the ordered stream read.
       await reader.cancel();
       throw new Error("BranchBase hook response is too large");
     }
@@ -169,7 +171,7 @@ const main = async (): Promise<unknown> => {
     process.env.BRANCHBASE_CODEX_CAPABILITY_PATH ??
     pathModule.join(homedir(), ".branchbase", "codex", "capability.json");
   const [capability, input] = await Promise.all([
-    Promise.resolve().then(() => readCapability(capabilityPath)),
+    (async () => readCapability(capabilityPath))(),
     readStdin(),
   ]);
   const payload = normalize(event, input);

@@ -7,6 +7,7 @@ import pathModule from "node:path";
 import { z } from "zod";
 
 import { processIsLive } from "../host/process-inspection";
+import { delay } from "./async-utils";
 import {
   isPortlessProxyResponding,
   isPublishedPortlessRoute,
@@ -56,9 +57,6 @@ const packageFile = (packageName: string, ...parts: string[]): string =>
     pathModule.dirname(require.resolve(`${packageName}/package.json`)),
     ...parts
   );
-
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class PortlessRoutingEngine implements LocalRoutingEngine {
   private readonly cliPath: string;
@@ -214,9 +212,11 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
   ): Promise<void> {
     const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
     while (Date.now() < deadline) {
+      // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
       if (await condition()) {
         return;
       }
+      // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
       await delay(POLL_INTERVAL_MS);
     }
     throw new Error(message);

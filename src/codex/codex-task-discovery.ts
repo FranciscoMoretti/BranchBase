@@ -148,8 +148,9 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
     if (this.inFlight?.key === key) {
       return this.inFlight.promise;
     }
-    const promise = this.refreshWithinDeadline(paths)
-      .then((snapshot) => {
+    const promise = (async () => {
+      try {
+        const snapshot = await this.refreshWithinDeadline(paths);
         this.failure = undefined;
         this.cache = {
           expiresAt: this.now().valueOf() + this.successfulTtlMs,
@@ -157,8 +158,7 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
           snapshot,
         };
         return snapshot;
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         const unavailable =
           error instanceof CodexIntegrationUnavailableError
             ? error
@@ -169,7 +169,8 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
           key,
         };
         throw unavailable;
-      });
+      }
+    })();
     this.inFlight = { key, promise };
     try {
       return await promise;
@@ -183,15 +184,21 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
   private async refreshWithinDeadline(
     paths: readonly string[]
   ): Promise<CodexIntegrationAdapterSnapshot> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        reject(new CodexIntegrationUnavailableError("Codex refresh timed out"));
-        this.close().catch(() => undefined);
-      }, this.refreshTimeoutMs);
-    });
+    const timeoutResult = Promise.withResolvers<never>();
+    const timer = setTimeout(() => {
+      timeoutResult.reject(
+        new CodexIntegrationUnavailableError("Codex refresh timed out")
+      );
+      void (async () => {
+        try {
+          await this.close();
+        } catch {
+          // Closing after a refresh timeout is best-effort.
+        }
+      })();
+    }, this.refreshTimeoutMs);
     try {
-      return await Promise.race([this.refresh(paths), timeout]);
+      return await Promise.race([this.refresh(paths), timeoutResult.promise]);
     } finally {
       clearTimeout(timer);
     }
@@ -208,6 +215,7 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
       let page: z.infer<typeof ThreadListResultSchema>;
       try {
         page = ThreadListResultSchema.parse(
+          // oxlint-disable-next-line no-await-in-loop -- Pagination requests must follow the previous response cursor.
           await client.listThreads(paths, cursor)
         );
       } catch (error) {
@@ -253,12 +261,19 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
 
   private getClient(): Promise<CodexAppServerClient> {
     if (!this.clientPromise) {
-      const promise = this.resolveClient().catch((error: unknown) => {
-        if (this.clientPromise === promise) {
-          this.clientPromise = undefined;
+      const result = Promise.withResolvers<CodexAppServerClient>();
+      const promise = result.promise;
+      const resolve = async (): Promise<void> => {
+        try {
+          result.resolve(await this.resolveClient());
+        } catch (error: unknown) {
+          if (this.clientPromise === promise) {
+            this.clientPromise = undefined;
+          }
+          result.reject(error);
         }
-        throw error;
-      });
+      };
+      void resolve();
       this.clientPromise = promise;
     }
     return this.clientPromise;

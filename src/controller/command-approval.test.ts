@@ -14,6 +14,7 @@ import pathModule from "node:path";
 
 import { loadBranchBaseConfig } from "../config/branchbase-config";
 import { repositoryCommandFingerprint } from "../config/repository-trust";
+import { delay } from "../runtime/async-utils";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import {
   ProcessSupervisor,
@@ -179,7 +180,8 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
         .listManagedProcesses()
         .find((process) => process.cwd === persistedWorktreePath);
       if (!managed) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // oxlint-disable-next-line no-await-in-loop -- Managed process polling observes each attempt before waiting.
+        await delay(10);
       }
     }
     expect(managed).toBeDefined();
@@ -260,7 +262,8 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
         managed = true;
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // oxlint-disable-next-line no-await-in-loop -- Managed process polling observes each attempt before waiting.
+      await delay(10);
     }
     expect(managed).toBe(true);
     expect(

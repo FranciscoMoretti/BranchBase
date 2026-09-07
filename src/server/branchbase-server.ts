@@ -1,8 +1,10 @@
 import { randomBytes } from "node:crypto";
+import { once } from "node:events";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import pathModule from "node:path";
+import { promisify } from "node:util";
 
 import { createServer as createViteServer } from "vite";
 import type { ViteDevServer } from "vite";
@@ -291,6 +293,8 @@ export const createBranchBaseServer = async (
     url: URL
   ): void => {
     if (vite) {
+      // Vite's middleware API requires a Node-style completion callback.
+      // oxlint-disable-next-line promise/prefer-await-to-callbacks -- required by the Vite middleware bridge
       vite.middlewares(request, response, (error: unknown) => {
         if (error) {
           sendJson(response, 500, {
@@ -355,9 +359,7 @@ export const createBranchBaseServer = async (
     if (!server.listening) {
       return Promise.resolve();
     }
-    return new Promise((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+    return promisify(server.close.bind(server))();
   };
 
   const cleanupCodexHookCapability = (): void => {
@@ -393,39 +395,36 @@ export const createBranchBaseServer = async (
 
   return {
     close(): Promise<void> {
-      shutdownPromise ??= Promise.all([
-        closeHttpServer(),
-        controller.close(),
-        vite?.close() ?? Promise.resolve(),
-      ])
-        .then(() => undefined)
-        .finally(() => {
+      shutdownPromise ??= (async () => {
+        try {
+          await Promise.all([
+            closeHttpServer(),
+            controller.close(),
+            vite?.close() ?? Promise.resolve(),
+          ]);
+        } finally {
           if (exitCleanupRegistered) {
             process.off("exit", cleanupCodexHookCapability);
             exitCleanupRegistered = false;
           }
           cleanupCodexHookCapability();
-        });
+        }
+      })();
       return shutdownPromise;
     },
-    listen(): Promise<string> {
+    async listen(): Promise<string> {
       if (listeningUrl) {
-        return Promise.resolve(listeningUrl);
+        return listeningUrl;
       }
-      return new Promise((resolve, reject) => {
-        server.once("error", reject);
-        server.listen(configuredPort, host, () => {
-          server.off("error", reject);
-          const address = server.address();
-          if (!address || typeof address === "string") {
-            reject(new Error("BranchBase server did not bind a TCP port"));
-            return;
-          }
-          enableCodexHookBridge(address.port);
-          listeningUrl = `${httpOrigin(host, address.port)}/`;
-          resolve(listeningUrl);
-        });
-      });
+      server.listen(configuredPort, host);
+      await once(server, "listening");
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        throw new Error("BranchBase server did not bind a TCP port");
+      }
+      enableCodexHookBridge(address.port);
+      listeningUrl = `${httpOrigin(host, address.port)}/`;
+      return listeningUrl;
     },
   };
 };

@@ -27,6 +27,7 @@ export const restartRunningApps = async (
     })
   );
   for (const target of targets) {
+    // oxlint-disable-next-line no-await-in-loop -- App group lifecycle operations are serialized to preserve restart ordering.
     await restartApps(controller, { repoPath, ...target });
   }
   return {

@@ -1123,15 +1123,19 @@ export class WorkspaceController {
     if (this.codexRefreshes.has(root)) {
       return;
     }
-    const refresh = this.inspectCodex(root, { force: true })
-      .then(() => undefined)
-      .catch(() => undefined)
-      .finally(() => {
+    let refresh = Promise.resolve();
+    refresh = (async () => {
+      try {
+        await this.inspectCodex(root, { force: true });
+      } catch {
+        // Codex refreshes are best-effort and retried by the next hook event.
+      } finally {
         this.discardUnmatchedCodexObservations(root);
         if (this.codexRefreshes.get(root) === refresh) {
           this.codexRefreshes.delete(root);
         }
-      });
+      }
+    })();
     this.codexRefreshes.set(root, refresh);
   }
 

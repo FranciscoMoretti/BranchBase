@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import {
   existsSync,
   mkdirSync,
@@ -77,9 +78,9 @@ class BlockingPrepareRoutingEngine extends InMemoryRoutingEngine {
       this.prepared = true;
       return Promise.resolve();
     }
-    return new Promise((resolve) => {
-      this.releasePrepare = resolve;
-    });
+    const result = Promise.withResolvers<undefined>();
+    this.releasePrepare = () => result.resolve(undefined);
+    return result.promise;
   }
 
   release(): void {
@@ -120,16 +121,20 @@ const git = (cwd: string, ...args: string[]): void => {
   }
 };
 
-const listen = (server: Server, port: number): Promise<void> =>
-  new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
-  });
+const listen = async (server: Server, port: number): Promise<void> => {
+  const listening = once(server, "listening");
+  server.listen(port, "127.0.0.1");
+  await listening;
+};
 
-const close = (server: Server): Promise<void> =>
-  new Promise((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
+const close = async (server: Server): Promise<void> => {
+  if (!server.listening) {
+    return;
+  }
+  const closed = once(server, "close");
+  server.close();
+  await closed;
+};
 
 describe("App-group instance assignment", () => {
   it("uses an approved captured Stop command for a detached run", async () => {

@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 
+import { delay } from "../../runtime/async-utils";
 import { ThemeProvider } from "../components/theme-provider";
 
 let dom: Window | null = null;
@@ -80,8 +81,7 @@ afterEach(async () => {
   }
 });
 
-const waitForHistoryEvent = () =>
-  new Promise<void>((resolve) => setTimeout(resolve, 25));
+const waitForHistoryEvent = () => delay(25);
 
 const settleHistory = async () => {
   await act(async () => {

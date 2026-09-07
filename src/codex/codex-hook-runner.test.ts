@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
@@ -41,9 +42,9 @@ describe("BranchBase Codex hook runner", () => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(hookResponse));
     });
-    await new Promise<void>((resolve) => {
-      server.listen(0, "127.0.0.1", resolve);
-    });
+    const listening = once(server, "listening");
+    server.listen(0, "127.0.0.1");
+    await listening;
     const address = server.address();
     if (!(address && typeof address === "object")) {
       throw new Error("Missing runner test server address");
@@ -52,9 +53,9 @@ describe("BranchBase Codex hook runner", () => {
   });
 
   afterEach(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+    const closed = once(server, "close");
+    server.close();
+    await closed;
     rmSync(capabilityDirectory, { force: true, recursive: true });
   });
 

@@ -179,15 +179,17 @@ describe("repository trust fingerprint", () => {
         })
       );
       let rejectTimeout: ReturnType<typeof setTimeout> | undefined;
-      const timeout = new Promise<never>((_, reject) => {
-        rejectTimeout = setTimeout(
-          () => reject(new Error("Timed out waiting for trust workers")),
-          5000
-        );
-      });
+      const timeoutResult = Promise.withResolvers<never>();
+      rejectTimeout = setTimeout(
+        () =>
+          timeoutResult.reject(
+            new Error("Timed out waiting for trust workers")
+          ),
+        5000
+      );
       let results: { exitCode: number; stderr: string; stdout: string }[];
       try {
-        results = await Promise.race([resultPromise, timeout]);
+        results = await Promise.race([resultPromise, timeoutResult.promise]);
       } catch (error) {
         for (const process of processes) {
           process.kill();

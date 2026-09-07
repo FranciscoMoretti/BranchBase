@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
+import { delay } from "./async-utils";
 import { ProcessSupervisor } from "./process-supervisor";
 
 const worktreeId = `clear-log-test-${process.pid}`;
@@ -31,7 +33,8 @@ const waitForProcessExit = async (pid: number): Promise<void> => {
     } catch {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    // oxlint-disable-next-line no-await-in-loop -- Process exit polling observes each attempt before waiting.
+    await delay(25);
   }
   throw new Error(`Process ${pid} did not exit`);
 };
@@ -91,7 +94,7 @@ describe("managed logs", () => {
         processId: worktreeId,
       })
     ).toThrow("Failed to start");
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await delay(10);
     expect(supervisor.readManagedLog(worktreeId).join("\n")).toContain(
       "Failed to start"
     );
@@ -110,7 +113,7 @@ describe("managed logs", () => {
     ).toThrow("Failed to start");
     rmSync(controlDirectory, { force: true, recursive: true });
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await delay(10);
 
     expect(existsSync(controlDirectory)).toBe(false);
   });
@@ -143,7 +146,8 @@ describe("managed logs", () => {
       if (supervisor.readManagedLog(stopTestId).includes("ready")) {
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // oxlint-disable-next-line no-await-in-loop -- Process readiness polling observes each attempt before waiting.
+      await delay(10);
     }
     const stopping = supervisor.stopManagedProcess(stopTestId, process.cwd());
     expect(supervisor.managedPid(stopTestId, process.cwd())).toBe(pid);
@@ -172,7 +176,8 @@ describe("managed logs", () => {
         stubbornDescendantPid = Number(match[1]);
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // oxlint-disable-next-line no-await-in-loop -- Descendant discovery polling observes each attempt before waiting.
+      await delay(10);
     }
     const descendantPid = stubbornDescendantPid;
     if (!descendantPid) {
@@ -205,7 +210,8 @@ describe("managed logs", () => {
         orphanDescendantPid = Number(match[1]);
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // oxlint-disable-next-line no-await-in-loop -- Descendant discovery polling observes each attempt before waiting.
+      await delay(10);
     }
     const descendantPid = orphanDescendantPid;
     if (!descendantPid) {
@@ -230,7 +236,7 @@ describe("managed logs", () => {
       throw new Error("Stubborn owned process did not start");
     }
     stubbornOwnedPid = childPid;
-    await new Promise<void>((resolve) => child.stdout.once("data", resolve));
+    await once(child.stdout, "data");
     expect(
       await supervisor.stopOwnedProcess(childPid, stubbornStopTestId)
     ).toBe(true);

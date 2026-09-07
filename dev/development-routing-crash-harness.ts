@@ -14,11 +14,19 @@ const exit = async (): Promise<void> => {
   process.exit(0);
 };
 
+async function exitOnFailure(): Promise<void> {
+  try {
+    await exit();
+  } catch {
+    process.exit(1);
+  }
+}
+
 process.once("disconnect", () => {
-  exit().catch(() => process.exit(1));
+  void exitOnFailure();
 });
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    exit().catch(() => process.exit(1));
+    void exitOnFailure();
   });
 }

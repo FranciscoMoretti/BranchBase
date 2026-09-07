@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { once } from "node:events";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 
@@ -22,9 +23,9 @@ describe("Codex hook HTTP route", () => {
     server = createServer((request, response) => {
       handler(request, response).catch(() => response.end());
     });
-    await new Promise<void>((resolve) => {
-      server.listen(0, "127.0.0.1", resolve);
-    });
+    const listening = once(server, "listening");
+    server.listen(0, "127.0.0.1");
+    await listening;
     const address = server.address();
     if (!(address && typeof address === "object")) {
       throw new Error("Missing test server address");
@@ -33,9 +34,9 @@ describe("Codex hook HTTP route", () => {
   });
 
   afterEach(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+    const closed = once(server, "close");
+    server.close();
+    await closed;
   });
 
   it("accepts only a strict allowlisted observation with the hook capability", async () => {
@@ -76,9 +77,9 @@ describe("Codex hook HTTP route", () => {
         token: "hook-secret",
       })(request, response).catch(() => response.end());
     });
-    await new Promise<void>((resolve) => {
-      contextServer.listen(0, "127.0.0.1", resolve);
-    });
+    const listening = once(contextServer, "listening");
+    contextServer.listen(0, "127.0.0.1");
+    await listening;
     try {
       const address = contextServer.address();
       if (!(address && typeof address === "object")) {
@@ -106,9 +107,9 @@ describe("Codex hook HTTP route", () => {
         additionalContext: "Safe BranchBase context",
       });
     } finally {
-      await new Promise<void>((resolve, reject) => {
-        contextServer.close((error) => (error ? reject(error) : resolve()));
-      });
+      const closed = once(contextServer, "close");
+      contextServer.close();
+      await closed;
     }
   });
 

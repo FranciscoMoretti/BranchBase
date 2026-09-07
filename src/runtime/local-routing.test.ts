@@ -1,5 +1,6 @@
 import { expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { createRequire } from "node:module";
@@ -69,21 +70,25 @@ const packageFile = (packageName: string, ...parts: string[]): string =>
     ...parts
   );
 
-const listen = (server: Server, port: number): Promise<number> =>
-  new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Server did not expose a TCP port"));
-        return;
-      }
-      resolve(address.port);
-    });
-  });
+const listen = async (server: Server, port: number): Promise<number> => {
+  const listening = once(server, "listening");
+  server.listen(port, "127.0.0.1");
+  await listening;
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Server did not expose a TCP port");
+  }
+  return address.port;
+};
 
-const close = (server: Server): Promise<void> =>
-  new Promise((resolve) => server.close(() => resolve()));
+const close = async (server: Server): Promise<void> => {
+  if (!server.listening) {
+    return;
+  }
+  const closed = once(server, "close");
+  server.close();
+  await closed;
+};
 
 it("activates a Portless route when the backing app resets connections", async () => {
   const temporary = mkdtempSync(
@@ -94,17 +99,14 @@ it("activates a Portless route when the backing app resets connections", async (
     request.socket.destroy();
   });
   const proxyReservation = createServer();
-  const backendPort = await new Promise<number>((resolve, reject) => {
-    backend.once("error", reject);
-    backend.listen(0, "127.0.0.1", () => {
-      const address = backend.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Backend did not expose a TCP port"));
-        return;
-      }
-      resolve(address.port);
-    });
-  });
+  const backendListening = once(backend, "listening");
+  backend.listen(0, "127.0.0.1");
+  await backendListening;
+  const backendAddress = backend.address();
+  if (!backendAddress || typeof backendAddress === "string") {
+    throw new Error("Backend did not expose a TCP port");
+  }
+  const backendPort = backendAddress.port;
   const proxyPort = await listen(proxyReservation, 0);
   await close(proxyReservation);
   const routing = new PortlessRoutingEngine({
@@ -138,7 +140,7 @@ it("activates a Portless route when the backing app resets connections", async (
         },
       }
     );
-    await new Promise<void>((resolve) => backend.close(() => resolve()));
+    await close(backend);
     rmSync(temporary, { force: true, recursive: true });
   }
 }, 15_000);
@@ -152,17 +154,14 @@ it("reloads consecutive Portless route updates", async () => {
     response.end("ok");
   });
   const proxyReservation = createServer();
-  const backendPort = await new Promise<number>((resolve, reject) => {
-    backend.once("error", reject);
-    backend.listen(0, "127.0.0.1", () => {
-      const address = backend.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Backend did not expose a TCP port"));
-        return;
-      }
-      resolve(address.port);
-    });
-  });
+  const backendListening = once(backend, "listening");
+  backend.listen(0, "127.0.0.1");
+  await backendListening;
+  const backendAddress = backend.address();
+  if (!backendAddress || typeof backendAddress === "string") {
+    throw new Error("Backend did not expose a TCP port");
+  }
+  const backendPort = backendAddress.port;
   const proxyPort = await listen(proxyReservation, 0);
   await close(proxyReservation);
   const routing = new PortlessRoutingEngine({
@@ -207,7 +206,7 @@ it("reloads consecutive Portless route updates", async () => {
         },
       }
     );
-    await new Promise<void>((resolve) => backend.close(() => resolve()));
+    await close(backend);
     rmSync(temporary, { force: true, recursive: true });
   }
 }, 15_000);

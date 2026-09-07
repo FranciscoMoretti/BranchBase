@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import {
   existsSync,
   mkdirSync,
@@ -11,6 +12,8 @@ import {
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
+
+import { delay } from "../src/runtime/async-utils";
 
 const PROJECT_ROOT = pathModule.resolve(import.meta.filename, "../..");
 
@@ -48,26 +51,28 @@ const assert: (condition: unknown, message: string) => asserts condition = (
 
 const unusedPort = async (): Promise<number> => {
   const server = createServer();
-  await new Promise<void>((resolveListen) => {
-    server.listen(0, "127.0.0.1", resolveListen);
-  });
+  const listening = once(server, "listening");
+  server.listen(0, "127.0.0.1");
+  await listening;
   const address = server.address();
   assert(address && typeof address !== "string", "Could not reserve a port");
   const port = address.port;
-  await new Promise<void>((resolveClose, reject) => {
-    server.close((error) => (error ? reject(error) : resolveClose()));
-  });
+  const closed = once(server, "close");
+  server.close();
+  await closed;
   return port;
 };
 
 const waitUntilStopped = async (url: string): Promise<void> => {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
+      // oxlint-disable-next-line no-await-in-loop -- Packed daemon shutdown polling observes each attempt before waiting.
       await fetch(url);
     } catch {
       return;
     }
-    await new Promise((resolveSleep) => setTimeout(resolveSleep, 100));
+    // oxlint-disable-next-line no-await-in-loop -- Packed daemon shutdown polling observes each attempt before waiting.
+    await delay(100);
   }
   throw new Error("Packed BranchBase daemon did not stop");
 };

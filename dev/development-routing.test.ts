@@ -1,13 +1,16 @@
 import { expect, it } from "bun:test";
 import { fork } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, request } from "node:http";
+import type { IncomingMessage } from "node:http";
 import { createConnection, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { delay } from "../src/runtime/async-utils";
 import { reserveBackingPort } from "../src/runtime/readiness";
 import {
   DevelopmentProxyPortConflictError,
@@ -23,118 +26,115 @@ const listenBackend = (
   const server = createHttpServer((_request, response) => {
     response.end("backend");
   });
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Backend did not expose a TCP port"));
-        return;
-      }
-      resolve({
-        close: () =>
-          new Promise<void>((closeResolve, closeReject) => {
-            server.close((error) =>
-              error ? closeReject(error) : closeResolve()
-            );
-          }),
-        port: address.port,
-      });
-    });
-  });
+  return (async () => {
+    const listening = once(server, "listening");
+    server.listen(port, "127.0.0.1");
+    await listening;
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Backend did not expose a TCP port");
+    }
+    return {
+      close: async () => {
+        const closed = once(server, "close");
+        server.close();
+        await closed;
+      },
+      port: address.port,
+    };
+  })();
 };
 
-const proxyResponse = (
+const proxyResponse = async (
   port: number,
   hostname: string,
   proxyHost = "127.0.0.1",
   timeoutMs = 1000
-): Promise<{ body: string; status: number }> =>
-  new Promise((resolve, reject) => {
-    const proxyRequest = request(
-      {
-        headers: { host: `${hostname}:${port}` },
-        host: proxyHost,
-        port,
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-        response.once("end", () =>
-          resolve({
-            body: Buffer.concat(chunks).toString("utf-8"),
-            status: response.statusCode ?? 0,
-          })
-        );
-      }
-    );
-    proxyRequest.once("error", reject);
-    proxyRequest.setTimeout(timeoutMs, () =>
+): Promise<{ body: string; status: number }> => {
+  const proxyRequest = request({
+    headers: { host: `${hostname}:${port}` },
+    host: proxyHost,
+    port,
+  });
+  const timeout = setTimeout(
+    () =>
       proxyRequest.destroy(
         new Error(`Proxy request timed out after ${timeoutMs} ms`)
-      )
-    );
+      ),
+    timeoutMs
+  );
+  try {
     proxyRequest.end();
-  });
+    const [response] = (await once(proxyRequest, "response")) as [
+      IncomingMessage,
+    ];
+    const chunks: Buffer[] = [];
+    for await (const chunk of response) {
+      chunks.push(Buffer.from(chunk));
+    }
+    return {
+      body: Buffer.concat(chunks).toString("utf-8"),
+      status: response.statusCode ?? 0,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
-const listenOnPort = (
+const listenOnPort = async (
   port: number,
   host: string
 ): Promise<() => Promise<void>> => {
   const server = createServer();
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, host, () =>
-      resolve(
-        () =>
-          new Promise<void>((closeResolve, closeReject) => {
-            server.close((error) =>
-              error ? closeReject(error) : closeResolve()
-            );
-          })
-      )
-    );
-  });
+  const listening = once(server, "listening");
+  server.listen(port, host);
+  await listening;
+  return async () => {
+    const closed = once(server, "close");
+    server.close();
+    await closed;
+  };
 };
 
-const waitForChildReady = (child: ChildProcess): Promise<void> =>
-  new Promise((resolve, reject) => {
-    const handlers = {
-      onError(error: Error) {
-        handlers.cleanup();
-        reject(error);
-      },
-      onExit() {
-        handlers.cleanup();
-        reject(new Error("Development routing harness exited before startup"));
-      },
-      onMessage(message: unknown) {
-        if (
-          typeof message === "object" &&
-          message !== null &&
-          "type" in message &&
-          message.type === "ready"
-        ) {
-          handlers.cleanup();
-          resolve();
-        }
-      },
-      cleanup() {
-        child.off("error", handlers.onError);
-        child.off("exit", handlers.onExit);
-        child.off("message", handlers.onMessage);
-      },
-    };
-    child.once("error", handlers.onError);
-    child.once("exit", handlers.onExit);
-    child.on("message", handlers.onMessage);
-  });
+const waitForChildReady = async (child: ChildProcess): Promise<void> => {
+  const result = Promise.withResolvers<undefined>();
+  const cleanup = () => {
+    child.off("error", onError);
+    child.off("exit", onExit);
+    child.off("message", onMessage);
+  };
+  const onError = (error: Error) => {
+    cleanup();
+    result.reject(error);
+  };
+  const onExit = () => {
+    cleanup();
+    result.reject(
+      new Error("Development routing harness exited before startup")
+    );
+  };
+  const onMessage = (message: unknown) => {
+    if (
+      typeof message === "object" &&
+      message !== null &&
+      "type" in message &&
+      message.type === "ready"
+    ) {
+      cleanup();
+      result.resolve(undefined);
+    }
+  };
+  child.once("error", onError);
+  child.once("exit", onExit);
+  child.on("message", onMessage);
+  return result.promise;
+};
 
-const waitForExit = (child: ChildProcess): Promise<void> => {
+const waitForExit = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve();
+    return;
   }
-  return new Promise((resolve) => child.once("exit", () => resolve()));
+  await once(child, "exit");
 };
 
 const waitForProxyStatus = async (
@@ -145,13 +145,15 @@ const waitForProxyStatus = async (
   const deadline = Date.now() + 5000;
   do {
     try {
+      // oxlint-disable-next-line no-await-in-loop -- Proxy status polling observes each attempt before waiting.
       if ((await proxyResponse(port, hostname)).status === expected) {
         return;
       }
     } catch {
       // Timed-out or refused requests keep polling until the deadline.
     }
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    // oxlint-disable-next-line no-await-in-loop -- Proxy status polling observes each attempt before waiting.
+    await delay(25);
   } while (Date.now() < deadline);
   throw new Error(`Proxy did not return status ${expected}`);
 };
@@ -163,12 +165,14 @@ const reopenAfterParentExit = async (
   const deadline = Date.now() + 5000;
   do {
     try {
+      // oxlint-disable-next-line no-await-in-loop -- Proxy reopen retries are serialized to preserve conflict handling.
       return await DevelopmentRouting.open({ port, stateDirectory });
     } catch (error) {
       if (!(error instanceof DevelopmentProxyPortConflictError)) {
         throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      // oxlint-disable-next-line no-await-in-loop -- Proxy reopen retries are serialized to preserve conflict handling.
+      await delay(25);
     }
   } while (Date.now() < deadline);
   throw new Error(
@@ -395,13 +399,9 @@ it("rejects occupied ports and releases both loopback listeners", async () => {
       stateDirectory: temporary,
     });
     const socket = createConnection({ host: "127.0.0.1", port });
-    await new Promise<void>((resolve, reject) => {
-      socket.once("connect", resolve);
-      socket.once("error", reject);
-    });
-    const socketClosed = new Promise<void>((resolve) =>
-      socket.once("close", () => resolve())
-    );
+    const connected = once(socket, "connect");
+    await connected;
+    const socketClosed = once(socket, "close");
     await routing.close();
     await socketClosed;
     await routing.close();

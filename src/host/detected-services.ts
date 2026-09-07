@@ -240,24 +240,28 @@ export class DetectedServices {
     const url = address.startsWith("[::1]:")
       ? `http://[::1]:${port}`
       : `http://127.0.0.1:${port}`;
-    fetch(url, {
-      method: "HEAD",
-      redirect: "manual",
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    })
-      .then((response) => {
+    void (async () => {
+      try {
+        const response = await fetch(url, {
+          method: "HEAD",
+          redirect: "manual",
+          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+        });
         this.probes.set(key, {
           at: Date.now(),
           url: response.status > 0 ? url : null,
         });
-        response.body?.cancel().catch(() => undefined);
-      })
-      .catch(() => {
+        try {
+          await response.body?.cancel();
+        } catch {
+          // Draining a probe response is best-effort.
+        }
+      } catch {
         this.probes.set(key, { at: Date.now(), url: null });
-      })
-      .finally(() => {
+      } finally {
         this.activeProbes--;
-      });
+      }
+    })();
     evictProbes(this.probes, Date.now());
     return cached?.url ?? null;
   }

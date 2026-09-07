@@ -1,4 +1,5 @@
 import { expect, it, spyOn } from "bun:test";
+import { once } from "node:events";
 import {
   mkdirSync,
   mkdtempSync,
@@ -16,21 +17,18 @@ import type { DevelopmentRouting } from "./development-routing";
 import { openDevelopmentSession } from "./development-session";
 import { acquireExclusiveFileLock } from "./exclusive-file-lock";
 
-const listenOnPort = (port: number): Promise<() => Promise<void>> => {
+const listenOnPort = async (
+  port: number
+): Promise<() => Promise<void>> => {
   const server = createServer();
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () =>
-      resolve(
-        () =>
-          new Promise<void>((closeResolve, closeReject) => {
-            server.close((error) =>
-              error ? closeReject(error) : closeResolve()
-            );
-          })
-      )
-    );
-  });
+  const listening = once(server, "listening");
+  server.listen(port, "127.0.0.1");
+  await listening;
+  return async () => {
+    const closed = once(server, "close");
+    server.close();
+    await closed;
+  };
 };
 
 it("isolates development resources from the production runtime", async () => {

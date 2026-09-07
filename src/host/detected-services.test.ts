@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 
 import { serve } from "bun";
 
+import { delay } from "../runtime/async-utils";
 import {
   DetectedServices,
   NEGATIVE_PROBE_TTL_MS,
@@ -63,7 +64,8 @@ test("HTTP detection requires a response, including non-2xx responses", async ()
     const deadline = Date.now() + 1000;
     let detectedUrl = detector.webUrl(service);
     while (detectedUrl !== expectedUrl && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      // oxlint-disable-next-line no-await-in-loop -- Service probe polling observes each attempt before waiting.
+      await delay(25);
       detectedUrl = detector.webUrl(service);
     }
     expect(detectedUrl).toBe(expectedUrl);
@@ -95,7 +97,7 @@ test("HTTP detection retries a failed probe after the short negative cache", asy
     managed: false,
   };
   expect(detector.webUrl(service)).toBeNull();
-  await new Promise((resolve) => setTimeout(resolve, PROBE_TIMEOUT_MS));
+  await delay(PROBE_TIMEOUT_MS);
   const server = serve({
     port,
     hostname: "127.0.0.1",
@@ -107,7 +109,8 @@ test("HTTP detection retries a failed probe after the short negative cache", asy
     const deadline = Date.now() + NEGATIVE_PROBE_TTL_MS + PROBE_TIMEOUT_MS;
     let detectedUrl = detector.webUrl(service);
     while (detectedUrl !== expectedUrl && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      // oxlint-disable-next-line no-await-in-loop -- Service probe polling observes each attempt before waiting.
+      await delay(25);
       detectedUrl = detector.webUrl(service);
     }
     expect(detectedUrl).toBe(expectedUrl);

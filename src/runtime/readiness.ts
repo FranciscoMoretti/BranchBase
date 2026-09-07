@@ -1,13 +1,12 @@
 import { createConnection, createServer } from "node:net";
+import { promisify } from "node:util";
 
 import type { BranchBaseApp } from "../config/branchbase-schema";
 import { inspectHttpStatus } from "../host/http-inspection";
+import { delay } from "./async-utils";
 import type { RunEndpoint } from "./local-state";
 
 const POLL_INTERVAL_MS = 50;
-
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export interface BackingPortLease {
   port: number;
@@ -18,54 +17,54 @@ export const reserveBackingPort = async (
   excluded: ReadonlySet<number> = new Set()
 ): Promise<BackingPortLease> => {
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const reserved = await new Promise<BackingPortLease>((resolve, reject) => {
-      const server = createServer();
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", () => {
-        const address = server.address();
-        if (!address || typeof address === "string") {
-          server.close(() => reject(new Error("Could not allocate a port")));
-          return;
-        }
-        let released = false;
-        resolve({
-          port: address.port,
-          release: () =>
-            new Promise<void>((releaseResolve, releaseReject) => {
-              if (released) {
-                releaseResolve();
-                return;
-              }
-              released = true;
-              server.close((error) =>
-                error ? releaseReject(error) : releaseResolve()
-              );
-            }),
-        });
+    const result = Promise.withResolvers<BackingPortLease>();
+    const server = createServer();
+    server.once("error", result.reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close();
+        result.reject(new Error("Could not allocate a port"));
+        return;
+      }
+      let released = false;
+      result.resolve({
+        port: address.port,
+        release: async () => {
+          if (released) {
+            return;
+          }
+          released = true;
+          await promisify(server.close.bind(server))();
+        },
       });
     });
+    // oxlint-disable-next-line no-await-in-loop -- Backing port reservations retry sequentially against shared exclusions.
+    const reserved = await result.promise;
     if (!excluded.has(reserved.port)) {
       return reserved;
     }
+    // oxlint-disable-next-line no-await-in-loop -- Backing port reservations release an excluded port before retrying.
     await reserved.release();
   }
   throw new Error("Could not allocate an unused Backing endpoint");
 };
 
-const tcpReady = (endpoint: RunEndpoint): Promise<boolean> =>
-  new Promise((resolve) => {
-    const socket = createConnection({
-      host: endpoint.host,
-      port: endpoint.port,
-    });
-    const finish = (ready: boolean) => {
-      socket.destroy();
-      resolve(ready);
-    };
-    socket.setTimeout(300, () => finish(false));
-    socket.once("connect", () => finish(true));
-    socket.once("error", () => finish(false));
+const tcpReady = async (endpoint: RunEndpoint): Promise<boolean> => {
+  const result = Promise.withResolvers<boolean>();
+  const socket = createConnection({
+    host: endpoint.host,
+    port: endpoint.port,
   });
+  const finish = (ready: boolean) => {
+    socket.destroy();
+    result.resolve(ready);
+  };
+  socket.setTimeout(300, () => finish(false));
+  socket.once("connect", () => finish(true));
+  socket.once("error", () => finish(false));
+  return result.promise;
+};
 
 const acceptedStatusRange = (app: BranchBaseApp): [number, number] => {
   if (app.readiness === "tcp") {
@@ -132,9 +131,11 @@ export const waitForAppReadiness = async (
     app.readiness === "tcp" ? 60 : app.readiness.timeoutSeconds;
   const deadline = Date.now() + timeoutSeconds * 1000;
   while (Date.now() < deadline) {
+    // oxlint-disable-next-line no-await-in-loop -- Readiness polling observes each attempt before waiting.
     if (await appIsReady(app, endpoint)) {
       return;
     }
+    // oxlint-disable-next-line no-await-in-loop -- Readiness polling observes each attempt before waiting.
     await delay(POLL_INTERVAL_MS);
   }
   throw new Error(

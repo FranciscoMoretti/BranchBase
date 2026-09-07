@@ -9,6 +9,7 @@ import { UnavailableCodexIntegrationAdapter } from "../codex/codex-integration";
 import type { BranchBaseConfig } from "../config/branchbase-schema";
 import { WorkspaceController } from "../controller/workspace-controller";
 import type { AppEndpointSnapshot } from "../controller/workspace-snapshot";
+import { delay } from "../runtime/async-utils";
 import { PortlessRoutingEngine } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
@@ -95,7 +96,8 @@ export const waitUntil = async (
     if (condition()) {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // oxlint-disable-next-line no-await-in-loop -- Fixture polling observes each attempt before waiting.
+    await delay(50);
   }
   throw new Error(message);
 };
@@ -147,16 +149,20 @@ export class PortlessIntegrationFixture {
           pathModule.join(tmpdir(), "branchbase-portless-integration-")
         )
       );
+      // oxlint-disable-next-line no-await-in-loop -- Fixture setup retries reserve one backing port at a time.
       const reservation = await reserveBackingPort();
       const proxyPort = reservation.port;
+      // oxlint-disable-next-line no-await-in-loop -- Fixture setup releases each reserved port before preparing the next attempt.
       await reservation.release();
       const fixture = new PortlessIntegrationFixture({ proxyPort, sandbox });
       try {
+        // oxlint-disable-next-line no-await-in-loop -- Fixture setup retries prepare and repository initialization in order.
         await fixture.routing.prepare();
         fixture.initializeRepository();
         return fixture;
       } catch (error) {
         lastFailure = error;
+        // oxlint-disable-next-line no-await-in-loop -- Fixture retries clean up the failed attempt before continuing.
         await fixture.cleanup();
       }
     }
@@ -173,6 +179,7 @@ export class PortlessIntegrationFixture {
       for (const worktree of this.controller.inspect(this.root).worktrees) {
         for (const groupId of Object.keys(integrationConfig.appGroups)) {
           try {
+            // oxlint-disable-next-line no-await-in-loop -- Fixture cleanup stops each app group before proceeding to the next.
             await this.controller.stopAppGroup(this.root, worktree.id, groupId);
           } catch {
             // Preserve the test failure while attempting the remaining cleanup.
