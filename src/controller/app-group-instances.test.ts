@@ -17,97 +17,106 @@ import {
   repositoryCommandFingerprint,
   trustRepository,
 } from "../config/repository-trust";
-import type { LocalRoute, LocalRoutingEngine } from "../runtime/local-routing";
+import type { LocalRoutingEngine } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
 import { AppGroupRuntime } from "./app-group-runtime";
 import { WorkspaceController } from "./workspace-controller";
 
-class InMemoryRoutingEngine implements LocalRoutingEngine {
-  private readonly routes = new Map<string, number>();
-  prepared = false;
+type InMemoryRoutingEngine = LocalRoutingEngine & {
+  point: (hostname: string, port: number) => void;
+  prepared: boolean;
+};
 
-  activate(route: LocalRoute): Promise<void> {
-    if (!this.prepared) {
-      throw new Error("Routing activated before preflight");
-    }
-    this.routes.set(route.hostname, route.port);
-    return Promise.resolve();
-  }
+const inMemoryRoutingEngine = (): InMemoryRoutingEngine => {
+  const routes = new Map<string, number>();
+  const routing: InMemoryRoutingEngine = {
+    activate: async (route) => {
+      if (!routing.prepared) {
+        throw new Error("Routing activated before preflight");
+      }
+      routes.set(route.hostname, route.port);
+    },
+    deactivate: async (route) => {
+      routes.delete(route.hostname);
+    },
+    observe: (route) => {
+      const port = routes.get(route.hostname);
+      if (port === undefined) {
+        return "inactive" as const;
+      }
+      return port === route.port ? ("active" as const) : ("conflict" as const);
+    },
+    point: (hostname, port) => {
+      routes.set(hostname, port);
+    },
+    prepare: async () => {
+      routing.prepared = true;
+    },
+    prepared: false,
+    url: (hostname) => `http://${hostname}:1355`,
+  };
+  return routing;
+};
 
-  deactivate(route: LocalRoute): Promise<void> {
-    this.routes.delete(route.hostname);
-    return Promise.resolve();
-  }
+const failingPrepareRoutingEngine = (): InMemoryRoutingEngine => {
+  const routing = inMemoryRoutingEngine();
+  routing.prepare = () => Promise.reject(new Error("Portless unavailable"));
+  return routing;
+};
 
-  observe(route: LocalRoute) {
-    const port = this.routes.get(route.hostname);
-    if (port === undefined) {
-      return "inactive" as const;
-    }
-    return port === route.port ? ("active" as const) : ("conflict" as const);
-  }
+type BlockingPrepareRoutingEngine = InMemoryRoutingEngine & {
+  release: () => void;
+};
 
-  prepare(): Promise<void> {
-    this.prepared = true;
-    return Promise.resolve();
-  }
-
-  point(hostname: string, port: number): void {
-    this.routes.set(hostname, port);
-  }
-
-  url(hostname: string): string {
-    return `http://${hostname}:1355`;
-  }
-}
-
-class FailingPrepareRoutingEngine extends InMemoryRoutingEngine {
-  override prepare(): Promise<void> {
-    return Promise.reject(new Error("Portless unavailable"));
-  }
-}
-
-class BlockingPrepareRoutingEngine extends InMemoryRoutingEngine {
-  private released = false;
-  private releasePrepare: (() => void) | null = null;
-
-  override prepare(): Promise<void> {
-    if (this.released) {
-      this.prepared = true;
+const blockingPrepareRoutingEngine = (): BlockingPrepareRoutingEngine => {
+  let released = false;
+  let releasePrepare: (() => void) | null = null;
+  const routing = inMemoryRoutingEngine() as BlockingPrepareRoutingEngine;
+  routing.prepare = () => {
+    if (released) {
+      routing.prepared = true;
       return Promise.resolve();
     }
     return new Promise((resolve) => {
-      this.releasePrepare = resolve;
+      releasePrepare = resolve;
     });
-  }
+  };
+  routing.release = () => {
+    released = true;
+    routing.prepared = true;
+    releasePrepare?.();
+  };
+  return routing;
+};
 
-  release(): void {
-    this.released = true;
-    this.prepared = true;
-    this.releasePrepare?.();
-  }
-}
+type RecoverableActivationRoutingEngine = InMemoryRoutingEngine & {
+  recover: () => void;
+};
 
-class RecoverableActivationRoutingEngine extends InMemoryRoutingEngine {
-  private failing = true;
-
-  override activate(route: LocalRoute): Promise<void> {
-    return this.failing
-      ? Promise.reject(new Error("Portless route activation failed"))
-      : super.activate(route);
-  }
-
-  recover(): void {
-    this.failing = false;
-  }
-}
+const recoverableActivationRoutingEngine =
+  (): RecoverableActivationRoutingEngine => {
+    let failing = true;
+    const routing =
+      inMemoryRoutingEngine() as RecoverableActivationRoutingEngine;
+    const activate = routing.activate;
+    routing.activate = (route) =>
+      failing
+        ? Promise.reject(new Error("Portless route activation failed"))
+        : activate(route);
+    routing.recover = () => {
+      failing = false;
+    };
+    return routing;
+  };
 
 class TrustedWorkspaceController extends WorkspaceController {
+  // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the trust seam.
   override assertTrusted(): void {
     // This fixture controls every command and does not touch repository trust.
   }
 
+  // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the config trust seam.
   protected override assertConfigTrusted(): void {
     // This fixture controls every command and does not touch repository trust.
   }
@@ -185,7 +194,7 @@ describe("App-group instance assignment", () => {
       trustRepository(temporary, config, controlDirectory);
       const runtime = new AppGroupRuntime(
         new ProcessSupervisor(controlDirectory),
-        new InMemoryRoutingEngine(),
+        inMemoryRoutingEngine(),
         state
       );
 
@@ -209,7 +218,7 @@ describe("App-group instance assignment", () => {
       pathModule.join(tmpdir(), "branchbase-pending-start-")
     );
     try {
-      const routing = new BlockingPrepareRoutingEngine();
+      const routing = blockingPrepareRoutingEngine();
       const runtime = new AppGroupRuntime(
         new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing,
@@ -285,7 +294,7 @@ describe("App-group instance assignment", () => {
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
       const controller = new WorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
@@ -391,7 +400,7 @@ describe("App-group instance assignment", () => {
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
@@ -481,7 +490,7 @@ describe("App-group instance assignment", () => {
           },
         })
       );
-      const routing = new InMemoryRoutingEngine();
+      const routing = inMemoryRoutingEngine();
       controller = new TrustedWorkspaceController(undefined, {
         routing,
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
@@ -615,7 +624,7 @@ describe("App-group instance assignment", () => {
         })
       );
       const controller = new TrustedWorkspaceController(undefined, {
-        routing: new FailingPrepareRoutingEngine(),
+        routing: failingPrepareRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
@@ -660,7 +669,7 @@ describe("App-group instance assignment", () => {
         })
       );
       const controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
@@ -707,7 +716,7 @@ describe("App-group instance assignment", () => {
           },
         })
       );
-      const routing = new RecoverableActivationRoutingEngine();
+      const routing = recoverableActivationRoutingEngine();
       controller = new TrustedWorkspaceController(undefined, {
         routing,
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
@@ -795,7 +804,7 @@ describe("App-group instance assignment", () => {
         })
       );
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
@@ -872,7 +881,7 @@ describe("App-group instance assignment", () => {
         })
       );
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
@@ -939,7 +948,7 @@ describe("App-group instance assignment", () => {
         pathModule.join(temporary, "state.json")
       );
       const controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state,
       });
@@ -1058,7 +1067,7 @@ describe("App-group instance assignment", () => {
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")

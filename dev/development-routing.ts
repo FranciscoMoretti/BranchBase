@@ -16,6 +16,9 @@ import {
   observePortlessRoute,
   PORTLESS_PROXY_PROBE_HOSTNAME,
 } from "../src/runtime/portless-observation";
+import { DevelopmentProxyPortConflictError } from "./development-proxy-port-conflict-error";
+
+export { DevelopmentProxyPortConflictError } from "./development-proxy-port-conflict-error";
 
 const require = createRequire(import.meta.url);
 const OBSERVATION_TIMEOUT_MS = 5000;
@@ -57,19 +60,26 @@ const routeKey = (hostname: string, port: number): string =>
 const delay = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+const waitUntil = async (
+  condition: () => Promise<boolean>,
+  message: string
+): Promise<void> => {
+  const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (await condition()) {
+      return;
+    }
+    await delay(POLL_INTERVAL_MS);
+  }
+  throw new Error(message);
+};
+
 const waitForExit = (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return Promise.resolve();
   }
   return new Promise((resolve) => child.once("close", () => resolve()));
 };
-
-export class DevelopmentProxyPortConflictError extends Error {
-  constructor(port: number) {
-    super(`Portless proxy port ${port} is already in use`);
-    this.name = "DevelopmentProxyPortConflictError";
-  }
-}
 
 export class DevelopmentRouting implements LocalRoutingEngine {
   private closePromise: Promise<void> | undefined;
@@ -126,7 +136,7 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     if (!current) {
       this.store.addRoute(route.hostname, route.port, 0);
     }
-    await this.waitUntil(
+    await waitUntil(
       async () =>
         this.isLive() &&
         (await isPublishedPortlessRoute(
@@ -157,7 +167,7 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     }
     this.verifiedRoutes.delete(routeKey(route.hostname, route.port));
     this.store.removeRoute(route.hostname, 0);
-    return this.waitUntil(
+    return waitUntil(
       async () =>
         (await observePortlessRoute(this.url(route.hostname))) ===
         "unregistered",
@@ -316,17 +326,4 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     return this.child.exitCode === null && this.child.signalCode === null;
   }
 
-  private async waitUntil(
-    condition: () => Promise<boolean>,
-    message: string
-  ): Promise<void> {
-    const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      if (await condition()) {
-        return;
-      }
-      await delay(POLL_INTERVAL_MS);
-    }
-    throw new Error(message);
-  }
 }

@@ -20,27 +20,13 @@ import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
 import { WorkspaceController } from "./workspace-controller";
 
-class InMemoryRoutingEngine implements LocalRoutingEngine {
-  activate(_route: LocalRoute): Promise<void> {
-    return Promise.resolve();
-  }
-
-  deactivate(_route: LocalRoute): Promise<void> {
-    return Promise.resolve();
-  }
-
-  observe(_route: LocalRoute): LocalRouteState {
-    return "inactive";
-  }
-
-  prepare(): Promise<void> {
-    return Promise.resolve();
-  }
-
-  url(hostname: string): string {
-    return `http://${hostname}:1355`;
-  }
-}
+const inMemoryRoutingEngine = (): LocalRoutingEngine => ({
+  activate: async (_route: LocalRoute) => undefined,
+  deactivate: async (_route: LocalRoute) => undefined,
+  observe: (_route: LocalRoute): LocalRouteState => "inactive",
+  prepare: async () => undefined,
+  url: (hostname: string) => `http://${hostname}:1355`,
+});
 
 const git = (cwd: string, ...args: string[]): void => {
   const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
@@ -86,7 +72,7 @@ it("runs the development Start preflight before local state or repository code",
   const statePath = pathModule.join(temporary, "state.json");
   const controller = new WorkspaceController(undefined, {
     processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
-    routing: new InMemoryRoutingEngine(),
+    routing: inMemoryRoutingEngine(),
     developmentStartPreflight: () => {
       throw new Error("Production BranchBase is already using this worktree");
     },
@@ -123,7 +109,7 @@ it("describes repository discovery failures before invoking the preflight", asyn
       preflightCalled = true;
     },
     processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
-    routing: new InMemoryRoutingEngine(),
+    routing: inMemoryRoutingEngine(),
     state: new FileBranchBaseStateStore(
       pathModule.join(temporary, "state.json")
     ),
