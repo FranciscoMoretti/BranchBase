@@ -58,16 +58,17 @@ export class CodexAppServerClient {
     if (child.exitCode !== null || child.signalCode !== null) {
       return;
     }
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        child.kill("SIGTERM");
-        resolve();
-      }, 250);
-      child.once("exit", () => {
-        clearTimeout(timer);
-        resolve();
-      });
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const exited = Promise.withResolvers<void>();
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      exited.resolve();
+    }, 250);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      exited.resolve();
     });
+    await exited.promise;
   }
 
   async listThreads(
@@ -88,15 +89,27 @@ export class CodexAppServerClient {
 
   private initialize(): Promise<void> {
     if (!this.initialized) {
-      const initialization = this.startAndInitialize().catch(
-        async (error: unknown) => {
+      // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+      const result = Promise.withResolvers<void>();
+      const initialization = result.promise;
+      const run = async (): Promise<void> => {
+        try {
+          await this.startAndInitialize();
+          result.resolve();
+        } catch (error: unknown) {
           if (this.initialized === initialization) {
             this.initialized = null;
           }
-          await this.close();
-          throw error;
+          try {
+            await this.close();
+          } catch (closeError) {
+            result.reject(closeError);
+            return;
+          }
+          result.reject(error);
         }
-      );
+      };
+      void run();
       this.initialized = initialization;
     }
     return this.initialized;
@@ -121,23 +134,33 @@ export class CodexAppServerClient {
     }
   }
 
-  private request(method: string, params: unknown): Promise<unknown> {
+  private async request(method: string, params: unknown): Promise<unknown> {
     const { child } = this;
     if (!child?.stdin?.writable) {
-      return Promise.reject(
-        new CodexIntegrationUnavailableError("Codex app-server exited")
-      );
+      throw new CodexIntegrationUnavailableError("Codex app-server exited");
     }
     const id = this.nextId;
     this.nextId += 1;
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new CodexIntegrationUnavailableError("Codex request timed out"));
-      }, this.requestTimeoutMs);
-      this.pending.set(id, { reject, resolve, timer });
-      child.stdin?.write(`${JSON.stringify({ id, method, params })}\n`);
+    const result = Promise.withResolvers<unknown>();
+    const timer = setTimeout(() => {
+      this.pending.delete(id);
+      result.reject(
+        new CodexIntegrationUnavailableError("Codex request timed out")
+      );
+    }, this.requestTimeoutMs);
+    this.pending.set(id, {
+      reject: result.reject,
+      resolve: result.resolve,
+      timer,
     });
+    try {
+      child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
+    } catch (error) {
+      clearTimeout(timer);
+      this.pending.delete(id);
+      result.reject(error);
+    }
+    return await result.promise;
   }
 
   private async startAndInitialize(): Promise<void> {
@@ -234,43 +257,47 @@ export class CodexAppServerClient {
   }
 }
 
-const commandIsAvailable = (
+const commandIsAvailable = async (
   command: CodexCommand,
   timeoutMs: number
-): Promise<boolean> =>
-  new Promise((resolve) => {
-    const child = spawn(
-      command.executable,
-      [...(command.args ?? []), "--version"],
-      {
-        env: { ...process.env, ...command.env },
-        stdio: "ignore",
-      }
-    );
-    let settled = false;
-    const handlers = {
-      finish(available: boolean) {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(handlers.timer);
-        resolve(available);
-      },
-      timer: setTimeout(() => {
-        child.kill("SIGTERM");
-        handlers.finish(false);
-      }, timeoutMs),
-    };
-    child.once("error", () => handlers.finish(false));
-    child.once("exit", (code) => handlers.finish(code === 0));
-  });
+): Promise<boolean> => {
+  const result = Promise.withResolvers<boolean>();
+  const child = spawn(
+    command.executable,
+    [...(command.args ?? []), "--version"],
+    {
+      env: { ...process.env, ...command.env },
+      stdio: "ignore",
+    }
+  );
+  let settled = false;
+  const timer = setTimeout(() => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    child.kill("SIGTERM");
+    result.resolve(false);
+  }, timeoutMs);
+  const finish = (available: boolean) => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    clearTimeout(timer);
+    result.resolve(available);
+  };
+  child.once("error", () => finish(false));
+  child.once("exit", (code) => finish(code === 0));
+  return await result.promise;
+};
 
 export const resolveCodexCommand = async (
   commands: readonly CodexCommand[],
   versionTimeoutMs: number
 ): Promise<CodexCommand> => {
   for (const command of commands) {
+    // oxlint-disable-next-line no-await-in-loop -- Configured Codex commands are tried in priority order.
     if (await commandIsAvailable(command, versionTimeoutMs)) {
       return command;
     }

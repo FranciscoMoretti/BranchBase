@@ -25,6 +25,7 @@ export const startAllApps = async (
       .map((group) => ({ appGroupName: group.id, worktreeId: worktree.id }))
   );
   for (const target of targets) {
+    // oxlint-disable-next-line no-await-in-loop -- App group lifecycle operations are serialized to preserve start ordering.
     await startApps(controller, { repoPath, ...target });
   }
   return {

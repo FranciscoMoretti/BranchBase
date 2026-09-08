@@ -15,16 +15,14 @@ const readChunk = async (
 ): Promise<string> => {
   const reader = stream.getReader();
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutResult = Promise.withResolvers<never>();
   try {
-    const result = await Promise.race([
-      reader.read(),
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error("Timed out waiting for lock holder")),
-          5000
-        );
-      }),
-    ]);
+    timeout = setTimeout(
+      () =>
+        timeoutResult.reject(new Error("Timed out waiting for lock holder")),
+      5000
+    );
+    const result = await Promise.race([reader.read(), timeoutResult.promise]);
     return new TextDecoder().decode(result.value);
   } finally {
     if (timeout) {

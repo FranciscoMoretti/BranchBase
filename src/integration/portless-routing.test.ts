@@ -1,7 +1,9 @@
 import { test } from "bun:test";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
+import type { Server } from "node:net";
 import pathModule from "node:path";
 
 import { repositoryCommandFingerprint } from "../config/repository-trust";
@@ -15,6 +17,21 @@ import {
   processIsLive,
   waitUntil,
 } from "./portless-fixture";
+
+const listen = async (server: Server): Promise<void> => {
+  const listening = once(server, "listening");
+  server.listen(0, "127.0.0.1");
+  await listening;
+};
+
+const close = async (server: Server): Promise<void> => {
+  if (!server.listening) {
+    return;
+  }
+  const closed = once(server, "close");
+  server.close();
+  await closed;
+};
 
 const assertInitialRoutesHidden = (snapshot: WorkspaceSnapshot): void => {
   assert(
@@ -49,30 +66,33 @@ const assertRunningWorktrees = async (
       site.open && site.port && site.url,
       `Site did not open for ${worktree.path}`
     );
-    for (const app of [api, site]) {
-      assert(!ports.has(app.port as number), "Backing ports collided");
-      assert(!urls.has(app.url as string), "Friendly URLs collided");
-      ports.add(app.port as number);
-      urls.add(app.url as string);
-      const response = await fetch(app.url as string);
-      const body = (await response.json()) as {
-        app?: string;
-        environment?: Record<string, string>;
-      };
-      assert(
-        response.ok && body.app === app.id,
-        `${app.id} routed incorrectly`
-      );
-      assert(
-        body.environment?.API_PORT === String(api.port) &&
-          body.environment.API_URL === api.url &&
-          body.environment.API_DIRECT_URL === api.directUrl &&
-          body.environment.SITE_PORT === String(site.port) &&
-          body.environment.SITE_URL === site.url &&
-          body.environment.SITE_DIRECT_URL === site.directUrl,
-        `${worktree.path} received an incomplete Repository environment`
-      );
-    }
+    // oxlint-disable-next-line no-await-in-loop -- Endpoint assertions keep each worktree batch together while sharing collision sets.
+    await Promise.all(
+      [api, site].map(async (app) => {
+        assert(!ports.has(app.port as number), "Backing ports collided");
+        assert(!urls.has(app.url as string), "Friendly URLs collided");
+        ports.add(app.port as number);
+        urls.add(app.url as string);
+        const response = await fetch(app.url as string);
+        const body = (await response.json()) as {
+          app?: string;
+          environment?: Record<string, string>;
+        };
+        assert(
+          response.ok && body.app === app.id,
+          `${app.id} routed incorrectly`
+        );
+        assert(
+          body.environment?.API_PORT === String(api.port) &&
+            body.environment.API_URL === api.url &&
+            body.environment.API_DIRECT_URL === api.directUrl &&
+            body.environment.SITE_PORT === String(site.port) &&
+            body.environment.SITE_URL === site.url &&
+            body.environment.SITE_DIRECT_URL === site.directUrl,
+          `${worktree.path} received an incomplete Repository environment`
+        );
+      })
+    );
     const logs = fixture.controller
       .logs(fixture.root, worktree.id, "development")
       .join("\n");
@@ -114,10 +134,15 @@ const assertLinkedWorktreeStopped = async (
     ),
     "Stopping one worktree did not retain only its stable endpoint assignments"
   );
-  for (const url of Object.values(linkedUrls)) {
-    const response = await fetch(url);
-    assert(response.status === 404, "A stopped worktree route remained active");
-  }
+  await Promise.all(
+    Object.values(linkedUrls).map(async (url) => {
+      const response = await fetch(url);
+      assert(
+        response.status === 404,
+        "A stopped worktree route remained active"
+      );
+    })
+  );
   return afterStop;
 };
 
@@ -125,16 +150,17 @@ const assertOtherWorktreesRemainLive = async (
   fixture: PortlessIntegrationFixture,
   snapshot: WorkspaceSnapshot
 ): Promise<void> => {
-  for (const worktree of snapshot.worktrees.filter(
-    (item) => item.path !== fixture.linkedPath
-  )) {
-    for (const app of worktree.appGroups[0]?.apps ?? []) {
-      const appUrl = app.url;
-      assert(appUrl, "A worktree App lost its URL");
-      const response = await fetch(appUrl);
-      assert(response.ok, "Stopping one worktree affected another");
-    }
-  }
+  await Promise.all(
+    snapshot.worktrees
+      .filter((item) => item.path !== fixture.linkedPath)
+      .flatMap((worktree) => worktree.appGroups[0]?.apps ?? [])
+      .map(async (app) => {
+        const appUrl = app.url;
+        assert(appUrl, "A worktree App lost its URL");
+        const response = await fetch(appUrl);
+        assert(response.ok, "Stopping one worktree affected another");
+      })
+  );
 };
 
 test("serializes concurrent lifecycle requests and scopes trust to the fixture", async () => {
@@ -399,10 +425,7 @@ test("rejects and preserves a foreign Friendly URL route", async () => {
   });
   let conflictRoute: { hostname: string; port: number } | null = null;
   try {
-    await new Promise<void>((resolve, reject) => {
-      conflictServer.once("error", reject);
-      conflictServer.listen(0, "127.0.0.1", resolve);
-    });
+    await listen(conflictServer);
     const address = conflictServer.address();
     assert(
       address && typeof address !== "string",
@@ -480,7 +503,7 @@ test("rejects and preserves a foreign Friendly URL route", async () => {
     if (conflictRoute) {
       await fixture.routing.deactivate(conflictRoute);
     }
-    await new Promise<void>((resolve) => conflictServer.close(() => resolve()));
+    await close(conflictServer);
     await fixture.cleanup();
   }
 }, 120_000);
@@ -494,10 +517,7 @@ test("preserves an existing Friendly URL when another route conflicts", async ()
   });
   let conflictRoute: { hostname: string; port: number } | null = null;
   try {
-    await new Promise<void>((resolve, reject) => {
-      conflictServer.once("error", reject);
-      conflictServer.listen(0, "127.0.0.1", resolve);
-    });
+    await listen(conflictServer);
     const address = conflictServer.address();
     assert(
       address && typeof address !== "string",
@@ -553,7 +573,7 @@ test("preserves an existing Friendly URL when another route conflicts", async ()
     if (conflictRoute) {
       await fixture.routing.deactivate(conflictRoute);
     }
-    await new Promise<void>((resolve) => conflictServer.close(() => resolve()));
+    await close(conflictServer);
     await fixture.cleanup();
   }
 }, 120_000);

@@ -16,6 +16,7 @@ import pathModule from "node:path";
 
 import { spawn } from "bun";
 
+import { delay } from "../runtime/async-utils";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
 import { ObservationSchema } from "./discovery-contract";
@@ -383,7 +384,8 @@ test("version one metadata loads with no discovery fields", () => {
         (service?.resources?.processCount ?? 0) === 0 &&
         Date.now() < resourceDeadline
       ) {
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        // oxlint-disable-next-line no-await-in-loop -- Service resource polling observes each attempt before waiting.
+        await delay(25);
         first = workspace.observeRepository(repo);
         service = first.worktrees
           .find((item) => item.path === linked)
@@ -401,7 +403,8 @@ test("version one metadata loads with no discovery fields", () => {
         if (url === expectedUrl) {
           break;
         }
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        // oxlint-disable-next-line no-await-in-loop -- Repository observation polling observes each attempt before waiting.
+        await delay(25);
         next = workspace.observeRepository(repo);
       }
       expect(

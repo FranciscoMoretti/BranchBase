@@ -1,3 +1,4 @@
+import { once } from "node:events";
 import type { Socket } from "node:net";
 
 import { createProxyServer, RouteStore } from "portless";
@@ -36,28 +37,19 @@ const createServer = (): ProxyServer => {
   return server;
 };
 
-const listen = (server: ProxyServer, host: string): Promise<void> =>
-  new Promise((resolve, reject) => {
-    const handlers = {
-      onError(error: Error) {
-        server.off("listening", handlers.onListening);
-        reject(error);
-      },
-      onListening() {
-        server.off("error", handlers.onError);
-        resolve();
-      },
-    };
-    server.once("error", handlers.onError);
-    server.once("listening", handlers.onListening);
-    server.listen({ host, ipv6Only: true, port });
-  });
+const listen = async (server: ProxyServer, host: string): Promise<void> => {
+  const listening = once(server, "listening");
+  server.listen({ host, ipv6Only: true, port });
+  await listening;
+};
 
-const closeServer = (server: ProxyServer): Promise<void> => {
+const closeServer = async (server: ProxyServer): Promise<void> => {
   if (!server.listening) {
-    return Promise.resolve();
+    return;
   }
-  return new Promise((resolve) => server.close(() => resolve()));
+  const closed = once(server, "close");
+  server.close();
+  await closed;
 };
 
 const close = (): Promise<void> => {
@@ -75,14 +67,22 @@ const exit = async (): Promise<void> => {
   process.exit(0);
 };
 
+const exitOnFailure = async (): Promise<void> => {
+  try {
+    await exit();
+  } catch {
+    process.exit(1);
+  }
+};
+
 process.once("disconnect", () => {
-  exit().catch(() => process.exit(1));
+  void exitOnFailure();
 });
 process.once("SIGINT", () => {
-  exit().catch(() => process.exit(1));
+  void exitOnFailure();
 });
 process.once("SIGTERM", () => {
-  exit().catch(() => process.exit(1));
+  void exitOnFailure();
 });
 process.on("message", (message: unknown) => {
   if (
@@ -90,7 +90,7 @@ process.on("message", (message: unknown) => {
     message !== null &&
     (message as { type?: unknown }).type === "shutdown"
   ) {
-    exit().catch(() => process.exit(1));
+    void exitOnFailure();
   }
 });
 

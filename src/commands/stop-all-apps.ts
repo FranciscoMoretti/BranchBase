@@ -27,6 +27,7 @@ export const stopAllApps = async (
     })
   );
   for (const target of targets) {
+    // oxlint-disable-next-line no-await-in-loop -- App group lifecycle operations are serialized to preserve stop ordering.
     await stopApps(controller, { repoPath, ...target });
   }
   return {

@@ -13,6 +13,7 @@ import pathModule from "node:path";
 import { CodexContextStore } from "../codex/branchbase-context";
 import { CodexHookActivityStore } from "../codex/codex-hook-activity";
 import { FakeCodexIntegrationAdapter } from "../codex/codex-integration";
+import { delay } from "../runtime/async-utils";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { WorkspaceController } from "./workspace-controller";
 
@@ -378,7 +379,7 @@ describe("WorkspaceController Codex hook bridge", () => {
         version: 1,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
       const projection = await controller.inspectCodex(root);
       expect(
         activity.applyToSnapshot({

@@ -7,6 +7,7 @@ import pathModule from "node:path";
 import { z } from "zod";
 
 import { processIsLive } from "../host/process-inspection";
+import { delay } from "./async-utils";
 import {
   isPortlessProxyResponding,
   isPublishedPortlessRoute,
@@ -57,9 +58,6 @@ const packageFile = (packageName: string, ...parts: string[]): string =>
     ...parts
   );
 
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
-
 const routeName = (hostname: string): string =>
   hostname.endsWith(".localhost")
     ? hostname.slice(0, -".localhost".length)
@@ -71,9 +69,11 @@ const waitUntil = async (
 ): Promise<void> => {
   const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
   while (Date.now() < deadline) {
+    // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
     if (await condition()) {
       return;
     }
+    // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
     await delay(POLL_INTERVAL_MS);
   }
   throw new Error(message);

@@ -58,11 +58,14 @@ export const useRepositoryTrust = ({
     (label, action, scope) => {
       const requestTrusted = scope?.trusted ?? trusted;
       if (!(required && !requestTrusted)) {
-        Promise.resolve()
-          .then(action)
-          .catch(() => {
-            // The action's result is reflected by the next observation.
-          });
+        const runAction = async (): Promise<void> => {
+          try {
+            await action();
+          } catch {
+            // Untrusted action failures are handled by the originating command.
+          }
+        };
+        queueMicrotask(runAction);
         return;
       }
       setRequest({

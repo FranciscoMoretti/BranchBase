@@ -1,11 +1,1 @@
-{
-  "rules": {
-    "no-await-in-loop": "off",
-    "no-promise-executor-return": "off",
-    "promise/avoid-new": "off",
-    "promise/no-nesting": "off",
-    "promise/param-names": "off",
-    "promise/prefer-await-to-callbacks": "off",
-    "promise/prefer-await-to-then": "off"
-  }
-}
+{ "rules": {} }

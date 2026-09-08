@@ -32,11 +32,10 @@ import { Blank, Shell } from "./primitives";
 import { ProjectsPage } from "./projects-page";
 import { BranchBaseSettings } from "./settings-page";
 
-const WorkspacePage = lazy(() =>
-  import("./workspace-page").then((module) => ({
-    default: module.WorkspacePage,
-  }))
-);
+const WorkspacePage = lazy(async () => {
+  const module = await import("./workspace-page");
+  return { default: module.WorkspacePage };
+});
 
 const HISTORY_INDEX = "branchbaseHistoryIndex";
 
@@ -265,16 +264,17 @@ export const ProductApp = () => {
     } catch {
       return;
     }
-    Promise.all(
-      paths.map((repoPath) => runCommand("save-project", { repoPath }))
-    )
-      .then(() => {
+    void (async () => {
+      try {
+        await Promise.all(
+          paths.map((repoPath) => runCommand("save-project", { repoPath }))
+        );
         localStorage.setItem("branchbase:projects-migrated", "1");
-        return client.invalidateQueries({ queryKey: ["projects"] });
-      })
-      .catch(() => {
-        // Migration failure is surfaced by the next project request.
-      });
+        await client.invalidateQueries({ queryKey: ["projects"] });
+      } catch {
+        // Migration retries on the next mount when the API is unavailable.
+      }
+    })();
   }, [client]);
   const inspectedPath = observation.data?.repoPath;
   useEffect(() => {
@@ -296,11 +296,14 @@ export const ProductApp = () => {
     ) {
       return;
     }
-    runCommand("save-project", { repoPath: inspectedPath })
-      .then(() => client.invalidateQueries({ queryKey: ["projects"] }))
-      .catch(() => {
-        // Project save failure is surfaced by the next observation.
-      });
+    void (async () => {
+      try {
+        await runCommand("save-project", { repoPath: inspectedPath });
+        await client.invalidateQueries({ queryKey: ["projects"] });
+      } catch {
+        // The next observation retries saving this project.
+      }
+    })();
   }, [inspectedPath, client, projects.data]);
   const project = projects.data?.find(
     (item) =>

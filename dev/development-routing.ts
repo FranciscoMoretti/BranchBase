@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { RouteStore } from "portless";
 
+import { delay } from "../src/runtime/async-utils";
 import type {
   LocalRoute,
   LocalRouteState,
@@ -57,8 +58,7 @@ const routeInStore = (store: RouteStore, hostname: string) =>
 const routeKey = (hostname: string, port: number): string =>
   `${hostname}\0${port}`;
 
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
+const ignoreChildError = () => null;
 
 const waitUntil = async (
   condition: () => Promise<boolean>,
@@ -66,19 +66,29 @@ const waitUntil = async (
 ): Promise<void> => {
   const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
   while (Date.now() < deadline) {
+    // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
     if (await condition()) {
       return;
     }
+    // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
     await delay(POLL_INTERVAL_MS);
   }
   throw new Error(message);
 };
 
-const waitForExit = (child: ChildProcess): Promise<void> => {
+export const waitForExit = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve();
+    return;
   }
-  return new Promise((resolve) => child.once("close", () => resolve()));
+  // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+  const result = Promise.withResolvers<void>();
+  const onClose = () => {
+    child.off("error", ignoreChildError);
+    result.resolve();
+  };
+  child.on("error", ignoreChildError);
+  child.once("close", onClose);
+  await result.promise;
 };
 
 export class DevelopmentRouting implements LocalRoutingEngine {
@@ -203,48 +213,56 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     return `http://${hostname}${this.port === 80 ? "" : `:${this.port}`}`;
   }
 
-  private static waitUntilReady(
+  private static async waitUntilReady(
     child: ChildProcess,
     port: number
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const handlers = {
-        cleanup() {
-          clearTimeout(handlers.timeout);
-          child.off("error", handlers.onError);
-          child.off("exit", handlers.onExit);
-          child.off("message", handlers.onMessage);
-        },
-        onError(error: Error) {
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const result = Promise.withResolvers<void>();
+    const timeoutState: {
+      handle: ReturnType<typeof setTimeout> | null;
+    } = { handle: null };
+    const handlers = {
+      cleanup() {
+        if (timeoutState.handle) {
+          clearTimeout(timeoutState.handle);
+        }
+        child.off("error", handlers.onError);
+        child.off("exit", handlers.onExit);
+        child.off("message", handlers.onMessage);
+      },
+      onError(error: Error) {
+        handlers.cleanup();
+        result.reject(error);
+      },
+      onExit() {
+        handlers.cleanup();
+        result.reject(
+          new Error(`Portless proxy did not start on port ${port}`)
+        );
+      },
+      onMessage(message: unknown) {
+        const received = proxyMessage(message);
+        if (received?.type === "ready") {
           handlers.cleanup();
-          reject(error);
-        },
-        onExit() {
+          result.resolve();
+        } else if (received?.type === "conflict") {
           handlers.cleanup();
-          reject(new Error(`Portless proxy did not start on port ${port}`));
-        },
-        onMessage(message: unknown) {
-          const received = proxyMessage(message);
-          if (received?.type === "ready") {
-            handlers.cleanup();
-            resolve();
-          } else if (received?.type === "conflict") {
-            handlers.cleanup();
-            reject(new DevelopmentProxyPortConflictError(port));
-          } else if (received?.type === "error") {
-            handlers.cleanup();
-            reject(new Error(received.message));
-          }
-        },
-        timeout: setTimeout(() => {
+          result.reject(new DevelopmentProxyPortConflictError(port));
+        } else if (received?.type === "error") {
           handlers.cleanup();
-          reject(new Error(`Portless proxy did not start on port ${port}`));
-        }, START_TIMEOUT_MS),
-      };
-      child.once("error", handlers.onError);
-      child.once("exit", handlers.onExit);
-      child.on("message", handlers.onMessage);
-    });
+          result.reject(new Error(received.message));
+        }
+      },
+    };
+    timeoutState.handle = setTimeout(() => {
+      handlers.cleanup();
+      result.reject(new Error(`Portless proxy did not start on port ${port}`));
+    }, START_TIMEOUT_MS);
+    child.once("error", handlers.onError);
+    child.once("exit", handlers.onExit);
+    child.on("message", handlers.onMessage);
+    return await result.promise;
   }
 
   private async closeChild(): Promise<void> {
@@ -254,6 +272,8 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     }
     try {
       if (this.child.connected) {
+        // ChildProcess.send exposes its asynchronous error through this callback.
+        // oxlint-disable-next-line promise/prefer-await-to-callbacks -- required by the ChildProcess bridge
         this.child.send({ type: "shutdown" }, (error) => {
           if (error && this.isLive()) {
             this.child.kill("SIGTERM");
@@ -265,14 +285,22 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     } catch {
       this.child.kill("SIGTERM");
     }
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const stopped = await Promise.race([
-      waitForExit(this.child).then(() => true),
-      new Promise<false>((resolve) => {
-        timeout = setTimeout(() => resolve(false), STOP_TIMEOUT_MS);
-      }),
-    ]).finally(() => clearTimeout(timeout));
-    if (!stopped && this.isLive()) {
+    const timeoutResult = Promise.withResolvers<false>();
+    const timeout = setTimeout(
+      () => timeoutResult.resolve(false),
+      STOP_TIMEOUT_MS
+    );
+    let timedOut = false;
+    try {
+      timedOut =
+        (await Promise.race([
+          waitForExit(this.child),
+          timeoutResult.promise,
+        ])) === false;
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (timedOut && this.isLive()) {
       this.child.kill("SIGKILL");
       await waitForExit(this.child);
     }
@@ -300,24 +328,24 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     if (this.routeVerifications.has(key)) {
       return;
     }
-    const verification = isPublishedPortlessRoute(
-      this.url(hostname),
-      this.url(PORTLESS_PROXY_PROBE_HOSTNAME)
-    )
-      .then((published) => {
+    const verification = (async () => {
+      try {
+        const published = await isPublishedPortlessRoute(
+          this.url(hostname),
+          this.url(PORTLESS_PROXY_PROBE_HOSTNAME)
+        );
         const current = routeInStore(this.store, hostname);
         if (published && current?.port === port && this.isLive()) {
           this.verifiedRoutes.add(key);
         } else {
           this.verifiedRoutes.delete(key);
         }
-      })
-      .catch(() => {
+      } catch {
         // Background verification is best-effort; a later observation retries.
-      })
-      .finally(() => {
+      } finally {
         this.routeVerifications.delete(key);
-      });
+      }
+    })();
     this.routeVerifications.set(key, verification);
   }
 
