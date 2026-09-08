@@ -71,6 +71,7 @@ import type {
   BranchBaseCommandResult,
 } from "./command-contract";
 import type { Observation } from "./discovery-contract";
+import { MissingWorktreeConfigError } from "./missing-worktree-config-error";
 import type { AppPin, ProjectOverview } from "./product-contract";
 import { ProductStore } from "./product-store";
 import { ProjectDiscovery } from "./project-discovery";
@@ -78,6 +79,8 @@ import { initializeRepository as initializeRepositoryConfig } from "./repository
 import { worktreeHasRunningAppGroups } from "./workspace-snapshot";
 import type { WorkspaceSnapshot } from "./workspace-snapshot";
 import { commandWorkingDirectory } from "./worktree-command";
+
+export { MissingWorktreeConfigError } from "./missing-worktree-config-error";
 
 type CommandHandler = (
   controller: WorkspaceController,
@@ -154,17 +157,6 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
   "update-repository-config": updateRepositoryConfig,
 };
 
-export class MissingWorktreeConfigError extends Error {
-  readonly code = "missing_worktree_config";
-  readonly configPath: string;
-
-  constructor(configPath: string) {
-    super(`Missing worktree environment config: ${configPath}`);
-    this.configPath = configPath;
-    this.name = "MissingWorktreeConfigError";
-  }
-}
-
 const git = (cwd: string, args: string[]): string => {
   const result = spawnSync("git", args, {
     cwd,
@@ -194,6 +186,45 @@ const resolveWorktrees = (repositoryRoot: string): ResolvedWorktree[] =>
       const path = realpathSync(item.path);
       return { ...item, id: worktreeId(path), path };
     });
+
+const readOnlyWorktreePath = (
+  repoPath: string,
+  worktreeIdValue: string
+): string => {
+  let worktreePaths: string[];
+  try {
+    const selectedRoot = git(repoPath, ["rev-parse", "--show-toplevel"]);
+    worktreePaths = resolveWorktrees(selectedRoot).map(({ path }) => path);
+  } catch (error) {
+    throw new Error(
+      `Could not resolve BranchBase worktrees for "${repoPath}": ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { cause: error }
+    );
+  }
+  const worktreePath = worktreePaths.find(
+    (path) => worktreeId(path) === worktreeIdValue
+  );
+  if (!worktreePath) {
+    throw new Error("Unknown worktree");
+  }
+  return worktreePath;
+};
+
+const codexEnabledWorktree = (path: string): boolean => {
+  try {
+    const root = realpathSync(path);
+    const configPath = findBranchBaseConfig(root);
+    if (!configPath) {
+      return false;
+    }
+    loadBranchBaseConfigDocument(configPath);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const projectAliasPaths = (repoPath: string): Set<string> => {
   const aliases = new Set([repoPath, pathModule.resolve(repoPath)]);
@@ -364,7 +395,7 @@ export class WorkspaceController {
     const activitySnapshot = this.codexActivity.applyToSnapshot(
       discovered,
       new Date(),
-      (worktreePath) => this.codexEnabledWorktree(worktreePath)
+      (worktreePath) => codexEnabledWorktree(worktreePath)
     );
     const adapterSnapshot = this.codexContext.applyToSnapshot(activitySnapshot);
     return projectCodexIntegration(worktrees, adapterSnapshot);
@@ -407,7 +438,7 @@ export class WorkspaceController {
     try {
       const cwd = realpathSync(observation.cwd);
       const root = realpathSync(git(cwd, ["rev-parse", "--show-toplevel"]));
-      if (!this.codexEnabledWorktree(root)) {
+      if (!codexEnabledWorktree(root)) {
         return null;
       }
       this.codexActivity.observe({ ...observation, cwd }, observedAt);
@@ -926,9 +957,7 @@ export class WorkspaceController {
     }
   }
 
-  initializeRepository(repoPath: string) {
-    return initializeRepositoryConfig(repoPath);
-  }
+  readonly initializeRepository = initializeRepositoryConfig;
 
   worktree(repoPath: string, id: string) {
     const workspace = this.inspect(repoPath);
@@ -1062,7 +1091,7 @@ export class WorkspaceController {
     groupId: string,
     preflight: DevelopmentStartPreflight
   ): Promise<"already-running" | "started"> {
-    await preflight(this.readOnlyWorktreePath(repoPath, worktreeIdValue));
+    await preflight(readOnlyWorktreePath(repoPath, worktreeIdValue));
     return this.startTrustedAppGroup(repoPath, worktreeIdValue, groupId);
   }
 
@@ -1085,45 +1114,6 @@ export class WorkspaceController {
       !repositoryIsTrusted(repoPath, config, this.processes.controlDirectory)
     ) {
       throw new Error("Review and trust this repository's commands first");
-    }
-  }
-
-  private readOnlyWorktreePath(
-    repoPath: string,
-    worktreeIdValue: string
-  ): string {
-    let worktreePaths: string[];
-    try {
-      const selectedRoot = git(repoPath, ["rev-parse", "--show-toplevel"]);
-      worktreePaths = resolveWorktrees(selectedRoot).map(({ path }) => path);
-    } catch (error) {
-      throw new Error(
-        `Could not resolve BranchBase worktrees for "${repoPath}": ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        { cause: error }
-      );
-    }
-    const worktreePath = worktreePaths.find(
-      (path) => worktreeId(path) === worktreeIdValue
-    );
-    if (!worktreePath) {
-      throw new Error("Unknown worktree");
-    }
-    return worktreePath;
-  }
-
-  private codexEnabledWorktree(path: string): boolean {
-    try {
-      const root = realpathSync(path);
-      const configPath = findBranchBaseConfig(root);
-      if (!configPath) {
-        return false;
-      }
-      loadBranchBaseConfigDocument(configPath);
-      return true;
-    } catch {
-      return false;
     }
   }
 

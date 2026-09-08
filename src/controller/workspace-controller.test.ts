@@ -47,20 +47,12 @@ const config = (groupId: string, startCommand = "true") => ({
   version: 1,
 });
 
-class FakeRoutingEngine implements LocalRoutingEngine {
-  async activate(_route: LocalRoute): Promise<void> {
-    // Inspection does not activate routes.
-  }
-  async deactivate(_route: LocalRoute): Promise<void> {
-    // Inspection does not deactivate routes.
-  }
-  observe(_route: LocalRoute): LocalRouteState {
-    return "inactive";
-  }
-  url(hostname: string): string {
-    return `http://${hostname}:1355`;
-  }
-}
+const fakeRoutingEngine = (): LocalRoutingEngine => ({
+  activate: (_route: LocalRoute) => Promise.resolve(),
+  deactivate: (_route: LocalRoute) => Promise.resolve(),
+  observe: (_route: LocalRoute): LocalRouteState => "inactive",
+  url: (hostname: string) => `http://${hostname}:1355`,
+});
 
 describe("slot-free workspace inspection", () => {
   it("projects stable endpoint identity without allocating a backing port", () => {
@@ -89,7 +81,7 @@ describe("slot-free workspace inspection", () => {
         })
       );
       const controller = new WorkspaceController(undefined, {
-        routing: new FakeRoutingEngine(),
+        routing: fakeRoutingEngine(),
         state: new FileBranchBaseStateStore(statePath),
       });
 
@@ -161,7 +153,7 @@ describe("slot-free workspace inspection", () => {
       const state = new FileBranchBaseStateStore(statePath);
       const controller = new WorkspaceController(undefined, {
         processes: new ProcessSupervisor(controlDirectory),
-        routing: new FakeRoutingEngine(),
+        routing: fakeRoutingEngine(),
         state,
       });
 
@@ -465,6 +457,7 @@ describe("controller command contract", () => {
 
   it("checks repository trust synchronously before App-group operations", () => {
     class UntrustedController extends WorkspaceController {
+      // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the trust seam.
       override assertTrusted(): never {
         throw new Error("trust checked");
       }

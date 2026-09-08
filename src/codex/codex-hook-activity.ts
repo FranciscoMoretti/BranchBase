@@ -100,6 +100,26 @@ const nextState = (
   return undefined;
 };
 
+const activeSubagentsFor = (
+  previous: ActivityRecord | undefined,
+  observation: CodexHookObservation
+): Set<string> => {
+  const activeSubagents = new Set(previous?.activeSubagents);
+  if (observation.event === "SubagentStart" && observation.agentId) {
+    activeSubagents.add(observation.agentId);
+  }
+  if (observation.event === "SubagentStop" && observation.agentId) {
+    activeSubagents.delete(observation.agentId);
+  }
+  if (
+    observation.event === "Stop" ||
+    (observation.event === "SessionStart" && observation.source !== "compact")
+  ) {
+    activeSubagents.clear();
+  }
+  return activeSubagents;
+};
+
 export class CodexHookActivityStore {
   private readonly file: string | null;
   private readonly records = new Map<string, ActivityRecord>();
@@ -158,19 +178,7 @@ export class CodexHookActivityStore {
       nextState(observation.event, observation.source) ??
       previous?.state ??
       "ready";
-    const activeSubagents = new Set(previous?.activeSubagents);
-    if (observation.event === "SubagentStart" && observation.agentId) {
-      activeSubagents.add(observation.agentId);
-    }
-    if (observation.event === "SubagentStop" && observation.agentId) {
-      activeSubagents.delete(observation.agentId);
-    }
-    if (
-      observation.event === "Stop" ||
-      (observation.event === "SessionStart" && observation.source !== "compact")
-    ) {
-      activeSubagents.clear();
-    }
+    const activeSubagents = activeSubagentsFor(previous, observation);
     if (!(previous || this.records.size < 1000)) {
       const oldestKey = this.records.keys().next().value;
       if (oldestKey) {
