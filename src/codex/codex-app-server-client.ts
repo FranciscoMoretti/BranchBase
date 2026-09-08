@@ -132,12 +132,10 @@ export class CodexAppServerClient {
     }
   }
 
-  private request(method: string, params: unknown): Promise<unknown> {
+  private async request(method: string, params: unknown): Promise<unknown> {
     const child = this.child;
     if (!child?.stdin?.writable) {
-      return Promise.reject(
-        new CodexIntegrationUnavailableError("Codex app-server exited")
-      );
+      throw new CodexIntegrationUnavailableError("Codex app-server exited");
     }
     const id = this.nextId;
     this.nextId += 1;
@@ -153,7 +151,13 @@ export class CodexAppServerClient {
       resolve: result.resolve,
       timer,
     });
-    child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
+    try {
+      child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
+    } catch (error) {
+      clearTimeout(timer);
+      this.pending.delete(id);
+      result.reject(error);
+    }
     return result.promise;
   }
 
