@@ -211,13 +211,10 @@ export const openDevelopmentSession = async (
         })();
         return closePromise;
       },
-      // oxlint-disable-next-line sort-keys -- Preserve controller resource initialization order.
       controllerRuntime: {
         codexHooks: new CodexHookActivityStore({
           file: pathModule.join(codexControlDirectory, "activity.json"),
         }),
-        processes: new ProcessSupervisor(controlDirectory),
-        routing,
         developmentStartPreflight: (worktreePath) => {
           assertProductionWorktreeAvailable(worktreePath, {
             productionControlDirectory: pathModule.join(
@@ -226,6 +223,8 @@ export const openDevelopmentSession = async (
             ),
           });
         },
+        processes: new ProcessSupervisor(controlDirectory),
+        routing,
         state: new FileBranchBaseStateStore(statePath),
       },
       profile,

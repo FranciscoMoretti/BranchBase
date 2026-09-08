@@ -226,8 +226,7 @@ export class ProductStore {
         "You can watch up to 20 development folders. Remove one before adding another."
       );
     }
-    // oxlint-disable-next-line sort-keys -- Preserve timestamp evaluation after the path value.
-    state.folders.push({ path, addedAt: new Date().toISOString() });
+    state.folders.push({ addedAt: new Date().toISOString(), path });
     this.write(state);
   }
   removeFolder(path: string) {
@@ -263,18 +262,19 @@ export class ProductStore {
         }
         const action = current[key] ? "Detected" : "No longer detected";
         const worktreeId = key.split(":")[1];
-        // oxlint-disable-next-line sort-keys -- Preserve event field evaluation order and timestamps.
+        const discoveryEventId = randomUUID();
+        const discoveryEventAt = new Date().toISOString();
         state.events.push({
+          at: discoveryEventAt,
+          id: discoveryEventId,
+          kind: "discovery",
+          message: `${action}: ${current[key] ?? previous[key]}`,
+          repoPath: observation.repoPath,
+          severity: "info",
           worktreeId,
           worktreeName:
             current[`worktree:${worktreeId}`] ??
             previous[`worktree:${worktreeId}`],
-          id: randomUUID(),
-          at: new Date().toISOString(),
-          repoPath: observation.repoPath,
-          kind: "discovery",
-          severity: "info",
-          message: `${action}: ${current[key] ?? previous[key]}`,
         });
       }
     }

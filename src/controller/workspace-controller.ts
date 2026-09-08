@@ -625,40 +625,47 @@ export class WorkspaceController {
       }
     }
 
-    // oxlint-disable-next-line sort-keys -- Preserve snapshot evaluation order around process inspection.
+    const snapshotResources = processTreeUsage(
+      samples,
+      globalProcesses
+        .filter((process) => projectOwners.has(process.ownerId))
+        .map((process) => process.pid)
+    );
+    const snapshotGlobalRunningCount = new Set(
+      worktrees.flatMap((worktree) =>
+        worktree.appGroups.flatMap((group) =>
+          group.instances
+            .filter((instance) => instance.running)
+            .map((instance) => instance.id)
+        )
+      )
+    ).size;
+    const snapshotRepoName = pathModule.basename(worktrees[0].path);
+    const snapshotTrustCommands = trustCommands(config);
+    const snapshotTrustFingerprint = repositoryCommandFingerprint(config);
+    const snapshotTrustRequired = repositoryRequiresTrust(config);
+    const snapshotTrusted = repositoryIsTrusted(
+      projectRoot,
+      config,
+      this.processes.controlDirectory
+    );
+    const snapshotUpdatedAt = new Date().toISOString();
     const snapshot: WorkspaceSnapshot = {
       globalProcesses,
-      resources: processTreeUsage(
-        samples,
-        globalProcesses
-          .filter((process) => projectOwners.has(process.ownerId))
-          .map((process) => process.pid)
-      ),
-      globalRunningCount: new Set(
-        worktrees.flatMap((worktree) =>
-          worktree.appGroups.flatMap((group) =>
-            group.instances
-              .filter((instance) => instance.running)
-              .map((instance) => instance.id)
-          )
-        )
-      ).size,
+      globalRunningCount: snapshotGlobalRunningCount,
       mainWorktreePath: worktrees[0].path,
       projectDefaultConfig: config,
       projectDefaultConfigPath: configPath,
       projectDefaultConfigRevision: configDocument.revision,
       projectDefaultPrimaryAppGroup: primaryGroupId,
-      repoName: pathModule.basename(worktrees[0].path),
+      repoName: snapshotRepoName,
       repoPath: projectRoot,
-      trustCommands: trustCommands(config),
-      trustFingerprint: repositoryCommandFingerprint(config),
-      trustRequired: repositoryRequiresTrust(config),
-      trusted: repositoryIsTrusted(
-        projectRoot,
-        config,
-        this.processes.controlDirectory
-      ),
-      updatedAt: new Date().toISOString(),
+      resources: snapshotResources,
+      trustCommands: snapshotTrustCommands,
+      trustFingerprint: snapshotTrustFingerprint,
+      trustRequired: snapshotTrustRequired,
+      trusted: snapshotTrusted,
+      updatedAt: snapshotUpdatedAt,
       worktrees,
     };
     this.product.observe(snapshot);
@@ -703,19 +710,17 @@ export class WorkspaceController {
       let observation: Observation | null = null;
       try {
         observation = this.observeRepository(project.path);
-        // oxlint-disable-next-line sort-keys -- Preserve observation evaluation before derived fields.
         return {
           ...project,
-          observation,
           error: null,
+          observation,
           workspace: observation.configured ? this.inspect(project.path) : null,
         };
       } catch (error) {
-        // oxlint-disable-next-line sort-keys -- Preserve observation evaluation before derived fields.
         return {
           ...project,
-          observation,
           error: error instanceof Error ? error.message : String(error),
+          observation,
           workspace: null,
         };
       }

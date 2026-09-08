@@ -35,16 +35,16 @@ export function RepositoryDialog({
     await onConfirm(path, snapshot);
     onClose();
   });
+  const picker = useRepositoryPicker();
   function changeDraft(path: string) {
     opener.clearError();
-    picker.clearError();
     setDraft(path);
   }
   async function openSelected(path: string) {
     changeDraft(path);
+    picker.clearError();
     await opener.open(path);
   }
-  const picker = useRepositoryPicker(openSelected);
   const setup = useRepositorySetup({
     error: opener.error,
     onCreated: () => opener.open(draft.trim()),
@@ -100,13 +100,16 @@ export function RepositoryDialog({
                 <Input
                   disabled={opener.pending || picker.pending}
                   id="change-repository-path"
-                  onChange={(event) => changeDraft(event.target.value)}
+                  onChange={(event) => {
+                    changeDraft(event.target.value);
+                    picker.clearError();
+                  }}
                   value={draft}
                 />
                 <Button
                   aria-label="Choose repository folder"
                   disabled={opener.pending || picker.pending}
-                  onClick={picker.browse}
+                  onClick={() => picker.handleBrowse(openSelected)}
                   variant="outline"
                 >
                   <FolderOpenIcon data-icon="inline-start" />

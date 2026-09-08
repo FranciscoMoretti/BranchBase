@@ -76,11 +76,11 @@ function Field({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: this registry primitive supports field layouts that are not fieldsets.
     <div
       className={cn(fieldVariants({ orientation }), className)}
       data-orientation={orientation}
       data-slot="field"
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Fields can contain non-form controls, so this layout primitive intentionally remains a neutral group.
       role="group"
       {...props}
     />

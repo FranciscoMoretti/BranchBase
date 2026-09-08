@@ -55,27 +55,25 @@ export const BranchBaseAppGroupInstancesSchema = z.discriminatedUnion("mode", [
   z.strictObject({ mode: z.literal("selectable") }),
 ]);
 
-// oxlint-disable-next-line sort-keys -- Preserve the published JSON Schema property order.
 export const BranchBaseAppGroupSchema = z.strictObject({
+  apps: z.record(BranchBaseAppIdSchema, BranchBaseAppSchema),
   category: z.enum(["application", "infrastructure"]).optional(),
+  env: z.record(BranchBaseEnvironmentNameSchema, z.string()).optional(),
   instances: BranchBaseAppGroupInstancesSchema.default({
     mode: "per-worktree",
   }),
   name: z.string().min(1).optional(),
   start: BranchBaseCommandSchema,
   stop: BranchBaseAppGroupStopSchema,
-  env: z.record(BranchBaseEnvironmentNameSchema, z.string()).optional(),
-  apps: z.record(BranchBaseAppIdSchema, BranchBaseAppSchema),
 });
 
 export type BranchBaseAppGroup = z.infer<typeof BranchBaseAppGroupSchema>;
 
-// oxlint-disable-next-line sort-keys -- Preserve the published JSON Schema property order.
 const BranchBaseConfigObjectSchema = z.strictObject({
   $schema: z.string().optional(),
-  version: z.literal(1),
-  setup: BranchBaseCommandSchema,
   appGroups: z.record(BranchBaseAppGroupNameSchema, BranchBaseAppGroupSchema),
+  setup: BranchBaseCommandSchema,
+  version: z.literal(1),
 });
 
 type BranchBaseConfigShape = z.infer<typeof BranchBaseConfigObjectSchema>;

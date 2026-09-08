@@ -95,7 +95,7 @@ export function CopyButton({
       variant="ghost"
     >
       {state === "copied" ? <CheckIcon /> : <CopyIcon />}
-      <span className="sr-only" role="status">
+      <span aria-atomic="true" aria-live="polite" className="sr-only">
         {{ copied: "Copied", failed: "Clipboard unavailable", idle: "" }[state]}
       </span>
     </Button>

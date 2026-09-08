@@ -209,15 +209,16 @@ export class ProcessSupervisor {
     if (!child.pid) {
       throw new Error(`Failed to start ${command}`);
     }
-    // oxlint-disable-next-line sort-keys -- Preserve process marker and timestamp evaluation order.
+    const recordStartedAt = new Date().toISOString();
+    const recordStartMarker = processStartMarker(child.pid);
     const record: ProcessRecord = {
       argv: input.argv,
       cwd: input.cwd,
       label: input.label,
       ownerId: input.ownerId ?? input.logId ?? input.processId,
-      startedAt: new Date().toISOString(),
       pid: child.pid,
-      startMarker: processStartMarker(child.pid),
+      startMarker: recordStartMarker,
+      startedAt: recordStartedAt,
     };
     this.processes.set(input.processId, { child, record });
     writeFileSync(this.pidPath(input.processId), `${JSON.stringify(record)}\n`);

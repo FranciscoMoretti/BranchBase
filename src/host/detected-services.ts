@@ -192,13 +192,12 @@ export class DetectedServices {
         continue;
       }
       try {
-        // oxlint-disable-next-line sort-keys -- Preserve process inspection evaluation order.
         services.push({
           ...row,
           cwd: realpathSync(cwd),
-          startedAt: times.get(row.pid) ?? null,
-          resources: processTreeUsage(samples, [row.pid]),
           managed: owned.has(row.pid),
+          resources: processTreeUsage(samples, [row.pid]),
+          startedAt: times.get(row.pid) ?? null,
           url: null,
         });
       } catch {

@@ -341,7 +341,7 @@ export function WorkspacePage({
           actionLabel={trust.actionLabel}
           commands={trust.commands}
           error={actions.commands.trustRepository.error}
-          onClose={trust.dismiss}
+          onClose={trust.handleDismiss}
           onTrust={() =>
             trust.approve(() =>
               actions.commands.trustRepository.mutateAsync({

@@ -16,12 +16,13 @@ export interface CommandMenuItem {
 export function CommandMenuItems({ items }: { items: CommandMenuItem[] }) {
   return items.map((item) => {
     const Icon = item.icon;
+    const handleAction = item.onSelect;
     return (
       <Fragment key={item.id}>
         {item.separatorBefore ? <DropdownMenuSeparator /> : null}
         <DropdownMenuItem
           disabled={item.disabled}
-          onClick={item.onSelect}
+          onClick={handleAction}
           variant={item.variant}
         >
           {Icon ? <Icon /> : null}

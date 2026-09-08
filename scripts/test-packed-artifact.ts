@@ -149,21 +149,19 @@ try {
   writeFileSync(
     pathModule.join(fixtureDirectory, ".branchbase.json"),
     `${JSON.stringify(
-      // oxlint-disable-next-line sort-keys -- Preserve the serialized starter configuration contract.
       {
-        version: 1,
-        setup: { argv: ["bun", "install"] },
         appGroups: {
-          // oxlint-disable-next-line sort-keys -- Preserve the serialized starter configuration contract.
           Apps: {
-            start: { argv: ["bun", "run", "dev"] },
-            stop: "process",
-            env: { PORT: "{apps.fixture.port}" },
             apps: {
               fixture: { protocol: "http", readiness: "tcp" },
             },
+            env: { PORT: "{apps.fixture.port}" },
+            start: { argv: ["bun", "run", "dev"] },
+            stop: "process",
           },
         },
+        setup: { argv: ["bun", "install"] },
+        version: 1,
       },
       null,
       2

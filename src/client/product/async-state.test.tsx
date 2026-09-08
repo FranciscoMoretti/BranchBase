@@ -156,6 +156,38 @@ test("retry recovery stays visible until data arrives and resets for a new query
   expect(container.textContent).toContain("Loading projects");
   expect(container.textContent).not.toContain("Try again");
 });
+test("retry keeps an initial failure visible when no reset key is supplied", async () => {
+  const container = mountDom();
+  const query = {
+    ...base,
+    error: new Error("Failed to fetch"),
+    isFetching: false,
+    isPending: false,
+  };
+  await act(() => {
+    activeRoot?.render(
+      <QueryContent label="Projects" query={query}>
+        <p>Saved project</p>
+      </QueryContent>
+    );
+  });
+  const retry = container.querySelector("button");
+  expect(retry).not.toBeNull();
+  await act(() => {
+    retry?.click();
+  });
+  await act(() => {
+    activeRoot?.render(
+      <QueryContent
+        label="Projects"
+        query={{ ...query, error: null, isFetching: true }}
+      >
+        <p>Saved project</p>
+      </QueryContent>
+    );
+  });
+  expect(container.textContent).toContain("Retrying…");
+});
 test("DOM feedback exposes loading and mutation failure states", async () => {
   const container = mountDom();
   await act(() => {
