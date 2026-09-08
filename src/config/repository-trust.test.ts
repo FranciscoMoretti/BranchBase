@@ -157,7 +157,6 @@ describe("repository trust fingerprint", () => {
         }
       `;
       const processes = Array.from({ length: 8 }, (_, index) =>
-        // biome-ignore lint/correctness/noUndeclaredVariables: Bun is the test runtime.
         Bun.spawn(["bun", "-e", child], {
           env: {
             ...process.env,

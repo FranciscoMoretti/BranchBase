@@ -341,8 +341,9 @@ export const createBranchBaseServer = async (
       }
       const commandMatch =
         request.method === "POST" ? COMMAND_PATH.exec(url.pathname) : null;
-      if (commandMatch) {
-        await handleCommand(request, response, commandMatch[1]);
+      const command = commandMatch?.groups?.command;
+      if (command !== undefined) {
+        await handleCommand(request, response, command);
         return;
       }
       serveUi(request, response, url);

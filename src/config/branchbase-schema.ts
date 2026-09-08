@@ -78,7 +78,6 @@ const BranchBaseConfigObjectSchema = z.strictObject({
 
 type BranchBaseConfigShape = z.infer<typeof BranchBaseConfigObjectSchema>;
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: keep schema issues colocated with their exact JSON paths.
 const validateBranchBaseConfig = (
   config: BranchBaseConfigShape,
   context: z.RefinementCtx

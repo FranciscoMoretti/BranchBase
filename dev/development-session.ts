@@ -71,7 +71,8 @@ const acquireDevelopmentOwnership = (
     );
   } catch (error) {
     if (error instanceof ExclusiveFileLockBusyError) {
-      throw new TypeError(
+      // oxlint-disable-next-line unicorn/prefer-type-error -- A busy lock is a lifecycle conflict, not a type mismatch.
+      throw new Error(
         "BranchBase development is already running for this checkout",
         { cause: error }
       );
