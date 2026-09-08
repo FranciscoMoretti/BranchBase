@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import {
   existsSync,
   mkdirSync,
@@ -81,9 +82,10 @@ const blockingPrepareRoutingEngine = (): BlockingPrepareRoutingEngine => {
       routing.prepared = true;
       return Promise.resolve();
     }
-    return new Promise((resolve) => {
-      releasePrepare = resolve;
-    });
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const result = Promise.withResolvers<void>();
+    releasePrepare = () => result.resolve();
+    return result.promise;
   };
   routing.release = () => {
     released = true;
@@ -307,10 +309,14 @@ const createCrossGroupFixture = (): {
   return { controller, repository, routing, temporary, worktreeId };
 };
 
-const close = (server: Server): Promise<void> =>
-  new Promise((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
+const close = async (server: Server): Promise<void> => {
+  if (!server.listening) {
+    return;
+  }
+  const closed = once(server, "close");
+  server.close();
+  await closed;
+};
 
 const cleanupCrossGroupFixture = async (fixture: {
   blocker: Server | null;
@@ -320,19 +326,29 @@ const cleanupCrossGroupFixture = async (fixture: {
   worktreeId: string;
 }): Promise<void> => {
   if (fixture.blocker) {
-    await close(fixture.blocker).catch(() => {});
+    try {
+      await close(fixture.blocker);
+    } catch {
+      // Fixture cleanup is best effort.
+    }
   }
-  await fixture.controller
-    .stopAppGroup(fixture.repository, fixture.worktreeId, "Apps")
-    .catch(() => {});
+  try {
+    await fixture.controller.stopAppGroup(
+      fixture.repository,
+      fixture.worktreeId,
+      "Apps"
+    );
+  } catch {
+    // Fixture cleanup is best effort.
+  }
   rmSync(fixture.temporary, { force: true, recursive: true });
 };
 
-const listen = (server: Server, port: number): Promise<void> =>
-  new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
-  });
+const listen = async (server: Server, port: number): Promise<void> => {
+  const listening = once(server, "listening");
+  server.listen(port, "127.0.0.1");
+  await listening;
+};
 
 describe("App-group instance assignment", () => {
   it("uses an approved captured Stop command for a detached run", async () => {

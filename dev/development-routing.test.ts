@@ -1,17 +1,21 @@
 import { expect, it } from "bun:test";
 import { fork } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { EventEmitter, once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, request } from "node:http";
+import type { IncomingMessage } from "node:http";
 import { createConnection, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { delay } from "../src/runtime/async-utils";
 import { reserveBackingPort } from "../src/runtime/readiness";
 import {
   DevelopmentProxyPortConflictError,
   DevelopmentRouting,
+  waitForExit as waitForRoutingExit,
 } from "./development-routing";
 
 const listenBackend = (
@@ -23,118 +27,138 @@ const listenBackend = (
   const server = createHttpServer((_request, response) => {
     response.end("backend");
   });
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Backend did not expose a TCP port"));
-        return;
-      }
-      resolve({
-        close: () =>
-          new Promise<void>((closeResolve, closeReject) => {
-            server.close((error) =>
-              error ? closeReject(error) : closeResolve()
-            );
-          }),
-        port: address.port,
-      });
-    });
-  });
+  return (async () => {
+    const listening = once(server, "listening");
+    server.listen(port, "127.0.0.1");
+    await listening;
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Backend did not expose a TCP port");
+    }
+    return {
+      close: async () => {
+        const closed = once(server, "close");
+        server.close();
+        await closed;
+      },
+      port: address.port,
+    };
+  })();
 };
 
-const proxyResponse = (
+const proxyResponse = async (
   port: number,
   hostname: string,
   proxyHost = "127.0.0.1",
   timeoutMs = 1000
-): Promise<{ body: string; status: number }> =>
-  new Promise((resolve, reject) => {
-    const proxyRequest = request(
-      {
-        headers: { host: `${hostname}:${port}` },
-        host: proxyHost,
-        port,
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-        response.once("end", () =>
-          resolve({
-            body: Buffer.concat(chunks).toString("utf-8"),
-            status: response.statusCode ?? 0,
-          })
-        );
-      }
-    );
-    proxyRequest.once("error", reject);
-    proxyRequest.setTimeout(timeoutMs, () =>
-      proxyRequest.destroy(
-        new Error(`Proxy request timed out after ${timeoutMs} ms`)
-      )
-    );
-    proxyRequest.end();
+): Promise<{ body: string; status: number }> => {
+  const proxyRequest = request({
+    headers: { host: `${hostname}:${port}` },
+    host: proxyHost,
+    port,
   });
+  proxyRequest.setTimeout(timeoutMs, () =>
+    proxyRequest.destroy(
+      new Error(`Proxy request timed out after ${timeoutMs} ms`)
+    )
+  );
+  proxyRequest.end();
+  const [response] = (await once(proxyRequest, "response")) as [
+    IncomingMessage,
+  ];
+  const chunks: Buffer[] = [];
+  for await (const chunk of response) {
+    chunks.push(Buffer.from(chunk));
+  }
+  return {
+    body: Buffer.concat(chunks).toString("utf-8"),
+    status: response.statusCode ?? 0,
+  };
+};
 
-const listenOnPort = (
+it("waits for a child close after a shutdown error", async () => {
+  // oxlint-disable-next-line unicorn/prefer-event-target -- ChildProcess lifecycle tests require Node EventEmitter semantics.
+  const child = Object.assign(new EventEmitter(), {
+    exitCode: null,
+    signalCode: null,
+  }) as unknown as ChildProcess;
+  const closing = waitForRoutingExit(child);
+  let outcome = "pending";
+  const observed = (async () => {
+    try {
+      await closing;
+      outcome = "closed";
+    } catch {
+      outcome = "rejected";
+    }
+  })();
+
+  child.emit("error", new Error("shutdown failed"));
+  await Promise.resolve();
+  expect(outcome).toBe("pending");
+  child.emit("close");
+
+  await observed;
+  expect(outcome).toBe("closed");
+});
+
+const listenOnPort = async (
   port: number,
   host: string
 ): Promise<() => Promise<void>> => {
   const server = createServer();
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, host, () =>
-      resolve(
-        () =>
-          new Promise<void>((closeResolve, closeReject) => {
-            server.close((error) =>
-              error ? closeReject(error) : closeResolve()
-            );
-          })
-      )
-    );
-  });
+  const listening = once(server, "listening");
+  server.listen(port, host);
+  await listening;
+  return async () => {
+    const closed = once(server, "close");
+    server.close();
+    await closed;
+  };
 };
 
-const waitForChildReady = (child: ChildProcess): Promise<void> =>
-  new Promise((resolve, reject) => {
-    const handlers = {
-      cleanup() {
-        child.off("error", handlers.onError);
-        child.off("exit", handlers.onExit);
-        child.off("message", handlers.onMessage);
-      },
-      onError(error: Error) {
+const waitForChildReady = async (child: ChildProcess): Promise<void> => {
+  // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+  const result = Promise.withResolvers<void>();
+  const handlers = {
+    cleanup() {
+      child.off("error", handlers.onError);
+      child.off("exit", handlers.onExit);
+      child.off("message", handlers.onMessage);
+    },
+    onError(error: Error) {
+      handlers.cleanup();
+      result.reject(error);
+    },
+    onExit() {
+      handlers.cleanup();
+      result.reject(
+        new Error("Development routing harness exited before startup")
+      );
+    },
+    onMessage(message: unknown) {
+      if (
+        typeof message === "object" &&
+        message !== null &&
+        "type" in message &&
+        message.type === "ready"
+      ) {
         handlers.cleanup();
-        reject(error);
-      },
-      onExit() {
-        handlers.cleanup();
-        reject(new Error("Development routing harness exited before startup"));
-      },
-      onMessage(message: unknown) {
-        if (
-          typeof message === "object" &&
-          message !== null &&
-          "type" in message &&
-          message.type === "ready"
-        ) {
-          handlers.cleanup();
-          resolve();
-        }
-      },
-    };
-    child.once("error", handlers.onError);
-    child.once("exit", handlers.onExit);
-    child.on("message", handlers.onMessage);
-  });
+        result.resolve();
+      }
+    },
+  };
+  child.once("error", handlers.onError);
+  child.once("exit", handlers.onExit);
+  child.on("message", handlers.onMessage);
+  return await result.promise;
+};
 
-const waitForExit = (child: ChildProcess): Promise<void> => {
+const waitForExit = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve();
+    return;
   }
-  return new Promise((resolve) => child.once("exit", () => resolve()));
+  await once(child, "exit");
 };
 
 const waitForProxyStatus = async (
@@ -145,6 +169,7 @@ const waitForProxyStatus = async (
   const deadline = Date.now() + 5000;
   do {
     try {
+      // oxlint-disable-next-line no-await-in-loop -- Proxy status polling observes each attempt before waiting.
       const response = await proxyResponse(port, hostname);
       if (response.status === expected) {
         return;
@@ -152,7 +177,8 @@ const waitForProxyStatus = async (
     } catch {
       // Timed-out or refused requests keep polling until the deadline.
     }
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    // oxlint-disable-next-line no-await-in-loop -- Proxy status polling observes each attempt before waiting.
+    await delay(25);
   } while (Date.now() < deadline);
   throw new Error(`Proxy did not return status ${expected}`);
 };
@@ -164,12 +190,14 @@ const reopenAfterParentExit = async (
   const deadline = Date.now() + 5000;
   do {
     try {
+      // oxlint-disable-next-line no-await-in-loop -- Proxy reopen retries are serialized to preserve conflict handling.
       return await DevelopmentRouting.open({ port, stateDirectory });
     } catch (error) {
       if (!(error instanceof DevelopmentProxyPortConflictError)) {
         throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      // oxlint-disable-next-line no-await-in-loop -- Proxy reopen retries are serialized to preserve conflict handling.
+      await delay(25);
     }
   } while (Date.now() < deadline);
   throw new Error(
@@ -401,13 +429,9 @@ it("rejects occupied ports and releases both loopback listeners", async () => {
       stateDirectory: temporary,
     });
     const socket = createConnection({ host: "127.0.0.1", port });
-    await new Promise<void>((resolve, reject) => {
-      socket.once("connect", resolve);
-      socket.once("error", reject);
-    });
-    const socketClosed = new Promise<void>((resolve) =>
-      socket.once("close", () => resolve())
-    );
+    const connected = once(socket, "connect");
+    await connected;
+    const socketClosed = once(socket, "close");
     await routing.close();
     await socketClosed;
     await routing.close();

@@ -18,6 +18,7 @@ import {
   repositoryPathFromArgs,
   repositoryUrl,
 } from "../src/repository-context";
+import { delay } from "../src/runtime/async-utils";
 
 const APP_ROOT = pathModule.dirname(import.meta.dirname);
 const CONTROL_DIR = pathModule.join(homedir(), ".branchbase");
@@ -85,7 +86,9 @@ const waitForHealth = async (expectedPid: number): Promise<void> => {
   const url = `http://127.0.0.1:${process.env.BRANCHBASE_PORT ?? 3999}/api/health`;
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
+      // oxlint-disable-next-line no-await-in-loop -- Daemon health polling observes each response before waiting.
       const response = await fetch(url);
+      // oxlint-disable-next-line no-await-in-loop -- Daemon health polling observes each response before waiting.
       const body = (await response.json()) as {
         pid?: number;
         service?: string;
@@ -100,7 +103,8 @@ const waitForHealth = async (expectedPid: number): Promise<void> => {
     } catch {
       // The detached server is still starting.
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // oxlint-disable-next-line no-await-in-loop -- Daemon health polling observes each attempt before waiting.
+    await delay(100);
   }
   throw new Error(`BranchBase did not become healthy; inspect ${LOG_FILE}`);
 };

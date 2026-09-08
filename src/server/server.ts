@@ -15,10 +15,16 @@ const server = await createBranchBaseServer({
 
 console.log(`BranchBase: ${await server.listen()}`);
 
+const closeOnSignal = async (): Promise<void> => {
+  try {
+    await server.close();
+  } catch {
+    process.exitCode = 1;
+  }
+};
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    server.close().catch(() => {
-      process.exitCode = 1;
-    });
+    void closeOnSignal();
   });
 }

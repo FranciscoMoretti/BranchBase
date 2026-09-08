@@ -91,13 +91,17 @@ export const request = async (
 export const getJson = async (path: string): Promise<unknown> =>
   responseJson(await request(path));
 const token = (): Promise<string> => {
-  sessionToken ??= request("/api/session")
-    .then(responseJson)
-    .then((body) => SessionResponseSchema.parse(body).token)
-    .catch((error: unknown) => {
-      sessionToken = null;
-      throw error;
-    });
+  if (!sessionToken) {
+    sessionToken = (async () => {
+      try {
+        const body = await responseJson(await request("/api/session"));
+        return SessionResponseSchema.parse(body).token;
+      } catch (error: unknown) {
+        sessionToken = null;
+        throw error;
+      }
+    })();
+  }
   return sessionToken;
 };
 
@@ -158,10 +162,14 @@ export const runCommand = (
   input: Record<string, unknown>
 ): Promise<CommandReceipt> => postCommand(command, input, CommandReceiptSchema);
 
-export const pickRepository = (): Promise<string | null> =>
-  postCommand("pick-repository", {}, PickRepositoryResultSchema).then(
-    (result) => result.path
+export const pickRepository = async (): Promise<string | null> => {
+  const result = await postCommand(
+    "pick-repository",
+    {},
+    PickRepositoryResultSchema
   );
+  return result.path;
+};
 
 export const previewRepositoryConfig = (repoPath: string) =>
   postCommand(

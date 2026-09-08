@@ -31,11 +31,16 @@ try {
     })();
     return shutdownPromise;
   };
+  const shutdownOnSignal = async (): Promise<void> => {
+    try {
+      await shutdown();
+    } catch {
+      process.exitCode = 1;
+    }
+  };
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => {
-      shutdown().catch(() => {
-        process.exitCode = 1;
-      });
+      void shutdownOnSignal();
     });
   }
 } catch (error) {

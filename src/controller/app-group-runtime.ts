@@ -14,6 +14,7 @@ import {
   repositoryCommandFingerprint,
   repositoryFingerprintIsTrusted,
 } from "../config/repository-trust";
+import { delay } from "../runtime/async-utils";
 import type {
   LocalRoute,
   LocalRouteState,
@@ -89,9 +90,6 @@ const groupHealth = (apps: AppEndpointSnapshot[]): AppHealth => {
     ? "running"
     : "partially-running";
 };
-
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const commandEndpointIsClaimed = (
   endpoint: RunEndpoint,
@@ -214,6 +212,7 @@ const waitForPortsStopped = async (run: AppGroupRun): Promise<boolean> => {
     ) {
       return true;
     }
+    // oxlint-disable-next-line no-await-in-loop -- Port shutdown polling observes each attempt before waiting.
     await delay(100);
   }
   return false;
@@ -649,6 +648,7 @@ export class AppGroupRuntime {
             `${route.hostname} points to a different Backing endpoint`
           );
         } else if (routeState !== "inactive") {
+          // oxlint-disable-next-line no-await-in-loop -- Route deactivation is serialized to preserve cleanup ordering.
           await this.routing.deactivate(route);
         }
       } catch (error) {
@@ -705,6 +705,7 @@ export class AppGroupRuntime {
       Object.values(context.run.apps).map((app) => app.port),
       context.processPath
     )) {
+      // oxlint-disable-next-line no-await-in-loop -- Owned listener cleanup is serialized to preserve process shutdown ordering.
       if (await this.processes.stopOwnedProcess(pid, context.processId)) {
         killed.add(pid);
       }
@@ -735,20 +736,23 @@ export class AppGroupRuntime {
     operation: () => Promise<T>
   ): Promise<T> {
     const operationKeys = [...new Set(keys)].toSorted();
-    const predecessor = Promise.all(
-      operationKeys.map((key) =>
-        (this.lifecycleOperations.get(key) ?? Promise.resolve()).catch(() => {
-          // A predecessor failure does not block the next operation.
+    const predecessor = (async () => {
+      await Promise.all(
+        operationKeys.map(async (key) => {
+          try {
+            await (this.lifecycleOperations.get(key) ?? Promise.resolve());
+          } catch {
+            // A failed predecessor must not prevent the next lifecycle operation.
+          }
         })
-      )
-    ).then(() => {
-      // Predecessor completion only releases the operation queue.
-    });
-    let release: (() => void) | undefined;
-    const completion = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const tail = predecessor.then(() => completion);
+      );
+    })();
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const completion = Promise.withResolvers<void>();
+    const tail = (async () => {
+      await predecessor;
+      await completion.promise;
+    })();
     for (const key of operationKeys) {
       this.lifecycleOperations.set(key, tail);
     }
@@ -756,7 +760,7 @@ export class AppGroupRuntime {
     try {
       return await operation();
     } finally {
-      release?.();
+      completion.resolve();
       for (const key of operationKeys) {
         if (this.lifecycleOperations.get(key) === tail) {
           this.lifecycleOperations.delete(key);
@@ -1185,6 +1189,7 @@ export class AppGroupRuntime {
           if (assignment.port !== null) {
             continue;
           }
+          // oxlint-disable-next-line no-await-in-loop -- Port reservations update shared leased state sequentially.
           const reservation = await reserveBackingPort(leased);
           reservations.push(reservation);
           leased.add(reservation.port);
@@ -1248,6 +1253,7 @@ export class AppGroupRuntime {
         if (initialStates.get(route) === "inactive") {
           newlyActivated.push(route);
         }
+        // oxlint-disable-next-line no-await-in-loop -- Route activation is serialized to preserve publication ordering.
         await this.routing.activate(route);
       }
     } catch (error) {
@@ -1274,6 +1280,7 @@ export class AppGroupRuntime {
         if (routeState !== "active" && routeState !== "unavailable") {
           continue;
         }
+        // oxlint-disable-next-line no-await-in-loop -- Route rollback runs in reverse order to preserve cleanup ordering.
         await this.routing.deactivate(route);
       } catch (error) {
         failures.push(`Route rollback failed: ${errorMessage(error)}`);

@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { once } from "node:events";
 import {
   closeSync,
   existsSync,
@@ -16,6 +17,7 @@ import pathModule from "node:path";
 import { z } from "zod";
 
 import { processStartMarker } from "../host/process-inspection";
+import { delay } from "./async-utils";
 import { pathInside, pidOwnedByWorktree } from "./ports";
 
 const LINE_BREAK = /\r?\n/u;
@@ -80,9 +82,6 @@ export const appGroupInstanceProcessId = (instanceId: string): string =>
 
 const safeId = (processId: string): string =>
   processId.replaceAll(/[^A-Za-z0-9_-]/gu, "_");
-
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const isMissingPathError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -266,12 +265,16 @@ export class ProcessSupervisor {
             logId,
             "[branchbase] Managed process exited; stopping remaining descendants"
           );
-          this.stopProcessTarget(groupTarget, logId).catch((error) => {
-            this.appendManagedLogIfAvailable(
-              logId,
-              `[branchbase] Failed to stop remaining descendants: ${error instanceof Error ? error.message : String(error)}`
-            );
-          });
+          void (async () => {
+            try {
+              await this.stopProcessTarget(groupTarget, logId);
+            } catch (error) {
+              this.appendManagedLogIfAvailable(
+                logId,
+                `[branchbase] Failed to stop remaining descendants: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          })();
         }
       }
     });
@@ -306,22 +309,14 @@ export class ProcessSupervisor {
         closeSync(log);
       }
     })();
-    await new Promise<void>((resolve, reject) => {
-      child.once("error", reject);
-      child.once("exit", (code, signal) => {
-        if (code === 0) {
-          resolve();
-          return;
-        }
-        reject(
-          new Error(
-            signal
-              ? `${input.label} exited after ${signal}`
-              : `${input.label} exited with status ${code ?? "unknown"}`
-          )
-        );
-      });
-    });
+    const [code, signal] = await once(child, "exit");
+    if (code !== 0) {
+      throw new Error(
+        signal
+          ? `${input.label} exited after ${signal}`
+          : `${input.label} exited with status ${code ?? "unknown"}`
+      );
+    }
   }
 
   listManagedProcesses(): ManagedProcessSummary[] {
@@ -497,6 +492,7 @@ export class ProcessSupervisor {
       if (!processTargetIsLive(target)) {
         return;
       }
+      // oxlint-disable-next-line no-await-in-loop -- Process stop attempts are serialized to preserve signal escalation.
       await delay(STOP_POLL_MS);
     }
     if (logId) {
@@ -517,6 +513,7 @@ export class ProcessSupervisor {
       if (!processTargetIsLive(target)) {
         return;
       }
+      // oxlint-disable-next-line no-await-in-loop -- Owned listener cleanup is serialized to preserve process shutdown ordering.
       await delay(STOP_POLL_MS);
     }
     throw new Error(`Managed ${target.kind} ${target.id} did not stop`);

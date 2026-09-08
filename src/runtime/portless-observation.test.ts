@@ -1,11 +1,28 @@
 import { expect, it } from "bun:test";
+import { once } from "node:events";
 import { createServer } from "node:http";
+import type { Server } from "node:http";
 
 import {
   isPortlessRoutePublished,
   isPublishedPortlessRoute,
   observePortlessRoute,
 } from "./portless-observation";
+
+const listen = async (server: Server): Promise<void> => {
+  const listening = once(server, "listening");
+  server.listen(0, "127.0.0.1");
+  await listening;
+};
+
+const close = async (server: Server): Promise<void> => {
+  if (!server.listening) {
+    return;
+  }
+  const closed = once(server, "close");
+  server.close();
+  await closed;
+};
 
 it("treats only routed and unavailable observations as published", () => {
   expect(isPortlessRoutePublished("routed")).toBe(true);
@@ -28,10 +45,7 @@ it("classifies the observable Portless route contract", async () => {
     response.statusCode = request.url === "/other-404" ? 404 : 200;
     response.end("upstream response");
   });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
+  await listen(server);
   const address = server.address();
   if (!address || typeof address === "string") {
     throw new Error("Observation fixture did not expose a port");
@@ -52,9 +66,7 @@ it("classifies the observable Portless route contract", async () => {
       "routed"
     );
   } finally {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+    await close(server);
   }
 
   await expect(observePortlessRoute(`${origin}/closed`)).resolves.toBe(
@@ -66,10 +78,7 @@ it("classifies a route that does not respond within 500 ms as unavailable", asyn
   const server = createServer(() => {
     // Leave the request open so the observer's timeout determines the result.
   });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
+  await listen(server);
   const address = server.address();
   if (!address || typeof address === "string") {
     throw new Error("Observation fixture did not expose a port");
@@ -84,9 +93,7 @@ it("classifies a route that does not respond within 500 ms as unavailable", asyn
   } finally {
     server.closeAllConnections();
     if (server.listening) {
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-      });
+      await close(server);
     }
   }
 });
@@ -109,10 +116,7 @@ it("requires a responding proxy before treating unavailable as published", async
     response.statusCode = 200;
     response.end("ok");
   });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
+  await listen(server);
   const address = server.address();
   if (!address || typeof address === "string") {
     throw new Error("Observation fixture did not expose a port");
@@ -135,9 +139,7 @@ it("requires a responding proxy before treating unavailable as published", async
   } finally {
     server.closeAllConnections();
     if (server.listening) {
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-      });
+      await close(server);
     }
   }
 

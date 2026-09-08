@@ -1,13 +1,11 @@
 import type { WorkspaceController } from "../controller/workspace-controller";
 import { appGroupIsStopped } from "../controller/workspace-snapshot";
+import { delay } from "../runtime/async-utils";
 import { findAppGroup } from "./start-apps";
 import { stopApps } from "./stop-apps";
 
 const STOP_ATTEMPTS = 50;
 const STOP_POLL_MS = 100;
-
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export const stopAppsAndWait = async (
   controller: WorkspaceController,
@@ -23,6 +21,7 @@ export const stopAppsAndWait = async (
     if (appGroupIsStopped(group)) {
       return;
     }
+    // oxlint-disable-next-line no-await-in-loop -- Stop polling observes each attempt before waiting.
     await delay(STOP_POLL_MS);
   }
   throw new Error(timeoutMessage);

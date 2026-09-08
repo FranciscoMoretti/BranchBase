@@ -139,10 +139,13 @@ const openDevelopmentRouting = async (
   let lastConflict: DevelopmentProxyPortConflictError | undefined;
   const conflictingPorts = new Set<number>();
   for (let attempt = 0; attempt < 5; attempt += 1) {
+    // oxlint-disable-next-line no-await-in-loop -- Proxy port reservations retry sequentially against conflicting ports.
     const reservation = await reserveBackingPort(conflictingPorts);
     const { port } = reservation;
+    // oxlint-disable-next-line no-await-in-loop -- Each reserved port is released before the next retry.
     await reservation.release();
     try {
+      // oxlint-disable-next-line no-await-in-loop -- Development routing retries are serialized to preserve port conflict handling.
       return await prepareDevelopmentRouting(stateDirectory, port);
     } catch (error) {
       if (!(error instanceof DevelopmentProxyPortConflictError)) {
