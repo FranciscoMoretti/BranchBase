@@ -19,7 +19,6 @@ import type { BranchBaseAppGroup, BranchBaseConfig } from "./branchbase-schema";
 import { renderBranchBaseTemplate } from "./branchbase-template";
 import type { ResolvedTemplateApp } from "./branchbase-template";
 
-// biome-ignore lint/performance/noBarrelFile: preserve the package's internal config-module exports.
 export {
   type BranchBaseApp,
   type BranchBaseAppGroup,
