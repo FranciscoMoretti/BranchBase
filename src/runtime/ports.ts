@@ -65,7 +65,7 @@ export const inspectListeningPorts = (): PortSnapshot => {
     if (!match) {
       continue;
     }
-    const port = Number(match[1]);
+    const port = Number(match.groups?.port);
     const pids = pidsByPort.get(port) ?? new Set<number>();
     pids.add(currentPid);
     pidsByPort.set(port, pids);

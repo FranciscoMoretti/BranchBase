@@ -217,7 +217,7 @@ try {
   );
   const assetPath = uiHtml.match(
     /(?:src|href)="(?<assetPath>\/assets\/[^"]+)"/u
-  )?.[1];
+  )?.groups?.assetPath;
   assert(assetPath, "Packed production UI did not reference a built asset");
   const assetResponse = await fetch(`${baseUrl}${assetPath}`);
   assert(assetResponse.ok, "Packed daemon did not serve its built UI asset");

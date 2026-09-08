@@ -168,8 +168,9 @@ describe("managed logs", () => {
         .readManagedLog(stubbornStopTestId)
         .join("\n")
         .match(DESCENDANT_PID_PATTERN);
-      if (match) {
-        stubbornDescendantPid = Number(match[1]);
+      const descendantPid = match?.groups?.pid;
+      if (descendantPid !== undefined) {
+        stubbornDescendantPid = Number(descendantPid);
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -201,8 +202,9 @@ describe("managed logs", () => {
         .readManagedLog(orphanCleanupTestId)
         .join("\n")
         .match(DESCENDANT_PID_PATTERN);
-      if (match) {
-        orphanDescendantPid = Number(match[1]);
+      const descendantPid = match?.groups?.pid;
+      if (descendantPid !== undefined) {
+        orphanDescendantPid = Number(descendantPid);
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 10));

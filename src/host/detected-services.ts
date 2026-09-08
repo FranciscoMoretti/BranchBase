@@ -29,18 +29,16 @@ export const parseListeners = (output: string) => {
     }
     if (line.startsWith("n")) {
       const match = line.match(END_PORT);
-      if (
-        match &&
-        Number.isSafeInteger(pid) &&
-        pid > 0 &&
-        Number(match[1]) > 0 &&
-        Number(match[1]) <= 65_535
-      ) {
+      if (!match) {
+        continue;
+      }
+      const port = Number(match.groups?.port);
+      if (Number.isSafeInteger(pid) && pid > 0 && port > 0 && port <= 65_535) {
         rows.push({
           address: line.slice(1),
           command,
           pid,
-          port: Number(match[1]),
+          port,
         });
       }
     }
