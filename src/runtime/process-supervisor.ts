@@ -83,14 +83,11 @@ export const appGroupInstanceProcessId = (instanceId: string): string =>
 const safeId = (processId: string): string =>
   processId.replaceAll(/[^A-Za-z0-9_-]/g, "_");
 
-function isMissingPathError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOENT"
-  );
-}
+const isMissingPathError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  error.code === "ENOENT";
 
 export class ProcessSupervisor {
   readonly controlDirectory: string;

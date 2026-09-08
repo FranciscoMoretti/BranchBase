@@ -1,5 +1,5 @@
 import { setTimeout } from "node:timers/promises";
 
-export async function delay(milliseconds: number): Promise<void> {
+export const delay = async (milliseconds: number): Promise<void> => {
   await setTimeout(milliseconds);
-}
+};

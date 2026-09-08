@@ -98,22 +98,25 @@ const listenOnPort = async (
 
 const waitForChildReady = async (child: ChildProcess): Promise<void> => {
   const result = Promise.withResolvers<undefined>();
+  let onError: (error: Error) => void;
+  let onExit: () => void;
+  let onMessage: (message: unknown) => void;
   const cleanup = () => {
     child.off("error", onError);
     child.off("exit", onExit);
     child.off("message", onMessage);
   };
-  const onError = (error: Error) => {
+  onError = (error: Error) => {
     cleanup();
     result.reject(error);
   };
-  const onExit = () => {
+  onExit = () => {
     cleanup();
     result.reject(
       new Error("Development routing harness exited before startup")
     );
   };
-  const onMessage = (message: unknown) => {
+  onMessage = (message: unknown) => {
     if (
       typeof message === "object" &&
       message !== null &&

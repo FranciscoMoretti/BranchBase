@@ -87,7 +87,7 @@ export const request = async (
       null
     );
   }
- };
+};
 export const getJson = async (path: string): Promise<unknown> =>
   responseJson(await request(path));
 const token = (): Promise<string> => {

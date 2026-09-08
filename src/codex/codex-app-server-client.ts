@@ -267,6 +267,7 @@ const commandIsAvailable = async (
     }
   );
   let settled = false;
+  let timer: ReturnType<typeof setTimeout>;
   const finish = (available: boolean) => {
     if (settled) {
       return;
@@ -275,7 +276,7 @@ const commandIsAvailable = async (
     clearTimeout(timer);
     result.resolve(available);
   };
-  const timer = setTimeout(() => {
+  timer = setTimeout(() => {
     child.kill("SIGTERM");
     finish(false);
   }, timeoutMs);

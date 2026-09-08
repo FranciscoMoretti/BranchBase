@@ -17,9 +17,7 @@ import type { DevelopmentRouting } from "./development-routing";
 import { openDevelopmentSession } from "./development-session";
 import { acquireExclusiveFileLock } from "./exclusive-file-lock";
 
-const listenOnPort = async (
-  port: number
-): Promise<() => Promise<void>> => {
+const listenOnPort = async (port: number): Promise<() => Promise<void>> => {
   const server = createServer();
   const listening = once(server, "listening");
   server.listen(port, "127.0.0.1");

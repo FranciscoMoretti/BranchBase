@@ -171,7 +171,10 @@ const main = async (): Promise<unknown> => {
     process.env.BRANCHBASE_CODEX_CAPABILITY_PATH ??
     pathModule.join(homedir(), ".branchbase", "codex", "capability.json");
   const [capability, input] = await Promise.all([
-    (async () => readCapability(capabilityPath))(),
+    (async () => {
+      await Promise.resolve();
+      return readCapability(capabilityPath);
+    })(),
     readStdin(),
   ]);
   const payload = normalize(event, input);

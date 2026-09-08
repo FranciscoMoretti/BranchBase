@@ -65,13 +65,13 @@ const exit = async (): Promise<void> => {
   process.exit(0);
 };
 
-async function exitOnFailure(): Promise<void> {
+const exitOnFailure = async (): Promise<void> => {
   try {
     await exit();
   } catch {
     process.exit(1);
   }
-}
+};
 
 process.once("disconnect", () => {
   void exitOnFailure();

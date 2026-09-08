@@ -17,20 +17,20 @@ import {
   waitUntil,
 } from "./portless-fixture";
 
-async function listen(server: Server): Promise<void> {
+const listen = async (server: Server): Promise<void> => {
   const listening = once(server, "listening");
   server.listen(0, "127.0.0.1");
   await listening;
-}
+};
 
-async function close(server: Server): Promise<void> {
+const close = async (server: Server): Promise<void> => {
   if (!server.listening) {
     return;
   }
   const closed = once(server, "close");
   server.close();
   await closed;
-}
+};
 
 test("serializes concurrent lifecycle requests and scopes trust to the fixture", async () => {
   const fixture = await PortlessIntegrationFixture.create();

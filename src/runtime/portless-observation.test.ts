@@ -9,20 +9,20 @@ import {
   observePortlessRoute,
 } from "./portless-observation";
 
-async function listen(server: Server): Promise<void> {
+const listen = async (server: Server): Promise<void> => {
   const listening = once(server, "listening");
   server.listen(0, "127.0.0.1");
   await listening;
-}
+};
 
-async function close(server: Server): Promise<void> {
+const close = async (server: Server): Promise<void> => {
   if (!server.listening) {
     return;
   }
   const closed = once(server, "close");
   server.close();
   await closed;
-}
+};
 
 it("treats only routed and unavailable observations as published", () => {
   expect(isPortlessRoutePublished("routed")).toBe(true);
