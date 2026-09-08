@@ -57,7 +57,6 @@ const proxyResponse = async (
     host: proxyHost,
     port,
   });
-  // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Node request timeout bridge
   proxyRequest.setTimeout(timeoutMs, () =>
     proxyRequest.destroy(
       new Error(`Proxy request timed out after ${timeoutMs} ms`)
