@@ -58,14 +58,15 @@ export class CodexAppServerClient {
     if (child.exitCode !== null || child.signalCode !== null) {
       return;
     }
-    const exited = Promise.withResolvers<undefined>();
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const exited = Promise.withResolvers<void>();
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
-      exited.resolve(undefined);
+      exited.resolve();
     }, 250);
     child.once("exit", () => {
       clearTimeout(timer);
-      exited.resolve(undefined);
+      exited.resolve();
     });
     await exited.promise;
   }
@@ -88,12 +89,13 @@ export class CodexAppServerClient {
 
   private initialize(): Promise<void> {
     if (!this.initialized) {
-      const result = Promise.withResolvers<undefined>();
+      // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+      const result = Promise.withResolvers<void>();
       const initialization = result.promise;
       const run = async (): Promise<void> => {
         try {
           await this.startAndInitialize();
-          result.resolve(undefined);
+          result.resolve();
         } catch (error: unknown) {
           if (this.initialized === initialization) {
             this.initialized = null;
@@ -158,7 +160,7 @@ export class CodexAppServerClient {
       this.pending.delete(id);
       result.reject(error);
     }
-    return result.promise;
+    return await result.promise;
   }
 
   private async startAndInitialize(): Promise<void> {
@@ -269,7 +271,14 @@ const commandIsAvailable = async (
     }
   );
   let settled = false;
-  let timer: ReturnType<typeof setTimeout>;
+  const timer = setTimeout(() => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    child.kill("SIGTERM");
+    result.resolve(false);
+  }, timeoutMs);
   const finish = (available: boolean) => {
     if (settled) {
       return;
@@ -278,13 +287,9 @@ const commandIsAvailable = async (
     clearTimeout(timer);
     result.resolve(available);
   };
-  timer = setTimeout(() => {
-    child.kill("SIGTERM");
-    finish(false);
-  }, timeoutMs);
   child.once("error", () => finish(false));
   child.once("exit", (code) => finish(code === 0));
-  return result.promise;
+  return await result.promise;
 };
 
 export const resolveCodexCommand = async (

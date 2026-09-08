@@ -1,6 +1,5 @@
 import { fork } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { once } from "node:events";
 import { createRequire } from "node:module";
 import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,11 +55,21 @@ const routeInStore = (store: RouteStore, hostname: string) =>
 const routeKey = (hostname: string, port: number): string =>
   `${hostname}\0${port}`;
 
-const waitForExit = async (child: ChildProcess): Promise<void> => {
+const ignoreChildError = () => null;
+
+export const waitForExit = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
-  await once(child, "close");
+  // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+  const result = Promise.withResolvers<void>();
+  const onClose = () => {
+    child.off("error", ignoreChildError);
+    result.resolve();
+  };
+  child.on("error", ignoreChildError);
+  child.once("close", onClose);
+  await result.promise;
 };
 
 export class DevelopmentProxyPortConflictError extends Error {
@@ -196,46 +205,52 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     child: ChildProcess,
     port: number
   ): Promise<void> {
-    const result = Promise.withResolvers<undefined>();
-    let timeout: ReturnType<typeof setTimeout>;
-    let onError: (error: Error) => void;
-    let onExit: () => void;
-    let onMessage: (message: unknown) => void;
-    const cleanup = () => {
-      clearTimeout(timeout);
-      child.off("error", onError);
-      child.off("exit", onExit);
-      child.off("message", onMessage);
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const result = Promise.withResolvers<void>();
+    const timeoutState: {
+      handle: ReturnType<typeof setTimeout> | null;
+    } = { handle: null };
+    const handlers = {
+      cleanup() {
+        if (timeoutState.handle) {
+          clearTimeout(timeoutState.handle);
+        }
+        child.off("error", handlers.onError);
+        child.off("exit", handlers.onExit);
+        child.off("message", handlers.onMessage);
+      },
+      onError(error: Error) {
+        handlers.cleanup();
+        result.reject(error);
+      },
+      onExit() {
+        handlers.cleanup();
+        result.reject(
+          new Error(`Portless proxy did not start on port ${port}`)
+        );
+      },
+      onMessage(message: unknown) {
+        const received = proxyMessage(message);
+        if (received?.type === "ready") {
+          handlers.cleanup();
+          result.resolve();
+        } else if (received?.type === "conflict") {
+          handlers.cleanup();
+          result.reject(new DevelopmentProxyPortConflictError(port));
+        } else if (received?.type === "error") {
+          handlers.cleanup();
+          result.reject(new Error(received.message));
+        }
+      },
     };
-    onError = (error: Error) => {
-      cleanup();
-      result.reject(error);
-    };
-    onExit = () => {
-      cleanup();
-      result.reject(new Error(`Portless proxy did not start on port ${port}`));
-    };
-    onMessage = (message: unknown) => {
-      const received = proxyMessage(message);
-      if (received?.type === "ready") {
-        cleanup();
-        result.resolve(undefined);
-      } else if (received?.type === "conflict") {
-        cleanup();
-        result.reject(new DevelopmentProxyPortConflictError(port));
-      } else if (received?.type === "error") {
-        cleanup();
-        result.reject(new Error(received.message));
-      }
-    };
-    timeout = setTimeout(() => {
-      cleanup();
+    timeoutState.handle = setTimeout(() => {
+      handlers.cleanup();
       result.reject(new Error(`Portless proxy did not start on port ${port}`));
     }, START_TIMEOUT_MS);
-    child.once("error", onError);
-    child.once("exit", onExit);
-    child.on("message", onMessage);
-    return result.promise;
+    child.once("error", handlers.onError);
+    child.once("exit", handlers.onExit);
+    child.on("message", handlers.onMessage);
+    return await result.promise;
   }
 
   private async closeChild(): Promise<void> {

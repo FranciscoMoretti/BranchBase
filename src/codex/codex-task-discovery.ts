@@ -263,7 +263,7 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
   private getClient(): Promise<CodexAppServerClient> {
     if (!this.clientPromise) {
       const result = Promise.withResolvers<CodexAppServerClient>();
-      const promise = result.promise;
+      const { promise } = result;
       const resolve = async (): Promise<void> => {
         try {
           result.resolve(await this.resolveClient());

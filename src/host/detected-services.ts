@@ -270,7 +270,7 @@ export class DetectedServices {
       } catch {
         this.probes.set(key, { at: Date.now(), url: null });
       } finally {
-        this.activeProbes--;
+        this.activeProbes -= 1;
       }
     })();
     evictProbes(this.probes, Date.now());

@@ -63,7 +63,7 @@ const tcpReady = async (endpoint: RunEndpoint): Promise<boolean> => {
   socket.setTimeout(300, () => finish(false));
   socket.once("connect", () => finish(true));
   socket.once("error", () => finish(false));
-  return result.promise;
+  return await result.promise;
 };
 
 const acceptedStatusRange = (app: BranchBaseApp): [number, number] => {

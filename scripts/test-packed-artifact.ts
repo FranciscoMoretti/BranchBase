@@ -56,7 +56,7 @@ const unusedPort = async (): Promise<number> => {
   await listening;
   const address = server.address();
   assert(address && typeof address !== "string", "Could not reserve a port");
-  const port = address.port;
+  const { port } = address;
   const closed = once(server, "close");
   server.close();
   await closed;

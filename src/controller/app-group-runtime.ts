@@ -596,7 +596,8 @@ export class AppGroupRuntime {
         })
       );
     })();
-    const completion = Promise.withResolvers<undefined>();
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const completion = Promise.withResolvers<void>();
     const tail = (async () => {
       await predecessor;
       await completion.promise;
@@ -608,7 +609,7 @@ export class AppGroupRuntime {
     try {
       return await operation();
     } finally {
-      completion.resolve(undefined);
+      completion.resolve();
       for (const key of operationKeys) {
         if (this.lifecycleOperations.get(key) === tail) {
           this.lifecycleOperations.delete(key);

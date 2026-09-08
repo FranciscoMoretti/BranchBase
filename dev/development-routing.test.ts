@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
 import { fork } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, request } from "node:http";
 import type { IncomingMessage } from "node:http";
@@ -15,6 +15,7 @@ import { reserveBackingPort } from "../src/runtime/readiness";
 import {
   DevelopmentProxyPortConflictError,
   DevelopmentRouting,
+  waitForExit as waitForRoutingExit,
 } from "./development-routing";
 
 const listenBackend = (
@@ -56,30 +57,51 @@ const proxyResponse = async (
     host: proxyHost,
     port,
   });
-  const timeout = setTimeout(
-    () =>
-      proxyRequest.destroy(
-        new Error(`Proxy request timed out after ${timeoutMs} ms`)
-      ),
-    timeoutMs
+  // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Node request timeout bridge
+  proxyRequest.setTimeout(timeoutMs, () =>
+    proxyRequest.destroy(
+      new Error(`Proxy request timed out after ${timeoutMs} ms`)
+    )
   );
-  try {
-    proxyRequest.end();
-    const [response] = (await once(proxyRequest, "response")) as [
-      IncomingMessage,
-    ];
-    const chunks: Buffer[] = [];
-    for await (const chunk of response) {
-      chunks.push(Buffer.from(chunk));
-    }
-    return {
-      body: Buffer.concat(chunks).toString("utf-8"),
-      status: response.statusCode ?? 0,
-    };
-  } finally {
-    clearTimeout(timeout);
+  proxyRequest.end();
+  const [response] = (await once(proxyRequest, "response")) as [
+    IncomingMessage,
+  ];
+  const chunks: Buffer[] = [];
+  for await (const chunk of response) {
+    chunks.push(Buffer.from(chunk));
   }
+  return {
+    body: Buffer.concat(chunks).toString("utf-8"),
+    status: response.statusCode ?? 0,
+  };
 };
+
+it("waits for a child close after a shutdown error", async () => {
+  // oxlint-disable-next-line unicorn/prefer-event-target -- ChildProcess lifecycle tests require Node EventEmitter semantics.
+  const child = Object.assign(new EventEmitter(), {
+    exitCode: null,
+    signalCode: null,
+  }) as unknown as ChildProcess;
+  const closing = waitForRoutingExit(child);
+  let outcome = "pending";
+  const observed = (async () => {
+    try {
+      await closing;
+      outcome = "closed";
+    } catch {
+      outcome = "rejected";
+    }
+  })();
+
+  child.emit("error", new Error("shutdown failed"));
+  await Promise.resolve();
+  expect(outcome).toBe("pending");
+  child.emit("close");
+
+  await observed;
+  expect(outcome).toBe("closed");
+});
 
 const listenOnPort = async (
   port: number,
@@ -97,40 +119,40 @@ const listenOnPort = async (
 };
 
 const waitForChildReady = async (child: ChildProcess): Promise<void> => {
-  const result = Promise.withResolvers<undefined>();
-  let onError: (error: Error) => void;
-  let onExit: () => void;
-  let onMessage: (message: unknown) => void;
-  const cleanup = () => {
-    child.off("error", onError);
-    child.off("exit", onExit);
-    child.off("message", onMessage);
+  // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+  const result = Promise.withResolvers<void>();
+  const handlers = {
+    cleanup() {
+      child.off("error", handlers.onError);
+      child.off("exit", handlers.onExit);
+      child.off("message", handlers.onMessage);
+    },
+    onError(error: Error) {
+      handlers.cleanup();
+      result.reject(error);
+    },
+    onExit() {
+      handlers.cleanup();
+      result.reject(
+        new Error("Development routing harness exited before startup")
+      );
+    },
+    onMessage(message: unknown) {
+      if (
+        typeof message === "object" &&
+        message !== null &&
+        "type" in message &&
+        message.type === "ready"
+      ) {
+        handlers.cleanup();
+        result.resolve();
+      }
+    },
   };
-  onError = (error: Error) => {
-    cleanup();
-    result.reject(error);
-  };
-  onExit = () => {
-    cleanup();
-    result.reject(
-      new Error("Development routing harness exited before startup")
-    );
-  };
-  onMessage = (message: unknown) => {
-    if (
-      typeof message === "object" &&
-      message !== null &&
-      "type" in message &&
-      message.type === "ready"
-    ) {
-      cleanup();
-      result.resolve(undefined);
-    }
-  };
-  child.once("error", onError);
-  child.once("exit", onExit);
-  child.on("message", onMessage);
-  return result.promise;
+  child.once("error", handlers.onError);
+  child.once("exit", handlers.onExit);
+  child.on("message", handlers.onMessage);
+  return await result.promise;
 };
 
 const waitForExit = async (child: ChildProcess): Promise<void> => {

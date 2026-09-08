@@ -78,8 +78,9 @@ class BlockingPrepareRoutingEngine extends InMemoryRoutingEngine {
       this.prepared = true;
       return Promise.resolve();
     }
-    const result = Promise.withResolvers<undefined>();
-    this.releasePrepare = () => result.resolve(undefined);
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
+    const result = Promise.withResolvers<void>();
+    this.releasePrepare = () => result.resolve();
     return result.promise;
   }
 

@@ -178,9 +178,8 @@ describe("repository trust fingerprint", () => {
           return { exitCode, stderr, stdout };
         })
       );
-      let rejectTimeout: ReturnType<typeof setTimeout> | undefined;
       const timeoutResult = Promise.withResolvers<never>();
-      rejectTimeout = setTimeout(
+      const rejectTimeout = setTimeout(
         () =>
           timeoutResult.reject(
             new Error("Timed out waiting for trust workers")
@@ -197,9 +196,7 @@ describe("repository trust fingerprint", () => {
         await Promise.allSettled(processes.map((process) => process.exited));
         throw error;
       } finally {
-        if (rejectTimeout) {
-          clearTimeout(rejectTimeout);
-        }
+        clearTimeout(rejectTimeout);
       }
       expect(results.every(({ exitCode }) => exitCode === 0)).toBe(true);
 

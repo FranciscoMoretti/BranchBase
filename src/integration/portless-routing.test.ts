@@ -176,8 +176,9 @@ test("isolates routes, environments, logs, and stable URLs across worktrees", as
     );
     await Promise.all(
       Object.values(linkedUrls).map(async (url) => {
+        const response = await fetch(url);
         assert(
-          (await fetch(url)).status === 404,
+          response.status === 404,
           "A stopped worktree route remained active"
         );
       })
@@ -208,10 +209,10 @@ test("isolates routes, environments, logs, and stable URLs across worktrees", as
         .filter((item) => item.path !== fixture.linkedPath)
         .flatMap((worktree) => worktree.appGroups[0]?.apps ?? [])
         .map(async (app) => {
-          assert(
-            app.url && (await fetch(app.url)).ok,
-            "Stopping one worktree affected another"
-          );
+          const { url } = app;
+          assert(url, "Stopping one worktree affected another");
+          const response = await fetch(url);
+          assert(response.ok, "Stopping one worktree affected another");
         })
     );
   } finally {
