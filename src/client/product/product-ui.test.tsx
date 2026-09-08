@@ -22,20 +22,18 @@ const controls: GroupControls = {
   review: noop,
   toggle: noop,
 };
-function group(id: string): AppGroupSnapshot {
-  return {
-    apps: worktree.apps,
-    health: "partially-running",
-    id,
-    instance: { id: `${id}-instance`, mode: "per-worktree", name: "main" },
-    instances: [],
-    name: id,
-    processRunning: true,
-    stop: "process",
-  };
-}
-function list(groups: AppGroupSnapshot[], expanded = false) {
-  return renderToStaticMarkup(
+const group = (id: string): AppGroupSnapshot => ({
+  apps: worktree.apps,
+  health: "partially-running",
+  id,
+  instance: { id: `${id}-instance`, mode: "per-worktree", name: "main" },
+  instances: [],
+  name: id,
+  processRunning: true,
+  stop: "process",
+});
+const list = (groups: AppGroupSnapshot[], expanded = false) =>
+  renderToStaticMarkup(
     <EnvironmentList
       codexError={false}
       commandActions={{
@@ -51,7 +49,6 @@ function list(groups: AppGroupSnapshot[], expanded = false) {
       worktrees={[{ ...worktree, appGroups: groups }]}
     />
   );
-}
 test("collapsed worktrees expose scoped controls and ready links while retaining overflow failures", () => {
   const markup = list([group("Product"), group("Docs"), group("Services")]);
   expect(markup).toContain('aria-label="Stop Product in main"');

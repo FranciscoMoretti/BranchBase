@@ -23,29 +23,27 @@ const buttonGroupVariants = cva(
   }
 );
 
-function ButtonGroup({
+const ButtonGroup = ({
   className,
   orientation,
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof buttonGroupVariants>) {
-  return (
-    <div
-      className={cn(buttonGroupVariants({ orientation }), className)}
-      data-orientation={orientation}
-      data-slot="button-group"
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- This composable primitive groups arbitrary controls, so a fieldset would impose the wrong form semantics.
-      role="group"
-      {...props}
-    />
-  );
-}
+}: React.ComponentProps<"div"> & VariantProps<typeof buttonGroupVariants>) => (
+  <div
+    className={cn(buttonGroupVariants({ orientation }), className)}
+    data-orientation={orientation}
+    data-slot="button-group"
+    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- This composable primitive groups arbitrary controls, so a fieldset would impose the wrong form semantics.
+    role="group"
+    {...props}
+  />
+);
 
-function ButtonGroupText({
+const ButtonGroupText = ({
   className,
   render,
   ...props
-}: useRender.ComponentProps<"div">) {
-  return useRender({
+}: useRender.ComponentProps<"div">) =>
+  useRender({
     defaultTagName: "div",
     props: mergeProps<"div">(
       {
@@ -61,25 +59,22 @@ function ButtonGroupText({
       slot: "button-group-text",
     },
   });
-}
 
-function ButtonGroupSeparator({
+const ButtonGroupSeparator = ({
   className,
   orientation = "vertical",
   ...props
-}: React.ComponentProps<typeof Separator>) {
-  return (
-    <Separator
-      className={cn(
-        "bg-input relative self-stretch data-horizontal:mx-px data-horizontal:w-auto data-vertical:my-px data-vertical:h-auto",
-        className
-      )}
-      data-slot="button-group-separator"
-      orientation={orientation}
-      {...props}
-    />
-  );
-}
+}: React.ComponentProps<typeof Separator>) => (
+  <Separator
+    className={cn(
+      "bg-input relative self-stretch data-horizontal:mx-px data-horizontal:w-auto data-vertical:my-px data-vertical:h-auto",
+      className
+    )}
+    data-slot="button-group-separator"
+    orientation={orientation}
+    {...props}
+  />
+);
 
 export {
   ButtonGroup,

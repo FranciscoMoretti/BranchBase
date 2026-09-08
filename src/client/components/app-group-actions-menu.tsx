@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export function appGroupCommandMenuItems({
+export const appGroupCommandMenuItems = ({
   group,
   onRestart,
   onRetry,
@@ -36,7 +36,7 @@ export function appGroupCommandMenuItems({
   onRetry: () => void;
   onToggle: () => void;
   pending: boolean;
-}): CommandMenuItem[] {
+}): CommandMenuItem[] => {
   const running = appGroupIsRunning(group);
   const retryable =
     group.cleanupOnly !== true &&
@@ -74,9 +74,9 @@ export function appGroupCommandMenuItems({
         ]
       : []),
   ];
-}
+};
 
-export function AppGroupActionsMenu({
+export const AppGroupActionsMenu = ({
   group,
   onRestart,
   onRetry,
@@ -90,7 +90,7 @@ export function AppGroupActionsMenu({
   onToggle: () => void;
   pending: boolean;
   worktree: WorktreeSnapshot;
-}) {
+}) => {
   const items = appGroupCommandMenuItems({
     group,
     onRestart,
@@ -120,4 +120,4 @@ export function AppGroupActionsMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+};

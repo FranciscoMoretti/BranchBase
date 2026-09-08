@@ -38,7 +38,7 @@ const WorkspacePage = lazy(() =>
 
 const HISTORY_INDEX = "branchbaseHistoryIndex";
 
-function readHistoryIndex(state: unknown): number | null {
+const readHistoryIndex = (state: unknown): number | null => {
   if (
     state &&
     typeof state === "object" &&
@@ -48,7 +48,7 @@ function readHistoryIndex(state: unknown): number | null {
     return state[HISTORY_INDEX as keyof typeof state] as number;
   }
   return null;
-}
+};
 
 interface PendingNavigation {
   fallback?: boolean;
@@ -56,7 +56,7 @@ interface PendingNavigation {
   traversal?: { delta: number; targetIndex: number };
 }
 
-export function ProductApp() {
+export const ProductApp = () => {
   const [location, setLocation] = useState(readLocation);
   const observation = useObservation(location.repo);
   const workspace = useWorkspace(
@@ -385,4 +385,4 @@ export function ProductApp() {
       </Dialog>
     </Shell>
   );
-}
+};

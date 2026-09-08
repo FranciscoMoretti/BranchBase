@@ -11,52 +11,49 @@ const actions: WorktreeCommandActions = {
   onStop: () => undefined,
 };
 
-function worktree(health: WorktreeSnapshot["health"]): WorktreeSnapshot {
-  return {
-    appGroups: [
-      {
-        apps: [],
-        health,
-        id: "apps",
-        instance: { id: "apps-main", mode: "per-worktree", name: "main" },
-        instances: [{ id: "apps-main", name: "main", running: false }],
-        name: "Apps",
-        processRunning: false,
-        stop: "process",
-      },
-    ],
-    appLabel: "App",
-    apps: [],
-    branch: "main",
-    configuration: {
-      changeBlocked: false,
-      error: null,
-      path: "/repo/.branchbase.json",
-      preference: "project-default",
-      revision: "default-revision",
-      source: "project-default",
-      trustCommands: [],
-      trustFingerprint: "default-fingerprint",
-      trusted: true,
+const worktree = (health: WorktreeSnapshot["health"]): WorktreeSnapshot => ({
+  appGroups: [
+    {
+      apps: [],
+      health,
+      id: "apps",
+      instance: { id: "apps-main", mode: "per-worktree", name: "main" },
+      instances: [{ id: "apps-main", name: "main", running: false }],
+      name: "Apps",
+      processRunning: false,
+      stop: "process",
     },
-    health,
-    id: "worktree",
-    isMain: true,
-    name: "repo",
-    path: "/repo",
-    primaryAppGroup: "apps",
-    processRunning: false,
-    setupState: "idle",
-  };
-}
+  ],
+  appLabel: "App",
+  apps: [],
+  branch: "main",
+  configuration: {
+    changeBlocked: false,
+    error: null,
+    path: "/repo/.branchbase.json",
+    preference: "project-default",
+    revision: "default-revision",
+    source: "project-default",
+    trustCommands: [],
+    trustFingerprint: "default-fingerprint",
+    trusted: true,
+  },
+  health,
+  id: "worktree",
+  isMain: true,
+  name: "repo",
+  path: "/repo",
+  primaryAppGroup: "apps",
+  processRunning: false,
+  setupState: "idle",
+});
 
-function itemIds(target: WorktreeSnapshot): string[] {
-  return worktreeCommandMenuItems({
+const itemIds = (target: WorktreeSnapshot): string[] =>
+  worktreeCommandMenuItems({
     actions,
     pending: false,
     worktree: target,
   }).map((item) => item.id);
-}
 
 describe("worktree command menu", () => {
   it("can keep lifecycle controls out of a worktree-level menu", () => {

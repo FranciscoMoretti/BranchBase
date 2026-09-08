@@ -18,7 +18,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "./ui/field";
 import { Input } from "./ui/input";
 
-export function RepositoryDialog({
+export const RepositoryDialog = ({
   currentPath,
   onClose,
   onConfirm,
@@ -29,36 +29,36 @@ export function RepositoryDialog({
     path: string,
     snapshot: WorkspaceSnapshot
   ) => void | Promise<void>;
-}) {
+}) => {
   const [draft, setDraft] = useState(currentPath);
   const opener = useRepositoryOpen(async (path, snapshot) => {
     await onConfirm(path, snapshot);
     onClose();
   });
   const picker = useRepositoryPicker();
-  function changeDraft(path: string) {
+  const changeDraft = (path: string) => {
     opener.clearError();
     setDraft(path);
-  }
-  async function openSelected(path: string) {
+  };
+  const openSelected = async (path: string) => {
     changeDraft(path);
     picker.clearError();
     await opener.open(path);
-  }
+  };
   const setup = useRepositorySetup({
     error: opener.error,
     onCreated: () => opener.open(draft.trim()),
     repoPath: draft.trim(),
   });
 
-  async function confirm() {
+  const confirm = async () => {
     const path = draft.trim();
     if (!path) {
       return;
     }
     await opener.open(path);
-  }
-  function feedback() {
+  };
+  const feedback = () => {
     if (setup.active) {
       return setup.notice();
     }
@@ -68,7 +68,7 @@ export function RepositoryDialog({
         title="Could not open project"
       />
     );
-  }
+  };
 
   return (
     <>
@@ -144,4 +144,4 @@ export function RepositoryDialog({
       {setup.dialog}
     </>
   );
-}
+};

@@ -34,11 +34,11 @@ import {
   Status,
 } from "./primitives";
 
-function endpointLabel(app: {
+const endpointLabel = (app: {
   ownership: string;
   readiness: string;
   listening: boolean;
-}): string {
+}): string => {
   if (app.ownership === "foreign") {
     return "Foreign listener";
   }
@@ -46,9 +46,39 @@ function endpointLabel(app: {
     return "Ready";
   }
   return app.listening ? "Not ready" : "Stopped";
-}
+};
 
-export function GroupDetails({
+const RunContext = ({
+  group,
+  onTasks,
+}: {
+  group: AppGroupSnapshot;
+  onTasks: () => void;
+}) => (
+  <div className="product-run-context">
+    <ResourceUsage usage={group.resources} />
+    <span>
+      <span className="product-muted">Instance</span> {group.instance.name}
+    </span>
+    <span>
+      <span className="product-muted">Runtime</span>{" "}
+      {group.processRunning ? "Managed process running" : "No managed process"}
+    </span>
+    {group.run ? (
+      <span>
+        <span className="product-muted">Run created</span>{" "}
+        <time dateTime={group.run.startedAt}>
+          {new Date(group.run.startedAt).toLocaleString()}
+        </time>
+      </span>
+    ) : null}
+    <Button onClick={onTasks} size="sm" variant="link">
+      View worktree tasks
+    </Button>
+  </div>
+);
+
+export const GroupDetails = ({
   tab,
   onTabChange,
   repoPath,
@@ -78,7 +108,7 @@ export function GroupDetails({
   onSelectInstance: (id: string) => void;
   onConfigSource: (source: "checkout" | "project-default") => void;
   onClearLogs: () => void;
-}) {
+}) => {
   const logs = useLogs(repoPath, worktree.id, group.id);
   const save = useProductCommand();
   const [search, setSearch] = useState("");
@@ -365,38 +395,4 @@ export function GroupDetails({
       ) : null}
     </>
   );
-}
-
-function RunContext({
-  group,
-  onTasks,
-}: {
-  group: AppGroupSnapshot;
-  onTasks: () => void;
-}) {
-  return (
-    <div className="product-run-context">
-      <ResourceUsage usage={group.resources} />
-      <span>
-        <span className="product-muted">Instance</span> {group.instance.name}
-      </span>
-      <span>
-        <span className="product-muted">Runtime</span>{" "}
-        {group.processRunning
-          ? "Managed process running"
-          : "No managed process"}
-      </span>
-      {group.run ? (
-        <span>
-          <span className="product-muted">Run created</span>{" "}
-          <time dateTime={group.run.startedAt}>
-            {new Date(group.run.startedAt).toLocaleString()}
-          </time>
-        </span>
-      ) : null}
-      <Button onClick={onTasks} size="sm" variant="link">
-        View worktree tasks
-      </Button>
-    </div>
-  );
-}
+};

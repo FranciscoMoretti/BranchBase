@@ -14,15 +14,14 @@ const StoredConfigDraftSchema = z.strictObject({
 });
 type StoredConfigDraft = z.infer<typeof StoredConfigDraftSchema>;
 
-function configDraftStorageKey(configPath: string): string {
-  return `${CONFIG_DRAFT_STORAGE_PREFIX}${configPath}`;
-}
+const configDraftStorageKey = (configPath: string): string =>
+  `${CONFIG_DRAFT_STORAGE_PREFIX}${configPath}`;
 
-export function loadConfigDraft(
+export const loadConfigDraft = (
   configPath: string,
   source: string,
   storage: ConfigDraftStorage | undefined = globalThis.sessionStorage
-): string | null {
+): string | null => {
   if (!storage) {
     return null;
   }
@@ -46,14 +45,14 @@ export function loadConfigDraft(
     }
     return null;
   }
-}
+};
 
-export function saveConfigDraft(
+export const saveConfigDraft = (
   configPath: string,
   source: string,
   draft: string,
   storage: ConfigDraftStorage | undefined = globalThis.sessionStorage
-): void {
+): void => {
   if (!storage) {
     return;
   }
@@ -68,12 +67,12 @@ export function saveConfigDraft(
   } catch {
     // The close guards still protect the draft when storage is unavailable.
   }
-}
+};
 
-export function clearConfigDraft(
+export const clearConfigDraft = (
   configPath: string,
   storage: ConfigDraftStorage | undefined = globalThis.sessionStorage
-): void {
+): void => {
   if (!storage) {
     return;
   }
@@ -82,4 +81,4 @@ export function clearConfigDraft(
   } catch {
     // Storage can be unavailable in privacy-restricted browser contexts.
   }
-}
+};

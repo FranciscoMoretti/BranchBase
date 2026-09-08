@@ -16,22 +16,20 @@ export interface QueryState {
   resetKey?: string;
 }
 
-export function ErrorDetails({ error }: { error: Error }) {
-  return (
-    <Disclosure className="product-error-details" summary="Technical details">
-      <pre>{error.message}</pre>
-    </Disclosure>
-  );
-}
+export const ErrorDetails = ({ error }: { error: Error }) => (
+  <Disclosure className="product-error-details" summary="Technical details">
+    <pre>{error.message}</pre>
+  </Disclosure>
+);
 
 /** Command errors never reflow the page and never automatically replay an action. */
-export function ActionFeedback({
+export const ActionFeedback = ({
   error,
   title = "Action couldn't be completed",
 }: {
   error?: Error | null;
   title?: string;
-}) {
+}) => {
   const [dismissed, setDismissed] = useState<Error | null>(null);
   if (!error || dismissed === error) {
     return null;
@@ -54,29 +52,33 @@ export function ActionFeedback({
       </Button>
     </aside>
   );
-}
+};
 
 /** Reserved form feedback space keeps submit/cancel controls in place. */
-export function FormFeedback({
+export const FormFeedback = ({
   error,
   title = "Action couldn't be completed",
 }: {
   error?: Error | null;
   title?: string;
-}) {
-  return (
-    <div aria-live="polite" className="product-form-feedback">
-      {error ? (
-        <div role="alert">
-          <strong>{title}</strong>
-          <p>{errorDescription(error, true)}</p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
+}) => (
+  <div aria-live="polite" className="product-form-feedback">
+    {error ? (
+      <div role="alert">
+        <strong>{title}</strong>
+        <p>{errorDescription(error, true)}</p>
+      </div>
+    ) : null}
+  </div>
+);
 
-function QueryProgress({ query, label }: { query: QueryState; label: string }) {
+const QueryProgress = ({
+  query,
+  label,
+}: {
+  query: QueryState;
+  label: string;
+}) => {
   if (query.data !== undefined && query.error) {
     return (
       <>
@@ -117,14 +119,14 @@ function QueryProgress({ query, label }: { query: QueryState; label: string }) {
       })}
     </span>
   ) : null;
-}
-function QueryPlaceholder({
+};
+const QueryPlaceholder = ({
   query,
   label,
 }: {
   query: QueryState;
   label: string;
-}) {
+}) => {
   if (query.error) {
     return (
       <div className="product-unavailable" role="alert">
@@ -163,8 +165,8 @@ function QueryPlaceholder({
       ))}
     </div>
   );
-}
-export function QueryContent({
+};
+export const QueryContent = ({
   query,
   label,
   children,
@@ -176,7 +178,7 @@ export function QueryContent({
   children: ReactNode;
   compact?: boolean;
   resetKey?: string;
-}) {
+}) => {
   const hasData = query.data !== undefined;
   const [rememberedFailure, setRememberedFailure] = useState<{
     error: Error;
@@ -238,4 +240,4 @@ export function QueryContent({
       </div>
     </section>
   );
-}
+};

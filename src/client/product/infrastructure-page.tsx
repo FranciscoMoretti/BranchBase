@@ -16,13 +16,13 @@ import {
   Status,
 } from "./primitives";
 
-export function InfrastructurePage({
+export const InfrastructurePage = ({
   data,
   controls,
 }: {
   data: WorkspaceSnapshot;
   controls: GroupControls;
-}) {
+}) => {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);
   const instances = new Map<
@@ -221,4 +221,4 @@ export function InfrastructurePage({
       ) : null}
     </>
   );
-}
+};

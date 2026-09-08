@@ -40,7 +40,7 @@ export interface GroupControls {
   review: (worktree: WorktreeSnapshot) => void;
   toggle: (worktree: WorktreeSnapshot, group: AppGroupSnapshot) => void;
 }
-export function GroupToggle({
+export const GroupToggle = ({
   group,
   worktree,
   controls,
@@ -50,7 +50,7 @@ export function GroupToggle({
   worktree: WorktreeSnapshot;
   controls: GroupControls;
   compact?: boolean;
-}) {
+}) => {
   const running = appGroupIsRunning(group);
   const busy = controls.blocked(worktree, group);
   const actionIcon = running ? <SquareIcon /> : <PlayIcon />;
@@ -68,8 +68,8 @@ export function GroupToggle({
       {compact ? null : actionLabel}
     </Button>
   );
-}
-function AppOverflow({
+};
+const AppOverflow = ({
   group,
   worktree,
   controls,
@@ -77,60 +77,56 @@ function AppOverflow({
   group: AppGroupSnapshot;
   worktree: WorktreeSnapshot;
   controls: GroupControls;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button size="sm" variant="link" />}>
-        +{group.apps.length - 2} apps
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-72">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>
-            {group.name} apps · {worktree.branch}
-          </DropdownMenuLabel>
-          {group.apps.slice(2).map((app) =>
-            app.open && app.url ? (
-              <DropdownMenuItem
-                key={app.id}
-                render={
-                  <a
-                    aria-label={`Open ${app.label}`}
-                    href={app.url}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    <span className="flex-1">{app.label}</span>
-                    <Status label="Ready" value="running" />
-                    Open
-                  </a>
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger render={<Button size="sm" variant="link" />}>
+      +{group.apps.length - 2} apps
+    </DropdownMenuTrigger>
+    <DropdownMenuContent className="min-w-72">
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>
+          {group.name} apps · {worktree.branch}
+        </DropdownMenuLabel>
+        {group.apps.slice(2).map((app) =>
+          app.open && app.url ? (
+            <DropdownMenuItem
+              key={app.id}
+              render={
+                <a
+                  aria-label={`Open ${app.label}`}
+                  href={app.url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <span className="flex-1">{app.label}</span>
+                  <Status label="Ready" value="running" />
+                  Open
+                </a>
+              }
+            />
+          ) : (
+            <DropdownMenuItem
+              key={app.id}
+              onClick={() => controls.inspect(worktree, group)}
+            >
+              <span className="flex-1">{app.label}</span>
+              <Status
+                label={
+                  app.readiness === "ready" ? "Connection details" : "Not ready"
                 }
+                value="stopped"
               />
-            ) : (
-              <DropdownMenuItem
-                key={app.id}
-                onClick={() => controls.inspect(worktree, group)}
-              >
-                <span className="flex-1">{app.label}</span>
-                <Status
-                  label={
-                    app.readiness === "ready"
-                      ? "Connection details"
-                      : "Not ready"
-                  }
-                  value="stopped"
-                />
-              </DropdownMenuItem>
-            )
-          )}
-          <DropdownMenuItem onClick={() => controls.inspect(worktree, group)}>
-            View {group.name} details
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-export function GroupSummary({
+            </DropdownMenuItem>
+          )
+        )}
+        <DropdownMenuItem onClick={() => controls.inspect(worktree, group)}>
+          View {group.name} details
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
+export const GroupSummary = ({
   group,
   worktree,
   controls,
@@ -140,7 +136,7 @@ export function GroupSummary({
   worktree: WorktreeSnapshot;
   controls: GroupControls;
   expanded?: boolean;
-}) {
+}) => {
   const status = appGroupDisplayStatus(group);
   return (
     <div
@@ -206,8 +202,8 @@ export function GroupSummary({
       ) : null}
     </div>
   );
-}
-function TaskSummary({
+};
+const TaskSummary = ({
   tasks,
   onOpen,
   unavailable,
@@ -215,7 +211,7 @@ function TaskSummary({
   tasks: CodexIntegrationSnapshot["worktrees"][string]["tasks"] | undefined;
   onOpen: () => void;
   unavailable: boolean;
-}) {
+}) => {
   const working = tasks?.some((task) => task.activity?.state === "working");
   const waiting = tasks?.some(
     (task) => task.activity?.state === "waiting-for-approval"
@@ -245,8 +241,8 @@ function TaskSummary({
       ) : null}
     </Button>
   );
-}
-function EnvironmentRow({
+};
+const EnvironmentRow = ({
   worktree,
   controls,
   commandActions,
@@ -264,7 +260,7 @@ function EnvironmentRow({
   codexError: boolean;
   expanded: boolean;
   setExpanded: (value: boolean) => void;
-}) {
+}) => {
   const primary =
     worktree.appGroups.find((group) => group.id === worktree.primaryAppGroup) ??
     worktree.appGroups[0];
@@ -360,8 +356,8 @@ function EnvironmentRow({
       </div>
     </article>
   );
-}
-export function EnvironmentList({
+};
+export const EnvironmentList = ({
   worktrees,
   controls,
   commandActions,
@@ -379,30 +375,26 @@ export function EnvironmentList({
   codexError: boolean;
   expandedIds: string[];
   onExpand: (id: string, expanded: boolean) => void;
-}) {
-  return (
-    <div className="product-environments">
-      {worktrees.map((worktree) => (
-        <EnvironmentRow
-          codexError={codexError}
-          commandActions={commandActions}
-          controls={controls}
-          expanded={expandedIds.includes(worktree.id)}
-          key={worktree.id}
-          onDelete={onDelete}
-          setExpanded={(value) => onExpand(worktree.id, value)}
-          tasks={
-            codex ? (codex.worktrees[worktree.id]?.tasks ?? []) : undefined
-          }
-          worktree={worktree}
-        />
-      ))}
-      {worktrees.length === 0 ? (
-        <Blank
-          description="Try another search or filter."
-          title="No matching worktrees"
-        />
-      ) : null}
-    </div>
-  );
-}
+}) => (
+  <div className="product-environments">
+    {worktrees.map((worktree) => (
+      <EnvironmentRow
+        codexError={codexError}
+        commandActions={commandActions}
+        controls={controls}
+        expanded={expandedIds.includes(worktree.id)}
+        key={worktree.id}
+        onDelete={onDelete}
+        setExpanded={(value) => onExpand(worktree.id, value)}
+        tasks={codex ? (codex.worktrees[worktree.id]?.tasks ?? []) : undefined}
+        worktree={worktree}
+      />
+    ))}
+    {worktrees.length === 0 ? (
+      <Blank
+        description="Try another search or filter."
+        title="No matching worktrees"
+      />
+    ) : null}
+  </div>
+);

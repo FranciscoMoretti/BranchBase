@@ -19,10 +19,12 @@ import {
   SelectValue,
 } from "./ui/select";
 
-function codexActivity(task: CodexTaskSnapshot): {
+const codexActivity = (
+  task: CodexTaskSnapshot
+): {
   className: string;
   label: string;
-} {
+} => {
   if (task.activity?.state === "working") {
     return { className: "bg-status-running-foreground", label: "Working" };
   }
@@ -36,13 +38,11 @@ function codexActivity(task: CodexTaskSnapshot): {
     return { className: "bg-muted-foreground", label: "Activity unknown" };
   }
   return { className: "bg-muted-foreground", label: "Ready" };
-}
+};
 
-function taskTime(value: string): string {
-  return new Date(value).toLocaleString();
-}
+const taskTime = (value: string): string => new Date(value).toLocaleString();
 
-export function CodexTasksSection({
+export const CodexTasksSection = ({
   discoveryUnavailable,
   loading,
   tasks,
@@ -52,7 +52,7 @@ export function CodexTasksSection({
   loading: boolean;
   tasks: CodexTaskSnapshot[];
   worktreePath: string;
-}) {
+}) => {
   const newTaskUrl = codexNewTaskUrl(worktreePath);
   let content = (
     <p className="text-muted-foreground mt-2 text-sm">
@@ -147,9 +147,9 @@ export function CodexTasksSection({
       {content}
     </section>
   );
-}
+};
 
-export function WorktreeConfigurationSource({
+export const WorktreeConfigurationSource = ({
   disabled,
   onSelect,
   worktree,
@@ -157,7 +157,7 @@ export function WorktreeConfigurationSource({
   disabled: boolean;
   onSelect: (source: WorktreeConfigSource) => void;
   worktree: WorktreeSnapshot;
-}) {
+}) => {
   const { configuration } = worktree;
   const fallback = configuration.preference !== configuration.source;
   return (
@@ -212,4 +212,4 @@ export function WorktreeConfigurationSource({
       ) : null}
     </section>
   );
-}
+};

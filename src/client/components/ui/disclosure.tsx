@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export function Disclosure({
+export const Disclosure = ({
   summary,
   children,
   className,
@@ -8,11 +8,9 @@ export function Disclosure({
   summary: string;
   children: ReactNode;
   className?: string;
-}) {
-  return (
-    <details className={className}>
-      <summary>{summary}</summary>
-      {children}
-    </details>
-  );
-}
+}) => (
+  <details className={className}>
+    <summary>{summary}</summary>
+    {children}
+  </details>
+);

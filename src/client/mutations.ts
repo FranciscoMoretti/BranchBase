@@ -7,7 +7,7 @@ type CommandInput = Record<string, unknown> & {
   worktreeId?: string;
 };
 
-function useCommand(command: string, repoPath: string) {
+const useCommand = (command: string, repoPath: string) => {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: CommandInput) => runCommand(command, input),
@@ -23,9 +23,9 @@ function useCommand(command: string, repoPath: string) {
       ]);
     },
   });
-}
+};
 
-export function useCommands(repoPath: string) {
+export const useCommands = (repoPath: string) => {
   const clearLogs = useCommand("clear-logs", repoPath);
   const createAppGroupInstance = useCommand(
     "create-app-group-instance",
@@ -87,4 +87,4 @@ export function useCommands(repoPath: string) {
     .map(([, mutation]) => mutation)
     .toSorted((a, b) => b.submittedAt - a.submittedAt)[0];
   return { ...mutations, error: latest?.error ?? null };
-}
+};

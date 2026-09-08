@@ -36,7 +36,7 @@ const previousGlobals = new Map(
     Object.getOwnPropertyDescriptor(globalThis, name),
   ])
 );
-function mountDom() {
+const mountDom = () => {
   activeDom = new Window({ url: "http://localhost/" });
   Object.assign(globalThis, {
     Element: activeDom.Element,
@@ -51,7 +51,7 @@ function mountDom() {
   activeDom.document.body.append(container);
   activeRoot = createRoot(container as unknown as HTMLElement);
   return container;
-}
+};
 afterEach(async () => {
   if (activeRoot) {
     await act(async () => activeRoot?.unmount());
@@ -67,13 +67,12 @@ afterEach(async () => {
     }
   }
 });
-function region(overrides: Partial<QueryState>) {
-  return renderToStaticMarkup(
+const region = (overrides: Partial<QueryState>) =>
+  renderToStaticMarkup(
     <QueryContent label="Projects" query={{ ...base, ...overrides }}>
       <p>Saved project</p>
     </QueryContent>
   );
-}
 test("initial load reserves the same content region as initial failure, without claiming an empty list", () => {
   const loading = region({});
   const failed = region({
@@ -214,10 +213,10 @@ test("action connection failure explains uncertain outcome and has no automatic 
   expect(html).not.toContain("Try again");
   expect(html).toContain('role="alert"');
 });
-function page(
+const page = (
   kind: "projects" | "activity",
   status: "pending" | "error" | "success"
-) {
+) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -242,7 +241,7 @@ function page(
   );
   client.clear();
   return html;
-}
+};
 test("Projects never turns loading or failed requests into zero projects or an empty state", () => {
   for (const status of ["pending", "error"] as const) {
     const html = page("projects", status);

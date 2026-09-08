@@ -60,7 +60,7 @@ const location: ProductLocation = {
   view: "workspace",
   worktree: "",
 };
-function render(child: ReactNode, projects: ProjectOverview[] = [project]) {
+const render = (child: ReactNode, projects: ProjectOverview[] = [project]) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -74,7 +74,7 @@ function render(child: ReactNode, projects: ProjectOverview[] = [project]) {
   );
   client.clear();
   return html;
-}
+};
 test("unconfigured projects show observed worktrees and extra service access without lifecycle controls", () => {
   const html = render(
     <ObservedProjectPage data={data} location={location} project={project} />

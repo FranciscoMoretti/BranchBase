@@ -8,15 +8,14 @@ const FORBIDDEN_PRIMITIVES =
 const FORBIDDEN_PRIMITIVE_IMPORTS =
   /from ["'](?:@radix-ui\/|react-resizable-panels)/;
 
-function componentFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+const componentFiles = (directory: string): string[] =>
+  readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = pathModule.join(directory, entry.name);
     if (entry.isDirectory()) {
       return entry.name === "ui" ? [] : componentFiles(path);
     }
     return entry.name.endsWith(".tsx") ? [path] : [];
   });
-}
 
 describe("client primitive boundary", () => {
   it("routes native interactive elements through components/ui", () => {

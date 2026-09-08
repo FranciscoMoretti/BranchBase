@@ -30,32 +30,34 @@ import {
 
 const WINDOWS_PATH_SEPARATOR = /[\\/]/;
 
-export function ServiceLink({ service }: { service: DetectedService }) {
-  return (
-    <span className="product-actions product-service-link" title={service.cwd}>
-      <code>:{service.port}</code>
-      {service.url ? (
-        <a
-          aria-label={`Open port ${service.port}`}
-          className="product-link"
-          href={service.url}
-          rel="noreferrer"
-          target="_blank"
-        >
-          Open
-          <ArrowUpRightIcon />
-        </a>
-      ) : (
-        <span className="product-muted">TCP</span>
-      )}
-      <CopyButton
-        label={`Copy address for port ${service.port}`}
-        value={service.url ?? service.address}
-      />
-    </span>
-  );
-}
-export function ServiceOverflow({ services }: { services: DetectedService[] }) {
+export const ServiceLink = ({ service }: { service: DetectedService }) => (
+  <span className="product-actions product-service-link" title={service.cwd}>
+    <code>:{service.port}</code>
+    {service.url ? (
+      <a
+        aria-label={`Open port ${service.port}`}
+        className="product-link"
+        href={service.url}
+        rel="noreferrer"
+        target="_blank"
+      >
+        Open
+        <ArrowUpRightIcon />
+      </a>
+    ) : (
+      <span className="product-muted">TCP</span>
+    )}
+    <CopyButton
+      label={`Copy address for port ${service.port}`}
+      value={service.url ?? service.address}
+    />
+  </span>
+);
+export const ServiceOverflow = ({
+  services,
+}: {
+  services: DetectedService[];
+}) => {
   if (services.length === 0) {
     return null;
   }
@@ -84,25 +86,23 @@ export function ServiceOverflow({ services }: { services: DetectedService[] }) {
       </Popover.Portal>
     </Popover.Root>
   );
-}
-function ServiceRow({ service }: { service: DetectedService }) {
-  return (
-    <div className="product-detected-service">
-      <div>
-        <strong>{service.command}</strong>
-        <p className="product-muted">
-          PID {service.pid}
-          {service.startedAt
-            ? ` · Started ${new Date(service.startedAt).toLocaleString()}`
-            : ""}
-        </p>
-      </div>
-      <ResourceUsage usage={service.resources} />
-      <ServiceLink service={service} />
+};
+const ServiceRow = ({ service }: { service: DetectedService }) => (
+  <div className="product-detected-service">
+    <div>
+      <strong>{service.command}</strong>
+      <p className="product-muted">
+        PID {service.pid}
+        {service.startedAt
+          ? ` · Started ${new Date(service.startedAt).toLocaleString()}`
+          : ""}
+      </p>
     </div>
-  );
-}
-export function DetectedServicesSection({ data }: { data?: Observation }) {
+    <ResourceUsage usage={service.resources} />
+    <ServiceLink service={service} />
+  </div>
+);
+export const DetectedServicesSection = ({ data }: { data?: Observation }) => {
   if (!data) {
     return null;
   }
@@ -139,8 +139,8 @@ export function DetectedServicesSection({ data }: { data?: Observation }) {
       ))}
     </section>
   );
-}
-function ObservedSettings({
+};
+const ObservedSettings = ({
   data,
   project,
   configure,
@@ -148,7 +148,7 @@ function ObservedSettings({
   data: Observation;
   project?: ProjectOverview;
   configure: () => void;
-}) {
+}) => {
   const [name, setName] = useState<string | null>(null);
   const resolvedName =
     name ??
@@ -208,8 +208,8 @@ function ObservedSettings({
       </section>
     </>
   );
-}
-export function ObservedProjectPage({
+};
+export const ObservedProjectPage = ({
   data,
   project,
   location,
@@ -217,7 +217,7 @@ export function ObservedProjectPage({
   data: Observation;
   project?: ProjectOverview;
   location: ProductLocation;
-}) {
+}) => {
   const [search, setSearch] = useState("");
   const [running, setRunning] = useState(false);
   const [configure, setConfigure] = useState(false);
@@ -404,4 +404,4 @@ export function ObservedProjectPage({
       ) : null}
     </>
   );
-}
+};

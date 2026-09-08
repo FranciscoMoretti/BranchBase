@@ -10,8 +10,8 @@ import {
 } from "../../controller/product-contract";
 import { getJson, runCommand } from "../api";
 
-export function useObservation(repoPath: string) {
-  return useQuery({
+export const useObservation = (repoPath: string) =>
+  useQuery({
     enabled: Boolean(repoPath),
     queryFn: async () =>
       ObservationSchema.parse(
@@ -21,9 +21,8 @@ export function useObservation(repoPath: string) {
     refetchInterval: 5000,
     retry: 1,
   });
-}
-export function useDevelopmentFolders() {
-  return useQuery({
+export const useDevelopmentFolders = () =>
+  useQuery({
     queryFn: async () =>
       FoldersResponseSchema.parse(await getJson("/api/development-folders"))
         .folders,
@@ -31,9 +30,8 @@ export function useDevelopmentFolders() {
     refetchInterval: 30_000,
     retry: 1,
   });
-}
-export function useProjects(poll = true) {
-  return useQuery({
+export const useProjects = (poll = true) =>
+  useQuery({
     queryFn: async () =>
       ProjectsResponseSchema.parse(await getJson("/api/projects")).projects,
     queryKey: ["projects"],
@@ -41,9 +39,8 @@ export function useProjects(poll = true) {
     retry: 1,
     retryDelay: 750,
   });
-}
-export function useActivity(repoPath?: string) {
-  return useQuery({
+export const useActivity = (repoPath?: string) =>
+  useQuery({
     queryFn: async () =>
       ActivityResponseSchema.parse(
         await getJson(
@@ -55,8 +52,7 @@ export function useActivity(repoPath?: string) {
     retry: 1,
     retryDelay: 750,
   });
-}
-export function useProductCommand() {
+export const useProductCommand = () => {
   const client = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -75,7 +71,7 @@ export function useProductCommand() {
         client.invalidateQueries({ queryKey: ["activity"] }),
       ]),
   });
-}
+};
 export type ProductView =
   | "workspace"
   | "infrastructure"
@@ -90,7 +86,7 @@ export interface ProductLocation {
   view: ProductView;
   worktree: string;
 }
-export function readLocation(): ProductLocation {
+export const readLocation = (): ProductLocation => {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") ?? params.get("page");
   return {
@@ -118,8 +114,8 @@ export function readLocation(): ProductLocation {
         : "workspace",
     worktree: params.get("worktree") ?? "",
   };
-}
-export function hrefFor(location: Partial<ProductLocation>): string {
+};
+export const hrefFor = (location: Partial<ProductLocation>): string => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(location)) {
     if (value && !(key === "view" && value === "workspace")) {
@@ -127,4 +123,4 @@ export function hrefFor(location: Partial<ProductLocation>): string {
     }
   }
   return `/?${params}`;
-}
+};

@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 
-export function RepositoryInitializeDialog({
+export const RepositoryInitializeDialog = ({
   onClose,
   onCreated,
   repoPath,
@@ -21,7 +21,7 @@ export function RepositoryInitializeDialog({
   onClose: () => void;
   onCreated: () => void | Promise<void>;
   repoPath: string;
-}) {
+}) => {
   const preview = useQuery({
     queryFn: () => previewRepositoryConfig(repoPath),
     queryKey: ["repository-initialization", repoPath],
@@ -112,4 +112,4 @@ export function RepositoryInitializeDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

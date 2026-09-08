@@ -16,13 +16,13 @@ import { FormFeedback, QueryContent } from "./async-state";
 import { useDevelopmentFolders, useProductCommand } from "./data";
 import { ErrorNotice } from "./primitives";
 
-export function DiscoveryDialog({
+export const DiscoveryDialog = ({
   onClose,
   initialKind = "project",
 }: {
   onClose: () => void;
   initialKind?: string;
-}) {
+}) => {
   const [kind, setKind] = useState(initialKind);
   const [path, setPath] = useState("");
   const command = useProductCommand();
@@ -133,8 +133,12 @@ export function DiscoveryDialog({
       </DialogContent>
     </Dialog>
   );
-}
-export function DevelopmentFoldersControls({ onAdd }: { onAdd: () => void }) {
+};
+export const DevelopmentFoldersControls = ({
+  onAdd,
+}: {
+  onAdd: () => void;
+}) => {
   const folders = useDevelopmentFolders();
   const command = useProductCommand();
   return (
@@ -193,4 +197,4 @@ export function DevelopmentFoldersControls({ onAdd }: { onAdd: () => void }) {
       </div>{" "}
     </div>
   );
-}
+};
