@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import { DevelopmentFolderSchema } from "./discovery-contract";
 import type { Observation as RepositoryObservation } from "./discovery-contract";
+import { ProductCatalogError } from "./product-catalog-error";
 import { ActivityEventSchema, ProjectRecordSchema } from "./product-contract";
 import type { ActivityEvent, AppPin } from "./product-contract";
 import type {
@@ -20,6 +21,8 @@ import type {
   WorkspaceSnapshot,
   WorktreeSnapshot,
 } from "./workspace-snapshot";
+
+export { ProductCatalogError } from "./product-catalog-error";
 
 const StoreSchema = z.strictObject({
   detected: z.record(z.string(), z.record(z.string(), z.string())).default({}),
@@ -32,22 +35,6 @@ const StoreSchema = z.strictObject({
   projects: z.array(ProjectRecordSchema),
   version: z.literal(1),
 });
-
-export class ProductCatalogError extends Error {
-  readonly code = "invalid_product_catalog";
-  readonly file: string;
-  readonly cause: unknown;
-
-  constructor(file: string, cause: unknown) {
-    super(
-      `BranchBase could not read a valid project catalog at ${file}. ` +
-        "The file was left unchanged; repair or restore it before retrying."
-    );
-    this.file = file;
-    this.cause = cause;
-    this.name = "ProductCatalogError";
-  }
-}
 
 const observedStatus = (group: AppGroupSnapshot): string => {
   if (

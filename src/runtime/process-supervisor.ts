@@ -89,6 +89,22 @@ const isMissingPathError = (error: unknown): boolean =>
   "code" in error &&
   error.code === "ENOENT";
 
+const processTargetIsLive = (target: ProcessSignalTarget): boolean => {
+  try {
+    process.kill(target.kind === "group" ? -target.id : target.id, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const signalProcessTarget = (
+  target: ProcessSignalTarget,
+  signal: NodeJS.Signals
+): void => {
+  process.kill(target.kind === "group" ? -target.id : target.id, signal);
+};
+
 export class ProcessSupervisor {
   readonly controlDirectory: string;
   private readonly plannedStops = new Set<number>();
@@ -114,7 +130,7 @@ export class ProcessSupervisor {
     if (
       tracked?.child.pid &&
       pathInside(tracked.record.cwd, expectedWorktreePath) &&
-      this.processTargetIsLive({ id: tracked.child.pid, kind: "process" })
+      processTargetIsLive({ id: tracked.child.pid, kind: "process" })
     ) {
       return tracked.child.pid;
     }
@@ -123,7 +139,7 @@ export class ProcessSupervisor {
       !(
         record &&
         pathInside(record.cwd, expectedWorktreePath) &&
-        this.processTargetIsLive({ id: record.pid, kind: "process" }) &&
+        processTargetIsLive({ id: record.pid, kind: "process" }) &&
         pidOwnedByWorktree(record.pid, expectedWorktreePath)
       ) ||
       processStartMarker(record.pid) !== record.startMarker
@@ -138,7 +154,7 @@ export class ProcessSupervisor {
     if (
       tracked?.child.pid &&
       tracked.record.ownerId === ownerId &&
-      this.processTargetIsLive({ id: tracked.child.pid, kind: "process" }) &&
+      processTargetIsLive({ id: tracked.child.pid, kind: "process" }) &&
       processStartMarker(tracked.child.pid) === tracked.record.startMarker
     ) {
       return tracked.child.pid;
@@ -152,7 +168,7 @@ export class ProcessSupervisor {
       return null;
     }
     if (
-      !this.processTargetIsLive({ id: record.pid, kind: "process" }) ||
+      !processTargetIsLive({ id: record.pid, kind: "process" }) ||
       processStartMarker(record.pid) !== record.startMarker
     ) {
       return null;
@@ -243,7 +259,7 @@ export class ProcessSupervisor {
           id: child.pid,
           kind: "group",
         };
-        if (this.processTargetIsLive(groupTarget)) {
+        if (processTargetIsLive(groupTarget)) {
           const logId = input.logId ?? input.processId;
           this.appendManagedLogIfAvailable(
             logId,
@@ -317,7 +333,7 @@ export class ProcessSupervisor {
             )
           );
           if (
-            !this.processTargetIsLive({ id: record.pid, kind: "process" }) ||
+            !processTargetIsLive({ id: record.pid, kind: "process" }) ||
             processStartMarker(record.pid) !== record.startMarker ||
             !pidOwnedByWorktree(record.pid, record.cwd)
           ) {
@@ -358,7 +374,7 @@ export class ProcessSupervisor {
       return null;
     }
     const groupTarget: ProcessSignalTarget = { id: pid, kind: "group" };
-    const target = this.processTargetIsLive(groupTarget)
+    const target = processTargetIsLive(groupTarget)
       ? groupTarget
       : ({ id: pid, kind: "process" } satisfies ProcessSignalTarget);
     this.plannedStops.add(pid);
@@ -378,7 +394,7 @@ export class ProcessSupervisor {
 
   async stopOwnedProcess(pid: number, logId: string): Promise<boolean> {
     const target: ProcessSignalTarget = { id: pid, kind: "process" };
-    if (!this.processTargetIsLive(target)) {
+    if (!processTargetIsLive(target)) {
       return false;
     }
     await this.stopProcessTarget(target, logId);
@@ -460,36 +476,20 @@ export class ProcessSupervisor {
     }
   }
 
-  private processTargetIsLive(target: ProcessSignalTarget): boolean {
-    try {
-      process.kill(target.kind === "group" ? -target.id : target.id, 0);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  private signalProcessTarget(
-    target: ProcessSignalTarget,
-    signal: NodeJS.Signals
-  ): void {
-    process.kill(target.kind === "group" ? -target.id : target.id, signal);
-  }
-
   private async stopProcessTarget(
     target: ProcessSignalTarget,
     logId?: string
   ): Promise<void> {
     try {
-      this.signalProcessTarget(target, "SIGTERM");
+      signalProcessTarget(target, "SIGTERM");
     } catch (error) {
-      if (!this.processTargetIsLive(target)) {
+      if (!processTargetIsLive(target)) {
         return;
       }
       throw error;
     }
     for (let attempt = 0; attempt < GRACEFUL_STOP_ATTEMPTS; attempt += 1) {
-      if (!this.processTargetIsLive(target)) {
+      if (!processTargetIsLive(target)) {
         return;
       }
       // oxlint-disable-next-line no-await-in-loop -- Process stop attempts are serialized to preserve signal escalation.
@@ -502,15 +502,15 @@ export class ProcessSupervisor {
       );
     }
     try {
-      this.signalProcessTarget(target, "SIGKILL");
+      signalProcessTarget(target, "SIGKILL");
     } catch (error) {
-      if (!this.processTargetIsLive(target)) {
+      if (!processTargetIsLive(target)) {
         return;
       }
       throw error;
     }
     for (let attempt = 0; attempt < FORCE_STOP_ATTEMPTS; attempt += 1) {
-      if (!this.processTargetIsLive(target)) {
+      if (!processTargetIsLive(target)) {
         return;
       }
       // oxlint-disable-next-line no-await-in-loop -- Owned listener cleanup is serialized to preserve process shutdown ordering.

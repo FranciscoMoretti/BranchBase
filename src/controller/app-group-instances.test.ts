@@ -18,98 +18,110 @@ import {
   repositoryCommandFingerprint,
   trustRepository,
 } from "../config/repository-trust";
-import type { LocalRoute, LocalRoutingEngine } from "../runtime/local-routing";
+import type { LocalRoutingEngine } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
 import { AppGroupRuntime } from "./app-group-runtime";
 import { WorkspaceController } from "./workspace-controller";
 
-class InMemoryRoutingEngine implements LocalRoutingEngine {
-  private readonly routes = new Map<string, number>();
-  prepared = false;
+type InMemoryRoutingEngine = LocalRoutingEngine & {
+  point: (hostname: string, port: number) => void;
+  prepared: boolean;
+};
 
-  activate(route: LocalRoute): Promise<void> {
-    if (!this.prepared) {
-      throw new Error("Routing activated before preflight");
-    }
-    this.routes.set(route.hostname, route.port);
-    return Promise.resolve();
-  }
+const inMemoryRoutingEngine = (): InMemoryRoutingEngine => {
+  const routes = new Map<string, number>();
+  const routing: InMemoryRoutingEngine = {
+    activate: (route) => {
+      if (!routing.prepared) {
+        throw new Error("Routing activated before preflight");
+      }
+      routes.set(route.hostname, route.port);
+      return Promise.resolve();
+    },
+    deactivate: (route) => {
+      routes.delete(route.hostname);
+      return Promise.resolve();
+    },
+    observe: (route) => {
+      const port = routes.get(route.hostname);
+      if (port === undefined) {
+        return "inactive" as const;
+      }
+      return port === route.port ? ("active" as const) : ("conflict" as const);
+    },
+    point: (hostname, port) => {
+      routes.set(hostname, port);
+    },
+    prepare: () => {
+      routing.prepared = true;
+      return Promise.resolve();
+    },
+    prepared: false,
+    url: (hostname) => `http://${hostname}:1355`,
+  };
+  return routing;
+};
 
-  deactivate(route: LocalRoute): Promise<void> {
-    this.routes.delete(route.hostname);
-    return Promise.resolve();
-  }
+const failingPrepareRoutingEngine = (): InMemoryRoutingEngine => {
+  const routing = inMemoryRoutingEngine();
+  routing.prepare = () => Promise.reject(new Error("Portless unavailable"));
+  return routing;
+};
 
-  observe(route: LocalRoute) {
-    const port = this.routes.get(route.hostname);
-    if (port === undefined) {
-      return "inactive" as const;
-    }
-    return port === route.port ? ("active" as const) : ("conflict" as const);
-  }
+type BlockingPrepareRoutingEngine = InMemoryRoutingEngine & {
+  release: () => void;
+};
 
-  prepare(): Promise<void> {
-    this.prepared = true;
-    return Promise.resolve();
-  }
-
-  point(hostname: string, port: number): void {
-    this.routes.set(hostname, port);
-  }
-
-  url(hostname: string): string {
-    return `http://${hostname}:1355`;
-  }
-}
-
-class FailingPrepareRoutingEngine extends InMemoryRoutingEngine {
-  override prepare(): Promise<void> {
-    return Promise.reject(new Error("Portless unavailable"));
-  }
-}
-
-class BlockingPrepareRoutingEngine extends InMemoryRoutingEngine {
-  private released = false;
-  private releasePrepare: (() => void) | null = null;
-
-  override prepare(): Promise<void> {
-    if (this.released) {
-      this.prepared = true;
+const blockingPrepareRoutingEngine = (): BlockingPrepareRoutingEngine => {
+  let released = false;
+  let releasePrepare: (() => void) | null = null;
+  const routing = inMemoryRoutingEngine() as BlockingPrepareRoutingEngine;
+  routing.prepare = () => {
+    if (released) {
+      routing.prepared = true;
       return Promise.resolve();
     }
     // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
     const result = Promise.withResolvers<void>();
-    this.releasePrepare = () => result.resolve();
+    releasePrepare = () => result.resolve();
     return result.promise;
-  }
+  };
+  routing.release = () => {
+    released = true;
+    routing.prepared = true;
+    releasePrepare?.();
+  };
+  return routing;
+};
 
-  release(): void {
-    this.released = true;
-    this.prepared = true;
-    this.releasePrepare?.();
-  }
-}
+type RecoverableActivationRoutingEngine = InMemoryRoutingEngine & {
+  recover: () => void;
+};
 
-class RecoverableActivationRoutingEngine extends InMemoryRoutingEngine {
-  private failing = true;
-
-  override activate(route: LocalRoute): Promise<void> {
-    return this.failing
-      ? Promise.reject(new Error("Portless route activation failed"))
-      : super.activate(route);
-  }
-
-  recover(): void {
-    this.failing = false;
-  }
-}
+const recoverableActivationRoutingEngine =
+  (): RecoverableActivationRoutingEngine => {
+    let failing = true;
+    const routing =
+      inMemoryRoutingEngine() as RecoverableActivationRoutingEngine;
+    const { activate } = routing;
+    routing.activate = (route) =>
+      failing
+        ? Promise.reject(new Error("Portless route activation failed"))
+        : activate(route);
+    routing.recover = () => {
+      failing = false;
+    };
+    return routing;
+  };
 
 class TrustedWorkspaceController extends WorkspaceController {
+  // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the trust seam.
   override assertTrusted(): void {
     // This fixture controls every command and does not touch repository trust.
   }
 
+  // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the config trust seam.
   protected override assertConfigTrusted(): void {
     // This fixture controls every command and does not touch repository trust.
   }
@@ -122,10 +134,179 @@ const git = (cwd: string, ...args: string[]): void => {
   }
 };
 
-const listen = async (server: Server, port: number): Promise<void> => {
-  const listening = once(server, "listening");
-  server.listen(port, "127.0.0.1");
-  await listening;
+const createSelectableInstanceFixture = (): {
+  controller: WorkspaceController;
+  featureWorktree: string;
+  repository: string;
+  temporary: string;
+} => {
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-instances-")
+  );
+  const repository = pathModule.join(temporary, "project");
+  const featureWorktree = pathModule.join(temporary, "project-feature");
+  mkdirSync(repository);
+  git(repository, "init", "-q");
+  git(repository, "config", "user.email", "branchbase@example.test");
+  git(repository, "config", "user.name", "BranchBase Test");
+  writeFileSync(
+    pathModule.join(repository, ".branchbase.json"),
+    JSON.stringify({
+      appGroups: {
+        Apps: {
+          apps: { Web: { protocol: "http" } },
+          start: { argv: ["true"] },
+          stop: "process",
+        },
+        Services: {
+          apps: { Database: { protocol: "tcp" } },
+          instances: { mode: "selectable" },
+          start: { argv: ["true"] },
+          stop: { argv: ["true"] },
+        },
+      },
+      setup: { argv: ["true"] },
+      version: 1,
+    })
+  );
+  git(repository, "add", ".branchbase.json");
+  git(repository, "commit", "-qm", "test config");
+  git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
+  const controller = new WorkspaceController(undefined, {
+    processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+    routing: inMemoryRoutingEngine(),
+    state: new FileBranchBaseStateStore(
+      pathModule.join(temporary, "state.json")
+    ),
+  });
+  return { controller, featureWorktree, repository, temporary };
+};
+
+const requiredWorktree = (
+  snapshot: ReturnType<WorkspaceController["inspect"]>,
+  isMain: boolean
+) => {
+  const worktree = snapshot.worktrees.find((item) => item.isMain === isMain);
+  if (!worktree) {
+    throw new Error(`Missing ${isMain ? "main" : "feature"} worktree`);
+  }
+  return worktree;
+};
+
+const requiredAppGroup = (
+  worktree: ReturnType<typeof requiredWorktree>,
+  id: string
+) => {
+  const group = worktree.appGroups.find((item) => item.id === id);
+  if (!group) {
+    throw new Error(`Missing App group ${id}`);
+  }
+  return group;
+};
+
+const requiredApp = (
+  group: ReturnType<typeof requiredAppGroup>,
+  id: string
+) => {
+  const app = group.apps.find((item) => item.id === id);
+  if (!app) {
+    throw new Error(`Missing App ${id}`);
+  }
+  return app;
+};
+
+const listenerPort = (server: Server): number => {
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Test listener did not expose a TCP port");
+  }
+  return address.port;
+};
+
+const requiredRun = (
+  state: FileBranchBaseStateStore,
+  key: { instanceId: string; repoPath: string }
+) => {
+  const run = state.run(key);
+  if (!run) {
+    throw new Error("Expected a persisted App-group run");
+  }
+  return run;
+};
+
+const requiredDatabaseEndpoint = (run: ReturnType<typeof requiredRun>) => {
+  const database = run.apps.Database;
+  if (!database) {
+    throw new Error("Expected a persisted Database endpoint");
+  }
+  return database;
+};
+
+const createCrossGroupFixture = (): {
+  controller: TrustedWorkspaceController;
+  repository: string;
+  routing: InMemoryRoutingEngine;
+  temporary: string;
+  worktreeId: string;
+} => {
+  const temporary = mkdtempSync(
+    pathModule.join(tmpdir(), "branchbase-runtime-")
+  );
+  const repository = pathModule.join(temporary, "project");
+  mkdirSync(repository);
+  git(repository, "init", "-q");
+  writeFileSync(
+    pathModule.join(repository, ".branchbase.json"),
+    JSON.stringify({
+      appGroups: {
+        Apps: {
+          apps: {
+            Slow: {
+              protocol: "http",
+              readiness: {
+                path: "/",
+                statuses: "200-399",
+                timeoutSeconds: 1,
+                type: "http",
+              },
+            },
+            Web: { protocol: "http" },
+          },
+          env: {
+            DATABASE_PORT: "{appGroups.Services.apps.Database.port}",
+            SLOW_PORT: "{apps.Slow.port}",
+            WEB_PORT: "{apps.Web.port}",
+          },
+          start: {
+            argv: [
+              "bun",
+              "-e",
+              "const fs=require('node:fs');const http=require('node:http');fs.writeFileSync('resolved-env.txt',process.env.DATABASE_PORT+'\\n'+process.env.WEB_PORT);http.createServer((_request,response)=>response.end('ok')).listen(Number(process.env.WEB_PORT),'127.0.0.1')",
+            ],
+          },
+          stop: "process",
+        },
+        Services: {
+          apps: { Database: { protocol: "tcp" } },
+          instances: { mode: "selectable" },
+          start: { argv: ["true"] },
+          stop: { argv: ["true"] },
+        },
+      },
+      setup: { argv: ["true"] },
+      version: 1,
+    })
+  );
+  const routing = inMemoryRoutingEngine();
+  const controller = new TrustedWorkspaceController(undefined, {
+    processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+    routing,
+    state: new FileBranchBaseStateStore(
+      pathModule.join(temporary, "state.json")
+    ),
+  });
+  const worktreeId = requiredWorktree(controller.inspect(repository), true).id;
+  return { controller, repository, routing, temporary, worktreeId };
 };
 
 const close = async (server: Server): Promise<void> => {
@@ -135,6 +316,38 @@ const close = async (server: Server): Promise<void> => {
   const closed = once(server, "close");
   server.close();
   await closed;
+};
+
+const cleanupCrossGroupFixture = async (fixture: {
+  blocker: Server | null;
+  controller: TrustedWorkspaceController;
+  repository: string;
+  temporary: string;
+  worktreeId: string;
+}): Promise<void> => {
+  if (fixture.blocker) {
+    try {
+      await close(fixture.blocker);
+    } catch {
+      // Fixture cleanup is best effort.
+    }
+  }
+  try {
+    await fixture.controller.stopAppGroup(
+      fixture.repository,
+      fixture.worktreeId,
+      "Apps"
+    );
+  } catch {
+    // Fixture cleanup is best effort.
+  }
+  rmSync(fixture.temporary, { force: true, recursive: true });
+};
+
+const listen = async (server: Server, port: number): Promise<void> => {
+  const listening = once(server, "listening");
+  server.listen(port, "127.0.0.1");
+  await listening;
 };
 
 describe("App-group instance assignment", () => {
@@ -191,7 +404,7 @@ describe("App-group instance assignment", () => {
       trustRepository(temporary, config, controlDirectory);
       const runtime = new AppGroupRuntime(
         new ProcessSupervisor(controlDirectory),
-        new InMemoryRoutingEngine(),
+        inMemoryRoutingEngine(),
         state
       );
 
@@ -215,7 +428,7 @@ describe("App-group instance assignment", () => {
       pathModule.join(tmpdir(), "branchbase-pending-start-")
     );
     try {
-      const routing = new BlockingPrepareRoutingEngine();
+      const routing = blockingPrepareRoutingEngine();
       const runtime = new AppGroupRuntime(
         new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing,
@@ -256,101 +469,55 @@ describe("App-group instance assignment", () => {
   });
 
   it("shares selectable defaults and lets one worktree switch to an isolated instance", () => {
-    const temporary = mkdtempSync(
-      pathModule.join(tmpdir(), "branchbase-instances-")
-    );
-    const repository = pathModule.join(temporary, "project");
-    const featureWorktree = pathModule.join(temporary, "project-feature");
-    mkdirSync(repository);
+    const { controller, repository, temporary } =
+      createSelectableInstanceFixture();
     try {
-      git(repository, "init", "-q");
-      git(repository, "config", "user.email", "branchbase@example.test");
-      git(repository, "config", "user.name", "BranchBase Test");
-      writeFileSync(
-        pathModule.join(repository, ".branchbase.json"),
-        JSON.stringify({
-          appGroups: {
-            Apps: {
-              apps: { Web: { protocol: "http" } },
-              start: { argv: ["true"] },
-              stop: "process",
-            },
-            Services: {
-              apps: { Database: { protocol: "tcp" } },
-              instances: { mode: "selectable" },
-              start: { argv: ["true"] },
-              stop: { argv: ["true"] },
-            },
-          },
-          setup: { argv: ["true"] },
-          version: 1,
-        })
-      );
-      git(repository, "add", ".branchbase.json");
-      git(repository, "commit", "-qm", "test config");
-      git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
-
-      const controller = new WorkspaceController(undefined, {
-        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new InMemoryRoutingEngine(),
-        state: new FileBranchBaseStateStore(
-          pathModule.join(temporary, "state.json")
-        ),
-      });
       const initial = controller.inspect(repository);
-      const main = initial.worktrees.find((worktree) => worktree.isMain);
-      const feature = initial.worktrees.find((worktree) => !worktree.isMain);
-      expect(main).toBeDefined();
-      expect(feature).toBeDefined();
+      const main = requiredWorktree(initial, true);
+      const feature = requiredWorktree(initial, false);
+      const mainApps = requiredAppGroup(main, "Apps");
+      const featureApps = requiredAppGroup(feature, "Apps");
+      expect(mainApps.instance.mode).toBe("per-worktree");
+      expect(mainApps.instance.id).not.toBe(featureApps.instance.id);
 
-      const mainApps = main?.appGroups.find((group) => group.id === "Apps");
-      const featureApps = feature?.appGroups.find(
-        (group) => group.id === "Apps"
-      );
-      expect(mainApps?.instance.mode).toBe("per-worktree");
-      expect(mainApps?.instance.id).not.toBe(featureApps?.instance.id);
-
-      const mainServices = main?.appGroups.find(
-        (group) => group.id === "Services"
-      );
-      const featureServices = feature?.appGroups.find(
-        (group) => group.id === "Services"
-      );
-      expect(mainServices?.instance.name).toBe("Default");
-      expect(mainServices?.instance.id).toBe(featureServices?.instance.id);
+      const mainServices = requiredAppGroup(main, "Services");
+      const featureServices = requiredAppGroup(feature, "Services");
+      expect(mainServices.instance.name).toBe("Default");
+      expect(mainServices.instance.id).toBe(featureServices.instance.id);
 
       controller.createAppGroupInstance(
         repository,
-        feature?.id ?? "",
+        feature.id,
         "Services",
         "Migration experiment"
       );
       const isolated = controller.inspect(repository);
-      const isolatedMain = isolated.worktrees
-        .find((worktree) => worktree.isMain)
-        ?.appGroups.find((group) => group.id === "Services");
-      const isolatedFeature = isolated.worktrees
-        .find((worktree) => !worktree.isMain)
-        ?.appGroups.find((group) => group.id === "Services");
+      const isolatedMain = requiredAppGroup(
+        requiredWorktree(isolated, true),
+        "Services"
+      );
+      const isolatedFeature = requiredAppGroup(
+        requiredWorktree(isolated, false),
+        "Services"
+      );
 
-      expect(isolatedMain?.instance.name).toBe("Default");
-      expect(isolatedFeature?.instance.name).toBe("Migration experiment");
+      expect(isolatedMain.instance.name).toBe("Default");
+      expect(isolatedFeature.instance.name).toBe("Migration experiment");
       expect(
-        isolatedFeature?.instances.map((instance) => instance.name)
+        isolatedFeature.instances.map((instance) => instance.name)
       ).toEqual(["Default", "Migration experiment"]);
 
       controller.selectAppGroupInstance(
         repository,
-        feature?.id ?? "",
+        feature.id,
         "Services",
-        isolatedMain?.instance.id ?? ""
+        isolatedMain.instance.id
       );
       const sharedAgain = controller.inspect(repository);
       expect(
-        sharedAgain.worktrees
-          .find((worktree) => !worktree.isMain)
-          ?.appGroups.find((group) => group.id === "Services")?.instance.id
-      ).toBe(isolatedMain?.instance.id);
+        requiredAppGroup(requiredWorktree(sharedAgain, false), "Services")
+          .instance.id
+      ).toBe(isolatedMain.instance.id);
     } finally {
       rmSync(temporary, { force: true, recursive: true });
     }
@@ -398,7 +565,7 @@ describe("App-group instance assignment", () => {
 
       controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -435,100 +602,31 @@ describe("App-group instance assignment", () => {
   }, 10_000);
 
   it("materializes cross-group ports before Start and keeps them stable across Restart", async () => {
-    const temporary = mkdtempSync(
-      pathModule.join(tmpdir(), "branchbase-runtime-")
-    );
-    const repository = pathModule.join(temporary, "project");
-    mkdirSync(repository);
-    let controller: WorkspaceController | null = null;
-    let worktreeId = "";
+    const fixture = createCrossGroupFixture();
+    const { controller, repository, routing, temporary, worktreeId } = fixture;
     let blocker: Server | null = null;
     try {
-      git(repository, "init", "-q");
-      writeFileSync(
-        pathModule.join(repository, ".branchbase.json"),
-        JSON.stringify({
-          appGroups: {
-            Apps: {
-              apps: {
-                Slow: {
-                  protocol: "http",
-                  readiness: {
-                    path: "/",
-                    statuses: "200-399",
-                    timeoutSeconds: 1,
-                    type: "http",
-                  },
-                },
-                Web: { protocol: "http" },
-              },
-              env: {
-                DATABASE_PORT: "{appGroups.Services.apps.Database.port}",
-                SLOW_PORT: "{apps.Slow.port}",
-                WEB_PORT: "{apps.Web.port}",
-              },
-              start: {
-                argv: [
-                  "bun",
-                  "-e",
-                  "const fs=require('node:fs');const http=require('node:http');fs.writeFileSync('resolved-env.txt',process.env.DATABASE_PORT+'\\n'+process.env.WEB_PORT);http.createServer((_request,response)=>response.end('ok')).listen(Number(process.env.WEB_PORT),'127.0.0.1')",
-                ],
-              },
-              stop: "process",
-            },
-            Services: {
-              apps: { Database: { protocol: "tcp" } },
-              instances: { mode: "selectable" },
-              start: { argv: ["true"] },
-              stop: { argv: ["true"] },
-            },
-          },
-          setup: { argv: ["true"] },
-          version: 1,
-        })
-      );
-      const routing = new InMemoryRoutingEngine();
-      controller = new TrustedWorkspaceController(undefined, {
-        processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing,
-        state: new FileBranchBaseStateStore(
-          pathModule.join(temporary, "state.json")
-        ),
-      });
-      worktreeId = controller.inspect(repository).worktrees[0]?.id ?? "";
-
       expect(
         await controller.startAppGroup(repository, worktreeId, "Apps")
       ).toBe("started");
       expect(routing.prepared).toBe(true);
-      const [running] = controller.inspect(repository).worktrees;
-      const apps = running?.appGroups.find((group) => group.id === "Apps");
-      const services = running?.appGroups.find(
-        (group) => group.id === "Services"
-      );
-      expect(apps?.run).toEqual({
+      const running = requiredWorktree(controller.inspect(repository), true);
+      const apps = requiredAppGroup(running, "Apps");
+      const services = requiredAppGroup(running, "Services");
+      expect(apps.run).toEqual({
         startedAt: expect.any(String),
-        worktreePath: running?.path,
+        worktreePath: running.path,
       });
-      if (!services) {
-        throw new Error("Missing Services snapshot");
-      }
-      expect(apps?.dependencies).toEqual([
+      expect(apps.dependencies).toEqual([
         {
           groupId: "Services",
           instanceId: services.instance.id,
           name: services.instance.name,
         },
       ]);
-      expect(
-        running?.appGroups.find((group) => group.id === "Apps")?.health
-      ).toBe("partially-running");
-      const webPort = running?.appGroups
-        .find((group) => group.id === "Apps")
-        ?.apps.find((app) => app.id === "Web")?.port;
-      const databasePort = running?.appGroups
-        .find((group) => group.id === "Services")
-        ?.apps.find((app) => app.id === "Database")?.port;
+      expect(apps.health).toBe("partially-running");
+      const webPort = requiredApp(apps, "Web").port;
+      const databasePort = requiredApp(services, "Database").port;
       expect(webPort).toBeNumber();
       expect(databasePort).toBeNumber();
       expect(
@@ -549,27 +647,36 @@ describe("App-group instance assignment", () => {
       expect(
         await controller.stopAppGroup(repository, worktreeId, "Apps")
       ).toBe("stopped");
-      const stoppedPort = controller
-        .inspect(repository)
-        .worktrees[0]?.appGroups.find((group) => group.id === "Apps")
-        ?.apps.find((app) => app.id === "Web")?.port;
+      const stoppedPort = requiredApp(
+        requiredAppGroup(
+          requiredWorktree(controller.inspect(repository), true),
+          "Apps"
+        ),
+        "Web"
+      ).port;
       expect(stoppedPort).toBe(webPort);
 
       expect(
         await controller.startAppGroup(repository, worktreeId, "Apps")
       ).toBe("started");
       expect(
-        controller
-          .inspect(repository)
-          .worktrees[0]?.appGroups.find((group) => group.id === "Apps")
-          ?.apps.find((app) => app.id === "Web")?.port
+        requiredApp(
+          requiredAppGroup(
+            requiredWorktree(controller.inspect(repository), true),
+            "Apps"
+          ),
+          "Web"
+        ).port
       ).toBe(webPort);
 
       const webHostname = new URL(
-        controller
-          .inspect(repository)
-          .worktrees[0]?.appGroups.find((group) => group.id === "Apps")
-          ?.apps.find((app) => app.id === "Web")?.url ?? ""
+        requiredApp(
+          requiredAppGroup(
+            requiredWorktree(controller.inspect(repository), true),
+            "Apps"
+          ),
+          "Web"
+        ).url ?? ""
       ).hostname;
       routing.point(webHostname, (webPort as number) + 1);
       await expect(
@@ -580,15 +687,13 @@ describe("App-group instance assignment", () => {
         await controller.stopAppGroup(repository, worktreeId, "Apps")
       ).toBe("stopped");
     } finally {
-      if (blocker) {
-        await close(blocker).catch(() => {});
-      }
-      if (controller && worktreeId) {
-        await controller
-          .stopAppGroup(repository, worktreeId, "Apps")
-          .catch(() => {});
-      }
-      rmSync(temporary, { force: true, recursive: true });
+      await cleanupCrossGroupFixture({
+        blocker,
+        controller,
+        repository,
+        temporary,
+        worktreeId,
+      });
     }
   }, 15_000);
 
@@ -622,7 +727,7 @@ describe("App-group instance assignment", () => {
       );
       const controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new FailingPrepareRoutingEngine(),
+        routing: failingPrepareRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -667,7 +772,7 @@ describe("App-group instance assignment", () => {
       );
       const controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -713,7 +818,7 @@ describe("App-group instance assignment", () => {
           version: 1,
         })
       );
-      const routing = new RecoverableActivationRoutingEngine();
+      const routing = recoverableActivationRoutingEngine();
       controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing,
@@ -802,7 +907,7 @@ describe("App-group instance assignment", () => {
       );
       controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -879,7 +984,7 @@ describe("App-group instance assignment", () => {
       );
       controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -946,29 +1051,25 @@ describe("App-group instance assignment", () => {
       );
       const controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         state,
       });
       const initial = controller.inspect(repository);
-      const [worktree] = initial.worktrees;
-      const group = worktree?.appGroups[0];
-      expect(group).toBeDefined();
+      const worktree = requiredWorktree(initial, true);
+      const group = requiredAppGroup(worktree, "Services");
       await listen(listener, 0);
-      const address = listener.address();
-      if (!address || typeof address === "string") {
-        throw new Error("Test listener did not expose a TCP port");
-      }
+      const port = listenerPort(listener);
       const key = {
-        instanceId: group?.instance.id ?? "",
+        instanceId: group.instance.id,
         repoPath: initial.repoPath,
       };
-      state.assignEndpointPort(key, "Database", address.port);
+      state.assignEndpointPort(key, "Database", port);
       state.saveRun(key, {
         apps: {
           Database: {
             appId: "Database",
             host: "127.0.0.1",
-            port: address.port,
+            port,
             protocol: "tcp",
           },
         },
@@ -976,34 +1077,33 @@ describe("App-group instance assignment", () => {
         groupId: "Services",
         instanceId: key.instanceId,
         instanceIdsByGroup: { Services: key.instanceId },
-        worktreePath: worktree?.path ?? repository,
+        worktreePath: worktree.path,
       });
 
-      const inspected =
-        controller.inspect(repository).worktrees[0]?.appGroups[0];
-      expect(inspected?.apps[0]?.listening).toBe(false);
-      expect(inspected?.apps[0]?.ownership).toBe("foreign");
-      expect(inspected?.apps[0]?.readiness).toBe("unready");
-      expect(inspected?.health).toBe("not-running");
-      expect(inspected?.instances[0]?.running).toBe(false);
+      const inspected = requiredAppGroup(
+        requiredWorktree(controller.inspect(repository), true),
+        "Services"
+      );
+      const inspectedApp = requiredApp(inspected, "Database");
+      expect(inspectedApp.listening).toBe(false);
+      expect(inspectedApp.ownership).toBe("foreign");
+      expect(inspectedApp.readiness).toBe("unready");
+      expect(inspected.health).toBe("not-running");
+      expect(inspected.instances[0]?.running).toBe(false);
 
-      const claimedRun = state.run(key);
-      expect(claimedRun).not.toBeNull();
-      if (!claimedRun) {
-        throw new Error("Expected a persisted App-group run");
-      }
-      const database = claimedRun.apps.Database;
-      if (!database) {
-        throw new Error("Expected a persisted Database endpoint");
-      }
+      const claimedRun = requiredRun(state, key);
+      const database = requiredDatabaseEndpoint(claimedRun);
       database.listenerClaimed = true;
       state.saveRun(key, claimedRun);
 
-      const replacedListener =
-        controller.inspect(repository).worktrees[0]?.appGroups[0];
-      expect(replacedListener?.apps[0]?.listening).toBe(true);
-      expect(replacedListener?.apps[0]?.ownership).toBe("owned");
-      expect(replacedListener?.health).toBe("running");
+      const replacedListener = requiredAppGroup(
+        requiredWorktree(controller.inspect(repository), true),
+        "Services"
+      );
+      const replacedApp = requiredApp(replacedListener, "Database");
+      expect(replacedApp.listening).toBe(true);
+      expect(replacedApp.ownership).toBe("owned");
+      expect(replacedListener.health).toBe("running");
     } finally {
       await close(listener).catch(() => {});
       rmSync(temporary, { force: true, recursive: true });
@@ -1065,7 +1165,7 @@ describe("App-group instance assignment", () => {
 
       controller = new TrustedWorkspaceController(undefined, {
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
-        routing: new InMemoryRoutingEngine(),
+        routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),

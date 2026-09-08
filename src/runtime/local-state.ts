@@ -265,6 +265,143 @@ const migrateLegacyState = (
   return { repositories, version: 2 };
 };
 
+const getRepositoryRecord = (
+  state: BranchBaseLocalState,
+  request: Pick<InstanceRequest, "repoLabel" | "repoPath">
+): RepositoryRecord => {
+  const existing = state.repositories[request.repoPath];
+  if (existing) {
+    return existing;
+  }
+  const id = randomUUID();
+  const record: RepositoryRecord = {
+    id,
+    instances: {},
+    path: request.repoPath,
+    routeLabel: uniqueLabel(
+      request.repoLabel,
+      new Set(Object.values(state.repositories).map((item) => item.routeLabel)),
+      id
+    ),
+    worktrees: {},
+  };
+  state.repositories[request.repoPath] = record;
+  return record;
+};
+
+const getWorktreeRecord = (
+  repository: RepositoryRecord,
+  request: Pick<InstanceRequest, "worktreeLabel" | "worktreePath">
+): WorktreeRecord => {
+  const existing = repository.worktrees[request.worktreePath];
+  if (existing) {
+    return existing;
+  }
+  const id = randomUUID();
+  const record: WorktreeRecord = {
+    configSource: "project-default",
+    id,
+    instanceSelections: {},
+    path: request.worktreePath,
+    routeLabel: uniqueLabel(
+      request.worktreeLabel,
+      new Set([
+        ...Object.values(repository.worktrees).map((item) => item.routeLabel),
+        ...Object.values(repository.instances).map((item) => item.routeLabel),
+      ]),
+      id
+    ),
+  };
+  repository.worktrees[request.worktreePath] = record;
+  return record;
+};
+
+const getSelectedInstance = (
+  repository: RepositoryRecord,
+  worktree: WorktreeRecord,
+  request: InstanceRequest
+): AppGroupInstance | null => {
+  if (request.mode === "per-worktree") {
+    return (
+      Object.values(repository.instances).find(
+        (instance) =>
+          (!instance.configFingerprint ||
+            instance.configFingerprint === request.configFingerprint) &&
+          instance.groupId === request.groupId &&
+          instance.mode === "per-worktree" &&
+          instance.worktreePath === request.worktreePath
+      ) ?? null
+    );
+  }
+  const selected =
+    repository.instances[
+      worktree.instanceSelections[
+        instanceSelectionKey(request.groupId, request.configFingerprint)
+      ] ??
+        worktree.instanceSelections[request.groupId] ??
+        ""
+    ];
+  if (
+    selected?.groupId === request.groupId &&
+    selected.mode === "selectable" &&
+    (!selected.configFingerprint ||
+      selected.configFingerprint === request.configFingerprint)
+  ) {
+    return selected;
+  }
+  return (
+    Object.values(repository.instances).find(
+      (instance) =>
+        (!instance.configFingerprint ||
+          instance.configFingerprint === request.configFingerprint) &&
+        instance.groupId === request.groupId &&
+        instance.mode === "selectable" &&
+        instance.isDefault
+    ) ?? null
+  );
+};
+
+const makeInstanceRecord = (
+  repository: RepositoryRecord,
+  worktree: WorktreeRecord,
+  request: InstanceRequest,
+  input: {
+    isDefault: boolean;
+    name: string;
+    worktreePath: string | null;
+  }
+): AppGroupInstance => {
+  const id = randomUUID();
+  const record: AppGroupInstance = {
+    configFingerprint: request.configFingerprint,
+    endpoints: {},
+    groupId: request.groupId,
+    id,
+    isDefault: input.isDefault,
+    mode: request.mode,
+    name: input.name,
+    routeLabel:
+      request.mode === "per-worktree"
+        ? worktree.routeLabel
+        : uniqueLabel(
+            input.name,
+            new Set([
+              ...Object.values(repository.instances).map(
+                (item) => item.routeLabel
+              ),
+              ...Object.values(repository.worktrees).map(
+                (item) => item.routeLabel
+              ),
+            ]),
+            id
+          ),
+    run: null,
+    worktreePath: input.worktreePath,
+  };
+  repository.instances[id] = record;
+  return record;
+};
+
 export class FileBranchBaseStateStore {
   readonly path: string;
 
@@ -274,9 +411,13 @@ export class FileBranchBaseStateStore {
 
   instance(request: InstanceRequest): AppGroupInstance {
     const state = this.read();
-    const repository = this.repository(state, request);
-    const worktree = this.worktree(repository, request);
-    const existing = this.selectedInstance(repository, worktree, request);
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
+    const existing = getSelectedInstance(
+      repositoryRecord,
+      worktreeRecord,
+      request
+    );
     if (existing) {
       if (!existing.configFingerprint) {
         existing.configFingerprint = request.configFingerprint;
@@ -284,17 +425,22 @@ export class FileBranchBaseStateStore {
       }
       return cloneInstance(existing);
     }
-    const instance = this.createInstanceRecord(repository, worktree, request, {
-      isDefault: request.mode === "selectable",
-      name:
-        request.mode === "per-worktree"
-          ? request.worktreeLabel
-          : DEFAULT_INSTANCE_NAME,
-      worktreePath:
-        request.mode === "per-worktree" ? request.worktreePath : null,
-    });
+    const instance = makeInstanceRecord(
+      repositoryRecord,
+      worktreeRecord,
+      request,
+      {
+        isDefault: request.mode === "selectable",
+        name:
+          request.mode === "per-worktree"
+            ? request.worktreeLabel
+            : DEFAULT_INSTANCE_NAME,
+        worktreePath:
+          request.mode === "per-worktree" ? request.worktreePath : null,
+      }
+    );
     if (request.mode === "selectable") {
-      worktree.instanceSelections[
+      worktreeRecord.instanceSelections[
         instanceSelectionKey(request.groupId, request.configFingerprint)
       ] = instance.id;
     }
@@ -346,9 +492,9 @@ export class FileBranchBaseStateStore {
     source: WorktreeConfigSource
   ): void {
     const state = this.read();
-    const repository = this.repository(state, request);
-    const worktree = this.worktree(repository, request);
-    worktree.configSource = source;
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
+    worktreeRecord.configSource = source;
     this.write(state);
   }
 
@@ -372,9 +518,9 @@ export class FileBranchBaseStateStore {
       throw new Error(`Instance name "${DEFAULT_INSTANCE_NAME}" is reserved`);
     }
     const state = this.read();
-    const repository = this.repository(state, request);
-    const worktree = this.worktree(repository, request);
-    const duplicate = Object.values(repository.instances).some(
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
+    const duplicate = Object.values(repositoryRecord.instances).some(
       (instance) =>
         (!instance.configFingerprint ||
           instance.configFingerprint === request.configFingerprint) &&
@@ -385,12 +531,17 @@ export class FileBranchBaseStateStore {
     if (duplicate) {
       throw new Error(`An instance named "${normalizedName}" already exists`);
     }
-    const instance = this.createInstanceRecord(repository, worktree, request, {
-      isDefault: false,
-      name: normalizedName,
-      worktreePath: null,
-    });
-    worktree.instanceSelections[
+    const instance = makeInstanceRecord(
+      repositoryRecord,
+      worktreeRecord,
+      request,
+      {
+        isDefault: false,
+        name: normalizedName,
+        worktreePath: null,
+      }
+    );
+    worktreeRecord.instanceSelections[
       instanceSelectionKey(request.groupId, request.configFingerprint)
     ] = instance.id;
     this.write(state);
@@ -407,9 +558,9 @@ export class FileBranchBaseStateStore {
       );
     }
     const state = this.read();
-    const repository = this.repository(state, request);
-    const worktree = this.worktree(repository, request);
-    const instance = repository.instances[instanceId];
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
+    const instance = repositoryRecord.instances[instanceId];
     if (
       !instance ||
       instance.groupId !== request.groupId ||
@@ -422,7 +573,7 @@ export class FileBranchBaseStateStore {
     if (!instance.configFingerprint) {
       instance.configFingerprint = request.configFingerprint;
     }
-    worktree.instanceSelections[
+    worktreeRecord.instanceSelections[
       instanceSelectionKey(request.groupId, request.configFingerprint)
     ] = instance.id;
     this.write(state);
@@ -588,145 +739,6 @@ export class FileBranchBaseStateStore {
         { cause: error }
       );
     }
-  }
-
-  private repository(
-    state: BranchBaseLocalState,
-    request: Pick<InstanceRequest, "repoLabel" | "repoPath">
-  ): RepositoryRecord {
-    const existing = state.repositories[request.repoPath];
-    if (existing) {
-      return existing;
-    }
-    const id = randomUUID();
-    const record: RepositoryRecord = {
-      id,
-      instances: {},
-      path: request.repoPath,
-      routeLabel: uniqueLabel(
-        request.repoLabel,
-        new Set(
-          Object.values(state.repositories).map((item) => item.routeLabel)
-        ),
-        id
-      ),
-      worktrees: {},
-    };
-    state.repositories[request.repoPath] = record;
-    return record;
-  }
-
-  private worktree(
-    repository: RepositoryRecord,
-    request: Pick<InstanceRequest, "worktreeLabel" | "worktreePath">
-  ): WorktreeRecord {
-    const existing = repository.worktrees[request.worktreePath];
-    if (existing) {
-      return existing;
-    }
-    const id = randomUUID();
-    const record: WorktreeRecord = {
-      configSource: "project-default",
-      id,
-      instanceSelections: {},
-      path: request.worktreePath,
-      routeLabel: uniqueLabel(
-        request.worktreeLabel,
-        new Set([
-          ...Object.values(repository.worktrees).map((item) => item.routeLabel),
-          ...Object.values(repository.instances).map((item) => item.routeLabel),
-        ]),
-        id
-      ),
-    };
-    repository.worktrees[request.worktreePath] = record;
-    return record;
-  }
-
-  private selectedInstance(
-    repository: RepositoryRecord,
-    worktree: WorktreeRecord,
-    request: InstanceRequest
-  ): AppGroupInstance | null {
-    if (request.mode === "per-worktree") {
-      return (
-        Object.values(repository.instances).find(
-          (instance) =>
-            (!instance.configFingerprint ||
-              instance.configFingerprint === request.configFingerprint) &&
-            instance.groupId === request.groupId &&
-            instance.mode === "per-worktree" &&
-            instance.worktreePath === request.worktreePath
-        ) ?? null
-      );
-    }
-    const selected =
-      repository.instances[
-        worktree.instanceSelections[
-          instanceSelectionKey(request.groupId, request.configFingerprint)
-        ] ??
-          worktree.instanceSelections[request.groupId] ??
-          ""
-      ];
-    if (
-      selected?.groupId === request.groupId &&
-      selected.mode === "selectable" &&
-      (!selected.configFingerprint ||
-        selected.configFingerprint === request.configFingerprint)
-    ) {
-      return selected;
-    }
-    return (
-      Object.values(repository.instances).find(
-        (instance) =>
-          (!instance.configFingerprint ||
-            instance.configFingerprint === request.configFingerprint) &&
-          instance.groupId === request.groupId &&
-          instance.mode === "selectable" &&
-          instance.isDefault
-      ) ?? null
-    );
-  }
-
-  private createInstanceRecord(
-    repository: RepositoryRecord,
-    worktree: WorktreeRecord,
-    request: InstanceRequest,
-    input: {
-      isDefault: boolean;
-      name: string;
-      worktreePath: string | null;
-    }
-  ): AppGroupInstance {
-    const id = randomUUID();
-    const record: AppGroupInstance = {
-      configFingerprint: request.configFingerprint,
-      endpoints: {},
-      groupId: request.groupId,
-      id,
-      isDefault: input.isDefault,
-      mode: request.mode,
-      name: input.name,
-      routeLabel:
-        request.mode === "per-worktree"
-          ? worktree.routeLabel
-          : uniqueLabel(
-              input.name,
-              new Set([
-                ...Object.values(repository.instances).map(
-                  (item) => item.routeLabel
-                ),
-                ...Object.values(repository.worktrees).map(
-                  (item) => item.routeLabel
-                ),
-              ]),
-              id
-            ),
-      run: null,
-      worktreePath: input.worktreePath,
-    };
-    repository.instances[id] = record;
-    return record;
   }
 
   private write(state: BranchBaseLocalState): void {

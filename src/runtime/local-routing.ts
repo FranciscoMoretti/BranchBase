@@ -58,6 +58,27 @@ const packageFile = (packageName: string, ...parts: string[]): string =>
     ...parts
   );
 
+const routeName = (hostname: string): string =>
+  hostname.endsWith(".localhost")
+    ? hostname.slice(0, -".localhost".length)
+    : hostname;
+
+const waitUntil = async (
+  condition: () => Promise<boolean>,
+  message: string
+): Promise<void> => {
+  const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
+    if (await condition()) {
+      return;
+    }
+    // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
+    await delay(POLL_INTERVAL_MS);
+  }
+  throw new Error(message);
+};
+
 export class PortlessRoutingEngine implements LocalRoutingEngine {
   private readonly cliPath: string;
   private readonly nodePath: string;
@@ -82,9 +103,9 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
       );
     }
     if (!current) {
-      this.run(["alias", this.routeName(route.hostname), String(route.port)]);
+      this.run(["alias", routeName(route.hostname), String(route.port)]);
     }
-    await this.waitUntil(async () => {
+    await waitUntil(async () => {
       if (this.route(route.hostname)?.port !== route.port) {
         return false;
       }
@@ -113,8 +134,8 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
         `Refusing to remove ${route.hostname}; it points to backing port ${current.port}`
       );
     }
-    this.run(["alias", "--remove", this.routeName(route.hostname)]);
-    await this.waitUntil(
+    this.run(["alias", "--remove", routeName(route.hostname)]);
+    await waitUntil(
       async () =>
         this.route(route.hostname) === null &&
         (await observePortlessRoute(this.url(route.hostname))) ===
@@ -145,8 +166,11 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
       return;
     }
     this.run(["proxy", "start", "--port", String(this.port), "--no-tls"]);
-    await this.waitUntil(
-      () => isPortlessProxyResponding(this.url(PORTLESS_PROXY_PROBE_HOSTNAME)),
+    await waitUntil(
+      () =>
+        Promise.resolve(
+          isPortlessProxyResponding(this.url(PORTLESS_PROXY_PROBE_HOSTNAME))
+        ),
       `Portless proxy did not start on port ${this.port}`
     );
   }
@@ -186,12 +210,6 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
     }
   }
 
-  private routeName(hostname: string): string {
-    return hostname.endsWith(".localhost")
-      ? hostname.slice(0, -".localhost".length)
-      : hostname;
-  }
-
   private run(args: string[]): void {
     const result = spawnSync(this.nodePath, [this.cliPath, ...args], {
       encoding: "utf-8",
@@ -203,21 +221,5 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
         (result.stderr || result.stdout || "Portless command failed").trim()
       );
     }
-  }
-
-  private async waitUntil(
-    condition: () => Promise<boolean>,
-    message: string
-  ): Promise<void> {
-    const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
-      if (await condition()) {
-        return;
-      }
-      // oxlint-disable-next-line no-await-in-loop -- Route activation polling observes each attempt before waiting.
-      await delay(POLL_INTERVAL_MS);
-    }
-    throw new Error(message);
   }
 }

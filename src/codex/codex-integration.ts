@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export { CodexIntegrationUnavailableError } from "./codex-integration-error";
+export { UnavailableCodexIntegrationAdapter } from "./unavailable-codex-integration-adapter";
+
 const IsoTimestampSchema = z.iso.datetime({ offset: true });
 
 export const CodexTaskActivitySnapshotSchema = z.object({
@@ -61,15 +64,6 @@ export interface CodexIntegrationAdapter {
   ) => Promise<CodexIntegrationAdapterSnapshot>;
 }
 
-export class CodexIntegrationUnavailableError extends Error {
-  readonly code = "codex_integration_unavailable";
-
-  constructor(message = "Codex task discovery is unavailable") {
-    super(message);
-    this.name = "CodexIntegrationUnavailableError";
-  }
-}
-
 export class FakeCodexIntegrationAdapter implements CodexIntegrationAdapter {
   closed = false;
   readonly requests: CodexWorktreeReference[][] = [];
@@ -89,18 +83,6 @@ export class FakeCodexIntegrationAdapter implements CodexIntegrationAdapter {
   ): Promise<CodexIntegrationAdapterSnapshot> {
     this.requests.push(worktrees.map((worktree) => ({ ...worktree })));
     return Promise.resolve(this.snapshot);
-  }
-}
-
-export class UnavailableCodexIntegrationAdapter implements CodexIntegrationAdapter {
-  close(): Promise<void> {
-    return Promise.resolve();
-  }
-
-  loadAssociatedTasks(
-    _worktrees: readonly CodexWorktreeReference[]
-  ): Promise<CodexIntegrationAdapterSnapshot> {
-    return Promise.reject(new CodexIntegrationUnavailableError());
   }
 }
 

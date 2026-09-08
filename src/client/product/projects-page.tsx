@@ -5,6 +5,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { useState } from "react";
+import type { ReactNode } from "react";
 
 import type { ProjectOverview } from "../../controller/product-contract";
 import { appGroupIsRunning } from "../../controller/workspace-snapshot";
@@ -118,6 +119,20 @@ const attentionNotice = (
   }
   return null;
 };
+
+const emptyProjectMessage = (
+  project: ProjectOverview,
+  hasWorkspace: boolean,
+  detectedCount: number
+): ReactNode => {
+  if (project.pins.length > 0 || !hasWorkspace || detectedCount > 0) {
+    return null;
+  }
+  return (
+    <span className="product-muted">Pin app links from an environment</span>
+  );
+};
+
 const ProjectRow = ({ project }: { project: ProjectOverview }) => {
   const { workspace } = project;
   const detected =
@@ -186,11 +201,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
             </span>
           ))}
           <ServiceOverflow services={detected.slice(2)} />
-          {project.pins.length === 0 && workspace && !detected.length ? (
-            <span className="product-muted">
-              Pin app links from an environment
-            </span>
-          ) : null}
+          {emptyProjectMessage(project, Boolean(workspace), detected.length)}
         </div>
       </div>
       <div className="product-project-condition">

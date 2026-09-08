@@ -17,6 +17,9 @@ import {
   observePortlessRoute,
   PORTLESS_PROXY_PROBE_HOSTNAME,
 } from "../src/runtime/portless-observation";
+import { DevelopmentProxyPortConflictError } from "./development-proxy-port-conflict-error";
+
+export { DevelopmentProxyPortConflictError } from "./development-proxy-port-conflict-error";
 
 const require = createRequire(import.meta.url);
 const OBSERVATION_TIMEOUT_MS = 5000;
@@ -57,6 +60,22 @@ const routeKey = (hostname: string, port: number): string =>
 
 const ignoreChildError = () => null;
 
+const waitUntil = async (
+  condition: () => Promise<boolean>,
+  message: string
+): Promise<void> => {
+  const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
+    if (await condition()) {
+      return;
+    }
+    // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
+    await delay(POLL_INTERVAL_MS);
+  }
+  throw new Error(message);
+};
+
 export const waitForExit = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
@@ -71,13 +90,6 @@ export const waitForExit = async (child: ChildProcess): Promise<void> => {
   child.once("close", onClose);
   await result.promise;
 };
-
-export class DevelopmentProxyPortConflictError extends Error {
-  constructor(port: number) {
-    super(`Portless proxy port ${port} is already in use`);
-    this.name = "DevelopmentProxyPortConflictError";
-  }
-}
 
 export class DevelopmentRouting implements LocalRoutingEngine {
   private closePromise: Promise<void> | undefined;
@@ -134,7 +146,7 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     if (!current) {
       this.store.addRoute(route.hostname, route.port, 0);
     }
-    await this.waitUntil(
+    await waitUntil(
       async () =>
         this.isLive() &&
         (await isPublishedPortlessRoute(
@@ -165,7 +177,7 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     }
     this.verifiedRoutes.delete(routeKey(route.hostname, route.port));
     this.store.removeRoute(route.hostname, 0);
-    return this.waitUntil(
+    return waitUntil(
       async () =>
         (await observePortlessRoute(this.url(route.hostname))) ===
         "unregistered",
@@ -339,21 +351,5 @@ export class DevelopmentRouting implements LocalRoutingEngine {
 
   private isLive(): boolean {
     return this.child.exitCode === null && this.child.signalCode === null;
-  }
-
-  private async waitUntil(
-    condition: () => Promise<boolean>,
-    message: string
-  ): Promise<void> {
-    const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
-      if (await condition()) {
-        return;
-      }
-      // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
-      await delay(POLL_INTERVAL_MS);
-    }
-    throw new Error(message);
   }
 }

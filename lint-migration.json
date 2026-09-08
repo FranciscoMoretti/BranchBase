@@ -1,7 +1,1 @@
-{
-  "rules": {
-    "class-methods-use-this": "off",
-    "complexity": "off",
-    "max-classes-per-file": "off"
-  }
-}
+{ "rules": {} }

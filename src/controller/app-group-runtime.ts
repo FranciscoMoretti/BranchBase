@@ -104,6 +104,181 @@ const errorMessage = (error: unknown): string =>
 
 const PORT_STOP_TIMEOUT_MS = 5000;
 
+const groupForTarget = (target: AppGroupTarget): BranchBaseAppGroup => {
+  const group = target.config.appGroups[target.groupId];
+  if (!group) {
+    throw new Error(`Unknown App group "${target.groupId}"`);
+  }
+  return group;
+};
+
+const lifecycleKey = (repoPath: string, instanceId: string): string =>
+  [repoPath, instanceId].join("\0");
+
+const detachedGroupId = (instanceId: string): string => `cleanup:${instanceId}`;
+
+const detachedInstanceId = (groupId: string): string | null =>
+  groupId.startsWith("cleanup:") ? groupId.slice("cleanup:".length) : null;
+
+const detachedTarget = (
+  repoPath: string,
+  instance: AppGroupInstance,
+  run: AppGroupRun
+): AppGroupTarget => {
+  const apps = Object.fromEntries(
+    Object.entries(run.apps).map(([appId, app]) => [
+      appId,
+      { protocol: app.protocol, readiness: "tcp" as const },
+    ])
+  );
+  return {
+    config: {
+      appGroups: {
+        [run.groupId]: {
+          apps,
+          instances: { mode: instance.mode },
+          start: { argv: ["true"] },
+          stop: "process",
+        },
+      },
+      setup: { argv: ["true"] },
+      version: 1,
+    },
+    groupId: run.groupId,
+    repoPath,
+    worktree: {
+      id: run.worktreePath,
+      path: run.worktreePath,
+      routeLabel: instance.routeLabel,
+    },
+  };
+};
+
+const runKey = (repoPath: string, instanceId: string): RunKey => ({
+  instanceId,
+  repoPath,
+});
+
+const runEndpointFor = (run: AppGroupRun, appId: string): RunEndpoint => {
+  const endpoint = run.apps[appId];
+  if (!endpoint) {
+    throw new AppGroupLifecycleError(
+      "invalid-run-state",
+      `Persisted run is missing App "${appId}"`
+    );
+  }
+  return endpoint;
+};
+
+const assertReadyEndpointsOwned = (
+  group: BranchBaseAppGroup,
+  run: AppGroupRun,
+  readyAppIds: ReadonlySet<string>
+): void => {
+  if (group.stop !== "process") {
+    return;
+  }
+  const ports = inspectListeningPorts();
+  const unowned = Object.values(run.apps).find(
+    (endpoint) =>
+      readyAppIds.has(endpoint.appId) &&
+      portOwnership(ports, endpoint.port, run.worktreePath) !== "owned"
+  );
+  if (unowned) {
+    throw new AppGroupLifecycleError(
+      "endpoint-ownership-conflict",
+      `Backing endpoint ${unowned.port} became ready outside this worktree; no Friendly URLs were published`
+    );
+  }
+};
+
+const observeRunListeners = (run: AppGroupRun): void => {
+  const ports = inspectListeningPorts();
+  for (const endpoint of Object.values(run.apps)) {
+    const observedPids = listeningPortPids(ports, endpoint.port);
+    if (observedPids.length > 0) {
+      endpoint.listenerClaimed = true;
+    }
+  }
+};
+
+const waitForPortsStopped = async (run: AppGroupRun): Promise<boolean> => {
+  const deadline = Date.now() + PORT_STOP_TIMEOUT_MS;
+  const ports = new Set(Object.values(run.apps).map((app) => app.port));
+  while (Date.now() < deadline) {
+    const snapshot = inspectListeningPorts();
+    if (
+      [...ports].every((port) => portOwnership(snapshot, port, "/") === "none")
+    ) {
+      return true;
+    }
+    // oxlint-disable-next-line no-await-in-loop -- Port shutdown polling observes each attempt before waiting.
+    await delay(100);
+  }
+  return false;
+};
+
+const endpointRoute = (endpoint: RunEndpoint): LocalRoute => {
+  if (!endpoint.hostname) {
+    throw new Error(`${endpoint.appId} does not have a Friendly hostname`);
+  }
+  return { hostname: endpoint.hostname, port: endpoint.port };
+};
+
+const instanceRequest = (target: AppGroupTarget): InstanceRequest => {
+  const group = groupForTarget(target);
+  return {
+    configFingerprint: repositoryCommandFingerprint(target.config),
+    groupId: target.groupId,
+    mode: group.instances.mode,
+    repoLabel: pathModule.basename(target.repoPath),
+    repoPath: target.repoPath,
+    worktreeLabel: target.worktree.routeLabel,
+    worktreePath: target.worktree.path,
+  };
+};
+
+const lifecycleContext = (
+  target: AppGroupTarget,
+  instance: AppGroupInstance,
+  processPath: string
+): LifecycleContext => ({
+  group: groupForTarget(target),
+  key: runKey(target.repoPath, instance.id),
+  processId: appGroupInstanceProcessId(instance.id),
+  processPath,
+  target,
+});
+
+const readinessForRun = (context: RunContext): Promise<boolean[]> =>
+  Promise.all(
+    Object.entries(context.group.apps).map(([appId, app]) =>
+      appIsReady(app, runEndpointFor(context.run, appId))
+    )
+  );
+
+const runContext = (
+  target: AppGroupTarget,
+  instance: AppGroupInstance,
+  run: AppGroupRun
+): RunContext => ({
+  ...lifecycleContext(target, instance, run.worktreePath),
+  run,
+});
+
+const stopContext = (
+  target: AppGroupTarget,
+  instance: AppGroupInstance,
+  run: AppGroupRun | null
+): StopContext => ({
+  ...lifecycleContext(
+    target,
+    instance,
+    run?.worktreePath ?? target.worktree.path
+  ),
+  run,
+});
+
 export class AppGroupRuntime {
   private readonly lifecycleOperations = new Map<string, Promise<void>>();
   private readonly pendingWorktreeOperations = new Map<string, number>();
@@ -125,7 +300,7 @@ export class AppGroupRuntime {
     target: AppGroupTarget,
     ports: ReturnType<typeof inspectListeningPorts>
   ): AppGroupSnapshot {
-    const instance = this.state.instance(this.instanceRequest(target));
+    const instance = this.state.instance(instanceRequest(target));
     return this.inspectInstance(target, instance, ports);
   }
 
@@ -138,12 +313,12 @@ export class AppGroupRuntime {
     if (!run) {
       throw new Error("Cleanup target has no persisted run");
     }
-    const target = this.detachedTarget(repoPath, instance, run);
+    const target = detachedTarget(repoPath, instance, run);
     const snapshot = this.inspectInstance(target, instance, ports);
     return {
       ...snapshot,
       cleanupOnly: true,
-      id: this.detachedGroupId(instance.id),
+      id: detachedGroupId(instance.id),
       instance: { ...snapshot.instance, mode: "per-worktree" },
       instances: [{ id: instance.id, name: instance.name, running: true }],
       name: `${run.groupId} (cleanup)`,
@@ -156,8 +331,8 @@ export class AppGroupRuntime {
     instance: AppGroupInstance,
     ports: ReturnType<typeof inspectListeningPorts>
   ): AppGroupSnapshot {
-    const group = this.group(target);
-    const run = this.state.run(this.runKey(target.repoPath, instance.id));
+    const group = groupForTarget(target);
+    const run = this.state.run(runKey(target.repoPath, instance.id));
     const processPath = run?.worktreePath ?? target.worktree.path;
     const processRunning =
       this.processes.managedPid(
@@ -188,7 +363,7 @@ export class AppGroupRuntime {
       run
     );
     const groupSnapshotPending = this.lifecycleOperations.has(
-      this.lifecycleKey(target.repoPath, instance.id)
+      lifecycleKey(target.repoPath, instance.id)
     );
     const groupSnapshotHealth = groupHealth(apps);
     const groupSnapshotInstances =
@@ -252,7 +427,7 @@ export class AppGroupRuntime {
         const instanceId = run?.instanceIdsByGroup[groupId];
         const instance = instanceId
           ? this.state.instanceById(target.repoPath, instanceId)
-          : this.state.instance(this.instanceRequest({ ...target, groupId }));
+          : this.state.instance(instanceRequest({ ...target, groupId }));
         return instance
           ? [{ groupId, instanceId: instance.id, name: instance.name }]
           : [];
@@ -265,7 +440,7 @@ export class AppGroupRuntime {
       target.worktree.path,
       this.serializeLifecycle(
         Object.values(effectiveInstances).map((instance) =>
-          this.lifecycleKey(target.repoPath, instance.id)
+          lifecycleKey(target.repoPath, instance.id)
         ),
         () => this.startUnlocked(target, effectiveInstances)
       )
@@ -276,14 +451,14 @@ export class AppGroupRuntime {
     target: AppGroupTarget,
     effectiveInstances: Record<string, AppGroupInstance>
   ): Promise<"already-running" | "started"> {
-    const group = this.group(target);
+    const group = groupForTarget(target);
     await this.prepareRouting();
     await this.materializeEffectiveInstances(target, effectiveInstances);
     const instance = effectiveInstances[target.groupId];
     if (!instance) {
       throw new Error(`Unknown App group "${target.groupId}"`);
     }
-    const key = this.runKey(target.repoPath, instance.id);
+    const key = runKey(target.repoPath, instance.id);
     let run = this.state.run(key);
     const allocatedNow = run === null;
     if (!run) {
@@ -299,9 +474,9 @@ export class AppGroupRuntime {
       this.state.saveRun(key, run);
     }
 
-    const context = this.runContext(target, instance, run);
+    const context = runContext(target, instance, run);
     this.assertRunPortsAvailable(context, allocatedNow);
-    const readiness = await this.readinessForRun(context);
+    const readiness = await readinessForRun(context);
     if (readiness.every(Boolean) && this.allRoutesAreActive(context.run)) {
       return "already-running";
     }
@@ -312,11 +487,11 @@ export class AppGroupRuntime {
   }
 
   retry(target: AppGroupTarget): Promise<"already-running" | "retried"> {
-    const instance = this.state.instance(this.instanceRequest(target));
+    const instance = this.state.instance(instanceRequest(target));
     return this.trackWorktreeOperation(
       target.worktree.path,
       this.serializeLifecycle(
-        [this.lifecycleKey(target.repoPath, instance.id)],
+        [lifecycleKey(target.repoPath, instance.id)],
         () => this.retryUnlocked(target, instance)
       )
     );
@@ -327,17 +502,17 @@ export class AppGroupRuntime {
     instance: AppGroupInstance
   ): Promise<"already-running" | "retried"> {
     await this.prepareRouting();
-    const key = this.runKey(target.repoPath, instance.id);
+    const key = runKey(target.repoPath, instance.id);
     const run = this.state.run(key);
     if (!run) {
       throw new AppGroupLifecycleError(
         "not-started",
-        `${displayName(target.groupId, this.group(target))} has not been started`
+        `${displayName(target.groupId, groupForTarget(target))} has not been started`
       );
     }
-    const context = this.runContext(target, instance, run);
+    const context = runContext(target, instance, run);
     this.assertRunPortsAvailable(context, false);
-    const readiness = await this.readinessForRun(context);
+    const readiness = await readinessForRun(context);
     if (readiness.every(Boolean) && this.allRoutesAreActive(context.run)) {
       return "already-running";
     }
@@ -346,11 +521,11 @@ export class AppGroupRuntime {
   }
 
   stop(target: AppGroupTarget): Promise<"already-stopped" | "stopped"> {
-    const instance = this.state.instance(this.instanceRequest(target));
+    const instance = this.state.instance(instanceRequest(target));
     return this.trackWorktreeOperation(
       target.worktree.path,
       this.serializeLifecycle(
-        [this.lifecycleKey(target.repoPath, instance.id)],
+        [lifecycleKey(target.repoPath, instance.id)],
         () => this.stopUnlocked(target, instance)
       )
     );
@@ -361,7 +536,7 @@ export class AppGroupRuntime {
     worktreePath: string,
     groupId: string
   ): Promise<"already-stopped" | "stopped"> {
-    const instanceId = this.detachedInstanceId(groupId);
+    const instanceId = detachedInstanceId(groupId);
     const instance = instanceId
       ? this.state.instanceById(repoPath, instanceId)
       : null;
@@ -375,7 +550,7 @@ export class AppGroupRuntime {
     );
     return this.trackWorktreeOperation(
       worktreePath,
-      this.serializeLifecycle([this.lifecycleKey(repoPath, instance.id)], () =>
+      this.serializeLifecycle([lifecycleKey(repoPath, instance.id)], () =>
         this.stopDetachedUnlocked(repoPath, instance, stopCommandTrusted)
       )
     );
@@ -385,17 +560,17 @@ export class AppGroupRuntime {
     return (this.pendingWorktreeOperations.get(worktreePath) ?? 0) > 0;
   }
 
-  isDetachedGroupId(groupId: string): boolean {
-    return this.detachedInstanceId(groupId) !== null;
-  }
+  // oxlint-disable-next-line eslint/class-methods-use-this -- This predicate is a public runtime seam with no instance state.
+  readonly isDetachedGroupId = (groupId: string): boolean =>
+    detachedInstanceId(groupId) !== null;
 
   private async stopUnlocked(
     target: AppGroupTarget,
     instance: AppGroupInstance
   ): Promise<"already-stopped" | "stopped"> {
-    const key = this.runKey(target.repoPath, instance.id);
+    const key = runKey(target.repoPath, instance.id);
     const run = this.state.run(key);
-    const context = this.stopContext(target, instance, run);
+    const context = stopContext(target, instance, run);
     if (
       !run &&
       this.processes.managedPid(context.processId, context.processPath) === null
@@ -407,7 +582,7 @@ export class AppGroupRuntime {
     failures.push(...(await this.executeConfiguredStop(context)));
     await this.stopRunProcesses(context);
 
-    if (context.run && !(await this.waitForPortsStopped(context.run))) {
+    if (context.run && !(await waitForPortsStopped(context.run))) {
       failures.push(
         "App listeners did not stop; Backing endpoints remain quarantined"
       );
@@ -430,8 +605,8 @@ export class AppGroupRuntime {
     if (!run) {
       return "already-stopped";
     }
-    const target = this.detachedTarget(repoPath, instance, run);
-    const context = this.stopContext(target, instance, run);
+    const target = detachedTarget(repoPath, instance, run);
+    const context = stopContext(target, instance, run);
     const failures = await this.deactivateRunRoutes(context);
     if (run.stop && run.stop !== "process" && stopCommandTrusted) {
       try {
@@ -447,7 +622,7 @@ export class AppGroupRuntime {
       }
     }
     await this.stopRunProcesses(context);
-    if (!(await this.waitForPortsStopped(run))) {
+    if (!(await waitForPortsStopped(run))) {
       failures.push(
         "App listeners did not stop; Backing endpoints remain quarantined"
       );
@@ -466,7 +641,7 @@ export class AppGroupRuntime {
         continue;
       }
       try {
-        const route = this.endpointRoute(endpoint);
+        const route = endpointRoute(endpoint);
         const routeState = this.routing.observe(route);
         if (routeState === "conflict") {
           failures.push(
@@ -544,40 +719,16 @@ export class AppGroupRuntime {
   }
 
   createInstance(target: AppGroupTarget, name: string): AppGroupInstance {
-    return this.state.createSelectableInstance(
-      this.instanceRequest(target),
-      name
-    );
+    return this.state.createSelectableInstance(instanceRequest(target), name);
   }
 
   selectInstance(target: AppGroupTarget, instanceId: string): AppGroupInstance {
-    return this.state.selectInstance(this.instanceRequest(target), instanceId);
+    return this.state.selectInstance(instanceRequest(target), instanceId);
   }
 
   logId(target: AppGroupTarget): string {
-    const instance = this.state.instance(this.instanceRequest(target));
+    const instance = this.state.instance(instanceRequest(target));
     return appGroupInstanceProcessId(instance.id);
-  }
-
-  private group(target: AppGroupTarget): BranchBaseAppGroup {
-    const group = target.config.appGroups[target.groupId];
-    if (!group) {
-      throw new Error(`Unknown App group "${target.groupId}"`);
-    }
-    return group;
-  }
-
-  private instanceRequest(target: AppGroupTarget): InstanceRequest {
-    const group = this.group(target);
-    return {
-      configFingerprint: repositoryCommandFingerprint(target.config),
-      groupId: target.groupId,
-      mode: group.instances.mode,
-      repoLabel: pathModule.basename(target.repoPath),
-      repoPath: target.repoPath,
-      worktreeLabel: target.worktree.routeLabel,
-      worktreePath: target.worktree.path,
-    };
   }
 
   private async serializeLifecycle<T>(
@@ -618,54 +769,6 @@ export class AppGroupRuntime {
     }
   }
 
-  private lifecycleKey(repoPath: string, instanceId: string): string {
-    return [repoPath, instanceId].join("\0");
-  }
-
-  private detachedGroupId(instanceId: string): string {
-    return `cleanup:${instanceId}`;
-  }
-
-  private detachedInstanceId(groupId: string): string | null {
-    return groupId.startsWith("cleanup:")
-      ? groupId.slice("cleanup:".length)
-      : null;
-  }
-
-  private detachedTarget(
-    repoPath: string,
-    instance: AppGroupInstance,
-    run: AppGroupRun
-  ): AppGroupTarget {
-    const apps = Object.fromEntries(
-      Object.entries(run.apps).map(([appId, app]) => [
-        appId,
-        { protocol: app.protocol, readiness: "tcp" as const },
-      ])
-    );
-    return {
-      config: {
-        appGroups: {
-          [run.groupId]: {
-            apps,
-            instances: { mode: instance.mode },
-            start: { argv: ["true"] },
-            stop: "process",
-          },
-        },
-        setup: { argv: ["true"] },
-        version: 1,
-      },
-      groupId: run.groupId,
-      repoPath,
-      worktree: {
-        id: run.worktreePath,
-        path: run.worktreePath,
-        routeLabel: instance.routeLabel,
-      },
-    };
-  }
-
   private trackWorktreeOperation<T>(
     worktreePath: string,
     operation: Promise<T>
@@ -704,50 +807,6 @@ export class AppGroupRuntime {
     );
   }
 
-  private runKey(repoPath: string, instanceId: string): RunKey {
-    return { instanceId, repoPath };
-  }
-
-  private lifecycleContext(
-    target: AppGroupTarget,
-    instance: AppGroupInstance,
-    processPath: string
-  ): LifecycleContext {
-    return {
-      group: this.group(target),
-      key: this.runKey(target.repoPath, instance.id),
-      processId: appGroupInstanceProcessId(instance.id),
-      processPath,
-      target,
-    };
-  }
-
-  private runContext(
-    target: AppGroupTarget,
-    instance: AppGroupInstance,
-    run: AppGroupRun
-  ): RunContext {
-    return {
-      ...this.lifecycleContext(target, instance, run.worktreePath),
-      run,
-    };
-  }
-
-  private stopContext(
-    target: AppGroupTarget,
-    instance: AppGroupInstance,
-    run: AppGroupRun | null
-  ): StopContext {
-    return {
-      ...this.lifecycleContext(
-        target,
-        instance,
-        run?.worktreePath ?? target.worktree.path
-      ),
-      run,
-    };
-  }
-
   private async prepareRouting(): Promise<void> {
     try {
       await this.routing.prepare?.();
@@ -759,28 +818,9 @@ export class AppGroupRuntime {
     }
   }
 
-  private runEndpointFor(run: AppGroupRun, appId: string): RunEndpoint {
-    const endpoint = run.apps[appId];
-    if (!endpoint) {
-      throw new AppGroupLifecycleError(
-        "invalid-run-state",
-        `Persisted run is missing App "${appId}"`
-      );
-    }
-    return endpoint;
-  }
-
-  private readinessForRun(context: RunContext): Promise<boolean[]> {
-    return Promise.all(
-      Object.entries(context.group.apps).map(([appId, app]) =>
-        appIsReady(app, this.runEndpointFor(context.run, appId))
-      )
-    );
-  }
-
   private async waitForAndPublishRun(context: RunContext): Promise<void> {
     const readyAppIds = await this.waitForRunReadiness(context);
-    this.assertReadyEndpointsOwned(context.group, context.run, readyAppIds);
+    assertReadyEndpointsOwned(context.group, context.run, readyAppIds);
     await this.publishReadyRun(context, readyAppIds);
   }
 
@@ -898,7 +938,7 @@ export class AppGroupRuntime {
       (endpoint) =>
         endpoint.protocol !== "http" ||
         (endpoint.hostname &&
-          this.routing.observe(this.endpointRoute(endpoint)) === "active")
+          this.routing.observe(endpointRoute(endpoint)) === "active")
     );
   }
 
@@ -943,7 +983,7 @@ export class AppGroupRuntime {
   private async waitForRunReadiness(context: RunContext): Promise<Set<string>> {
     const settled = await Promise.allSettled(
       Object.entries(context.group.apps).map(async ([appId, app]) => {
-        await waitForAppReadiness(app, this.runEndpointFor(context.run, appId));
+        await waitForAppReadiness(app, runEndpointFor(context.run, appId));
         return appId;
       })
     );
@@ -956,7 +996,7 @@ export class AppGroupRuntime {
       result.status === "rejected" ? [errorMessage(result.reason)] : []
     );
     if (readyAppIds.size === 0) {
-      this.observeRunListeners(context.run);
+      observeRunListeners(context.run);
       this.state.saveRun(context.key, context.run);
       throw new AppGroupLifecycleError("readiness-failed", failures.join("; "));
     }
@@ -969,33 +1009,11 @@ export class AppGroupRuntime {
     return readyAppIds;
   }
 
-  private assertReadyEndpointsOwned(
-    group: BranchBaseAppGroup,
-    run: AppGroupRun,
-    readyAppIds: ReadonlySet<string>
-  ): void {
-    if (group.stop !== "process") {
-      return;
-    }
-    const ports = inspectListeningPorts();
-    const unowned = Object.values(run.apps).find(
-      (endpoint) =>
-        readyAppIds.has(endpoint.appId) &&
-        portOwnership(ports, endpoint.port, run.worktreePath) !== "owned"
-    );
-    if (unowned) {
-      throw new AppGroupLifecycleError(
-        "endpoint-ownership-conflict",
-        `Backing endpoint ${unowned.port} became ready outside this worktree; no Friendly URLs were published`
-      );
-    }
-  }
-
   private async publishReadyRun(
     context: RunContext,
     readyAppIds: ReadonlySet<string>
   ): Promise<void> {
-    this.observeRunListeners(context.run);
+    observeRunListeners(context.run);
     try {
       await this.activateRoutes(context.run, readyAppIds);
     } catch (error) {
@@ -1003,16 +1021,6 @@ export class AppGroupRuntime {
       throw error;
     }
     this.state.saveRun(context.key, context.run);
-  }
-
-  private observeRunListeners(run: AppGroupRun): void {
-    const ports = inspectListeningPorts();
-    for (const endpoint of Object.values(run.apps)) {
-      const observedPids = listeningPortPids(ports, endpoint.port);
-      if (observedPids.length > 0) {
-        endpoint.listenerClaimed = true;
-      }
-    }
   }
 
   private endpointAssignment(input: {
@@ -1169,7 +1177,7 @@ export class AppGroupRuntime {
         if (!instance) {
           throw new Error(`Unknown App group "${groupId}"`);
         }
-        const key = this.runKey(target.repoPath, instance.id);
+        const key = runKey(target.repoPath, instance.id);
         for (const [appId, app] of Object.entries(group.apps)) {
           const assignment = this.endpointAssignment({
             app,
@@ -1217,24 +1225,6 @@ export class AppGroupRuntime {
     };
   }
 
-  private async waitForPortsStopped(run: AppGroupRun): Promise<boolean> {
-    const deadline = Date.now() + PORT_STOP_TIMEOUT_MS;
-    const ports = new Set(Object.values(run.apps).map((app) => app.port));
-    while (Date.now() < deadline) {
-      const snapshot = inspectListeningPorts();
-      if (
-        [...ports].every(
-          (port) => portOwnership(snapshot, port, "/") === "none"
-        )
-      ) {
-        return true;
-      }
-      // oxlint-disable-next-line no-await-in-loop -- Port shutdown polling observes each attempt before waiting.
-      await delay(100);
-    }
-    return false;
-  }
-
   private async activateRoutes(
     run: AppGroupRun,
     readyAppIds: ReadonlySet<string>
@@ -1243,7 +1233,7 @@ export class AppGroupRuntime {
       readyAppIds.has(endpoint.appId) &&
       endpoint.protocol === "http" &&
       endpoint.hostname
-        ? [this.endpointRoute(endpoint)]
+        ? [endpointRoute(endpoint)]
         : []
     );
     const newlyActivated: LocalRoute[] = [];
@@ -1297,11 +1287,5 @@ export class AppGroupRuntime {
       }
     }
     return failures;
-  }
-  private endpointRoute(endpoint: RunEndpoint): LocalRoute {
-    if (!endpoint.hostname) {
-      throw new Error(`${endpoint.appId} does not have a Friendly hostname`);
-    }
-    return { hostname: endpoint.hostname, port: endpoint.port };
   }
 }
