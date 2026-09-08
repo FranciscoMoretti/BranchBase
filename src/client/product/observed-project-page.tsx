@@ -28,7 +28,7 @@ import {
   Status,
 } from "./primitives";
 
-const WINDOWS_PATH_SEPARATOR = /[\\/]/;
+const WINDOWS_PATH_SEPARATOR = /[\\/]/u;
 
 export const ServiceLink = ({ service }: { service: DetectedService }) => (
   <span className="product-actions product-service-link" title={service.cwd}>
@@ -183,8 +183,8 @@ const ObservedSettings = ({
           onClick={() =>
             command.mutate({
               command: "save-project",
-              repoPath: data.repoPath,
               name: resolvedName,
+              repoPath: data.repoPath,
             })
           }
         >

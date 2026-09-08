@@ -168,12 +168,12 @@ const emptyState = (): BranchBaseLocalState => ({
 const routeLabel = (value: string): string => {
   const normalized = value
     .normalize("NFKD")
-    .replaceAll(/[\u0300-\u036F]/g, "")
+    .replaceAll(/[\u0300-\u036F]/gu, "")
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "")
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-+|-+$/gu, "")
     .slice(0, 48)
-    .replaceAll(/-+$/g, "");
+    .replaceAll(/-+$/gu, "");
   return normalized || "app";
 };
 
@@ -265,7 +265,7 @@ const migrateLegacyState = (
   return { repositories, version: 2 };
 };
 
-const repository = (
+const getRepositoryRecord = (
   state: BranchBaseLocalState,
   request: Pick<InstanceRequest, "repoLabel" | "repoPath">
 ): RepositoryRecord => {
@@ -289,7 +289,7 @@ const repository = (
   return record;
 };
 
-const worktree = (
+const getWorktreeRecord = (
   repository: RepositoryRecord,
   request: Pick<InstanceRequest, "worktreeLabel" | "worktreePath">
 ): WorktreeRecord => {
@@ -316,7 +316,7 @@ const worktree = (
   return record;
 };
 
-const selectedInstance = (
+const getSelectedInstance = (
   repository: RepositoryRecord,
   worktree: WorktreeRecord,
   request: InstanceRequest
@@ -361,7 +361,7 @@ const selectedInstance = (
   );
 };
 
-const createInstanceRecord = (
+const makeInstanceRecord = (
   repository: RepositoryRecord,
   worktree: WorktreeRecord,
   request: InstanceRequest,
@@ -411,9 +411,9 @@ export class FileBranchBaseStateStore {
 
   instance(request: InstanceRequest): AppGroupInstance {
     const state = this.read();
-    const repositoryRecord = repository(state, request);
-    const worktreeRecord = worktree(repositoryRecord, request);
-    const existing = selectedInstance(
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
+    const existing = getSelectedInstance(
       repositoryRecord,
       worktreeRecord,
       request
@@ -425,7 +425,7 @@ export class FileBranchBaseStateStore {
       }
       return cloneInstance(existing);
     }
-    const instance = createInstanceRecord(
+    const instance = makeInstanceRecord(
       repositoryRecord,
       worktreeRecord,
       request,
@@ -492,8 +492,8 @@ export class FileBranchBaseStateStore {
     source: WorktreeConfigSource
   ): void {
     const state = this.read();
-    const repositoryRecord = repository(state, request);
-    const worktreeRecord = worktree(repositoryRecord, request);
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
     worktreeRecord.configSource = source;
     this.write(state);
   }
@@ -518,8 +518,8 @@ export class FileBranchBaseStateStore {
       throw new Error(`Instance name "${DEFAULT_INSTANCE_NAME}" is reserved`);
     }
     const state = this.read();
-    const repositoryRecord = repository(state, request);
-    const worktreeRecord = worktree(repositoryRecord, request);
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
     const duplicate = Object.values(repositoryRecord.instances).some(
       (instance) =>
         (!instance.configFingerprint ||
@@ -531,7 +531,7 @@ export class FileBranchBaseStateStore {
     if (duplicate) {
       throw new Error(`An instance named "${normalizedName}" already exists`);
     }
-    const instance = createInstanceRecord(
+    const instance = makeInstanceRecord(
       repositoryRecord,
       worktreeRecord,
       request,
@@ -558,8 +558,8 @@ export class FileBranchBaseStateStore {
       );
     }
     const state = this.read();
-    const repositoryRecord = repository(state, request);
-    const worktreeRecord = worktree(repositoryRecord, request);
+    const repositoryRecord = getRepositoryRecord(state, request);
+    const worktreeRecord = getWorktreeRecord(repositoryRecord, request);
     const instance = repositoryRecord.instances[instanceId];
     if (
       !instance ||
@@ -735,7 +735,8 @@ export class FileBranchBaseStateStore {
       return value;
     } catch (error) {
       throw new Error(
-        `Invalid BranchBase local state: ${error instanceof Error ? error.message : String(error)}`
+        `Invalid BranchBase local state: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   }

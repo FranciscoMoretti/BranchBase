@@ -17,11 +17,8 @@ import { reserveBackingPort } from "../runtime/readiness";
 const require = createRequire(import.meta.url);
 
 export const integrationConfig: BranchBaseConfig = {
-  version: 1,
-  setup: { argv: ["true"] },
   appGroups: {
     development: {
-      instances: { mode: "per-worktree" },
       apps: {
         api: { protocol: "http", readiness: "tcp" },
         site: { protocol: "http", readiness: "tcp" },
@@ -34,11 +31,11 @@ export const integrationConfig: BranchBaseConfig = {
         SITE_PORT: "{apps.site.port}",
         SITE_URL: "{apps.site.url}",
       },
+      instances: { mode: "per-worktree" },
       start: { argv: [process.execPath, "integration-server.ts"] },
       stop: "process",
     },
     external: {
-      instances: { mode: "per-worktree" },
       apps: {
         worker: { protocol: "http", readiness: "tcp" },
       },
@@ -46,10 +43,13 @@ export const integrationConfig: BranchBaseConfig = {
         WORKER_PORT: "{apps.worker.port}",
         WORKER_URL: "{apps.worker.url}",
       },
+      instances: { mode: "per-worktree" },
       start: { argv: [process.execPath, "integration-command-server.ts"] },
       stop: { argv: [process.execPath, "integration-command-stop.ts"] },
     },
   },
+  setup: { argv: ["true"] },
+  version: 1,
 };
 
 export const packageFile = (packageName: string, ...parts: string[]): string =>

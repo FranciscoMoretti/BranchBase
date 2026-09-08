@@ -5,29 +5,6 @@
     "$schema": {
       "type": "string"
     },
-    "version": {
-      "type": "number",
-      "const": 1
-    },
-    "setup": {
-      "type": "object",
-      "properties": {
-        "argv": {
-          "minItems": 1,
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "cwd": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "required": ["argv"],
-      "additionalProperties": false
-    },
     "appGroups": {
       "type": "object",
       "propertyNames": {
@@ -37,9 +14,77 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
+          "apps": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "protocol": {
+                  "type": "string",
+                  "enum": ["http", "tcp"]
+                },
+                "readiness": {
+                  "default": "tcp",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "tcp"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "default": "/",
+                          "type": "string",
+                          "pattern": "^\\/.*"
+                        },
+                        "statuses": {
+                          "default": "200-399",
+                          "type": "string",
+                          "pattern": "^\\d{3}-\\d{3}$"
+                        },
+                        "timeoutSeconds": {
+                          "default": 60,
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 300
+                        },
+                        "type": {
+                          "type": "string",
+                          "const": "http"
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": ["protocol"],
+              "additionalProperties": false
+            }
+          },
           "category": {
             "type": "string",
             "enum": ["application", "infrastructure"]
+          },
+          "env": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "instances": {
             "default": {
@@ -119,84 +164,39 @@
                 "additionalProperties": false
               }
             ]
-          },
-          "env": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string",
-              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
-            },
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "apps": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string",
-              "minLength": 1
-            },
-            "additionalProperties": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "protocol": {
-                  "type": "string",
-                  "enum": ["http", "tcp"]
-                },
-                "readiness": {
-                  "default": "tcp",
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "const": "tcp"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "path": {
-                          "default": "/",
-                          "type": "string",
-                          "pattern": "^\\/.*"
-                        },
-                        "statuses": {
-                          "default": "200-399",
-                          "type": "string",
-                          "pattern": "^\\d{3}-\\d{3}$"
-                        },
-                        "timeoutSeconds": {
-                          "default": 60,
-                          "type": "integer",
-                          "minimum": 1,
-                          "maximum": 300
-                        },
-                        "type": {
-                          "type": "string",
-                          "const": "http"
-                        }
-                      },
-                      "required": ["type"],
-                      "additionalProperties": false
-                    }
-                  ]
-                }
-              },
-              "required": ["protocol"],
-              "additionalProperties": false
-            }
           }
         },
-        "required": ["start", "stop", "apps"],
+        "required": ["apps", "start", "stop"],
         "additionalProperties": false
       }
+    },
+    "setup": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["argv"],
+      "additionalProperties": false
+    },
+    "version": {
+      "type": "number",
+      "const": 1
     }
   },
-  "required": ["version", "setup", "appGroups"],
+  "required": ["appGroups", "setup", "version"],
   "additionalProperties": false,
   "$id": "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json",
-  "title": "BranchBase configuration",
-  "description": "Configure repository commands, dynamic App endpoints, readiness, and exposed App-group environments."
+  "description": "Configure repository commands, dynamic App endpoints, readiness, and exposed App-group environments.",
+  "title": "BranchBase configuration"
 }

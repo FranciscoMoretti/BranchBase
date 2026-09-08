@@ -3,35 +3,35 @@ import { z } from "zod";
 import { ProcessUsageSchema } from "./workspace-snapshot";
 
 export const DetectedServiceSchema = z.object({
-  pid: z.number().int().positive(),
-  port: z.number().int().min(1).max(65_535),
+  address: z.string(),
   command: z.string(),
   cwd: z.string(),
+  managed: z.boolean(),
+  pid: z.number().int().positive(),
+  port: z.number().int().min(1).max(65_535),
+  resources: ProcessUsageSchema.nullable(),
   startedAt: z.string().nullable(),
   url: z.string().nullable(),
-  address: z.string(),
-  resources: ProcessUsageSchema.nullable(),
-  managed: z.boolean(),
 });
 export const ObservationSchema = z.object({
-  resources: ProcessUsageSchema.nullable().optional(),
-  repoPath: z.string(),
   configured: z.boolean(),
+  repoPath: z.string(),
+  resources: ProcessUsageSchema.nullable().optional(),
   updatedAt: z.string(),
   warning: z.string().nullable(),
   worktrees: z.array(
     z.object({
-      id: z.string(),
-      path: z.string(),
       branch: z.string(),
+      id: z.string(),
       isMain: z.boolean(),
+      path: z.string(),
       services: z.array(DetectedServiceSchema),
     })
   ),
 });
 export const DevelopmentFolderSchema = z.object({
-  path: z.string(),
   addedAt: z.string(),
+  path: z.string(),
 });
 export const FolderScanSchema = DevelopmentFolderSchema.extend({
   lastScannedAt: z.string().nullable(),

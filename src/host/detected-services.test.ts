@@ -16,8 +16,8 @@ test("listener parsing deduplicates IPv4/IPv6 and rejects invalid identities and
       "p42\ncnode\nn*:3000\nn[::1]:3000\np7\ncpostgres\nn127.0.0.1:5432\npNaN\nn*:80\np2\nn*:99999\nn*:0"
     )
   ).toEqual([
-    { pid: 42, command: "node", port: 3000, address: "[::1]:3000" },
-    { pid: 7, command: "postgres", port: 5432, address: "127.0.0.1:5432" },
+    { address: "[::1]:3000", command: "node", pid: 42, port: 3000 },
+    { address: "127.0.0.1:5432", command: "postgres", pid: 7, port: 5432 },
   ]);
   expect(
     parseCwds("p42\nn/Users/test/Code/app\np7\nn/private/tmp/db").get(42)
@@ -27,36 +27,36 @@ test("HTTP detection does not invent a loopback URL for a network-only listener"
   const detector = new DetectedServices();
   expect(
     detector.webUrl({
-      pid: 42,
-      command: "server",
-      port: 3000,
       address: "192.168.1.5:3000",
+      command: "server",
       cwd: "/repo",
+      managed: false,
+      pid: 42,
+      port: 3000,
+      resources: null,
       startedAt: null,
       url: null,
-      resources: null,
-      managed: false,
     })
   ).toBeNull();
 });
 test("HTTP detection requires a response, including non-2xx responses", async () => {
   const server = serve({
-    port: 0,
-    hostname: "127.0.0.1",
     fetch: () => new Response("Auth", { status: 401 }),
+    hostname: "127.0.0.1",
+    port: 0,
   });
   try {
     const detector = new DetectedServices();
     const service = {
-      pid: process.pid,
-      command: "bun",
-      port: server.port ?? 0,
       address: `127.0.0.1:${server.port}`,
+      command: "bun",
       cwd: "/repo",
+      managed: false,
+      pid: process.pid,
+      port: server.port ?? 0,
+      resources: null,
       startedAt: null,
       url: null,
-      resources: null,
-      managed: false,
     };
     expect(detector.webUrl(service)).toBeNull();
     const expectedUrl = `http://127.0.0.1:${server.port}`;
@@ -73,33 +73,33 @@ test("HTTP detection requires a response, including non-2xx responses", async ()
 });
 test("HTTP detection retries a failed probe after the short negative cache", async () => {
   const reservation = serve({
-    port: 0,
-    hostname: "127.0.0.1",
     fetch: () => new Response("ready"),
+    hostname: "127.0.0.1",
+    port: 0,
   });
-  const port = reservation.port;
+  const { port } = reservation;
   if (port === undefined) {
     throw new Error("Expected a reserved port.");
   }
   reservation.stop(true);
   const detector = new DetectedServices();
   const service = {
-    pid: process.pid,
-    command: "bun",
-    port,
     address: `127.0.0.1:${port}`,
+    command: "bun",
     cwd: "/repo",
+    managed: false,
+    pid: process.pid,
+    port,
+    resources: null,
     startedAt: null,
     url: null,
-    resources: null,
-    managed: false,
   };
   expect(detector.webUrl(service)).toBeNull();
   await new Promise((resolve) => setTimeout(resolve, PROBE_TIMEOUT_MS));
   const server = serve({
-    port,
-    hostname: "127.0.0.1",
     fetch: () => new Response("ready"),
+    hostname: "127.0.0.1",
+    port,
   });
   try {
     expect(detector.webUrl(service)).toBeNull();

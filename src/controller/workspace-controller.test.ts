@@ -31,11 +31,25 @@ import {
 } from "./workspace-snapshot";
 import { commandWorkingDirectory } from "./worktree-command";
 
-const CLEANUP_APP_GROUP = /^cleanup:/;
+const CLEANUP_APP_GROUP = /^cleanup:/u;
+
+const config = (groupId: string, startCommand = "true") => ({
+  appGroups: {
+    [groupId]: {
+      apps: {
+        web: { protocol: "http", readiness: "tcp" },
+      },
+      start: { argv: [startCommand] },
+      stop: "process",
+    },
+  },
+  setup: { argv: ["true"] },
+  version: 1,
+});
 
 const fakeRoutingEngine = (): LocalRoutingEngine => ({
-  activate: async (_route: LocalRoute) => undefined,
-  deactivate: async (_route: LocalRoute) => undefined,
+  activate: (_route: LocalRoute) => Promise.resolve(),
+  deactivate: (_route: LocalRoute) => Promise.resolve(),
   observe: (_route: LocalRoute): LocalRouteState => "inactive",
   url: (hostname: string) => `http://${hostname}:1355`,
 });
@@ -51,19 +65,19 @@ describe("slot-free workspace inspection", () => {
       writeFileSync(
         pathModule.join(root, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["bun", "install"] },
           appGroups: {
             product: {
-              name: "Product Apps",
-              start: { argv: ["bun", "run", "dev"] },
-              stop: { argv: ["bun", "run", "stop"] },
-              env: { PORT: "{apps.web.port}" },
               apps: {
                 web: { name: "Website", protocol: "http", readiness: "tcp" },
               },
+              env: { PORT: "{apps.web.port}" },
+              name: "Product Apps",
+              start: { argv: ["bun", "run", "dev"] },
+              stop: { argv: ["bun", "run", "stop"] },
             },
           },
+          setup: { argv: ["bun", "install"] },
+          version: 1,
         })
       );
       const controller = new WorkspaceController(undefined, {
@@ -110,19 +124,6 @@ describe("slot-free workspace inspection", () => {
     const experiment = pathModule.join(sandbox, "chat-js-experiment");
     const statePath = pathModule.join(sandbox, ".local", "state.json");
     const controlDirectory = pathModule.join(sandbox, ".control");
-    const config = (groupId: string, startCommand = "true") => ({
-      version: 1,
-      setup: { argv: ["true"] },
-      appGroups: {
-        [groupId]: {
-          start: { argv: [startCommand] },
-          stop: "process",
-          apps: {
-            web: { protocol: "http", readiness: "tcp" },
-          },
-        },
-      },
-    });
     try {
       mkdirSync(root);
       spawnSync("git", ["init", "-q"], { cwd: root });

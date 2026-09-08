@@ -6,8 +6,8 @@ import type { WorkspaceController } from "../controller/workspace-controller";
 import type { CommandReceipt } from "../controller/workspace-snapshot";
 import { requiredString } from "./command";
 
-const BRANCH_PATTERN = /^[A-Za-z0-9._/@-]+$/;
-const FOLDER_PATTERN = /^[A-Za-z0-9._-]+$/;
+const BRANCH_PATTERN = /^[A-Za-z0-9._/@-]+$/u;
+const FOLDER_PATTERN = /^[A-Za-z0-9._-]+$/u;
 
 const run = (argv: string[], cwd: string, env = process.env): string => {
   const [command, ...args] = argv;

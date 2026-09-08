@@ -40,7 +40,7 @@ describe("setup all apps", () => {
     const approvals: (string | undefined)[] = [];
     const controller = controllerFixture({
       onAssert: (worktreeId) => approvals.push(worktreeId),
-      onStart: () => undefined,
+      onStart: () => {},
     });
 
     setupAllApps(controller, { repoPath: "/repo", worktreeIds: [] });

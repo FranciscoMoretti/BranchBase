@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 
-const TRAILING_SLASH = /\/$/;
+const TRAILING_SLASH = /\/$/u;
 
 export interface HostAdapter {
   openUrl: (url: string) => void;
@@ -9,7 +9,9 @@ export interface HostAdapter {
 
 const openMacOSUrl = (url: string): void => {
   const child = spawn("open", [url], { detached: true, stdio: "ignore" });
-  child.on("error", () => undefined);
+  child.on("error", () => {
+    // Opening a URL is best effort.
+  });
   child.unref();
 };
 
@@ -37,7 +39,9 @@ export class MacOSHostAdapter implements HostAdapter {
 }
 
 const unsupportedHostAdapter = (): HostAdapter => ({
-  openUrl: () => undefined,
+  openUrl: () => {
+    // The printed loopback URL remains usable.
+  },
   pickRepository: () => {
     throw new Error("The native repository picker currently requires macOS");
   },

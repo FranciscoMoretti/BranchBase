@@ -79,9 +79,8 @@ describe("BranchBase HTTP server", () => {
 
     try {
       const url = await server.listen();
-      const session = (await (
-        await fetch(new URL("/api/session", url))
-      ).json()) as { token: string };
+      const sessionResponse = await fetch(new URL("/api/session", url));
+      const session = (await sessionResponse.json()) as { token: string };
       const response = await fetch(new URL("/api/commands/start-apps", url), {
         body: JSON.stringify({
           appGroupName: "development",
@@ -150,9 +149,8 @@ describe("BranchBase HTTP server", () => {
         service: "branchbase",
       });
 
-      const session = (await (
-        await fetch(new URL("/api/session", url))
-      ).json()) as { token: string };
+      const sessionResponse = await fetch(new URL("/api/session", url));
+      const session = (await sessionResponse.json()) as { token: string };
       const unauthorized = await fetch(
         new URL("/api/commands/clear-logs", url),
         {
@@ -298,7 +296,8 @@ describe("BranchBase HTTP server", () => {
     try {
       const url = await server.listen();
       expect(url).toStartWith("http://[::1]:");
-      expect((await fetch(new URL("/api/health", url))).status).toBe(200);
+      const response = await fetch(new URL("/api/health", url));
+      expect(response.status).toBe(200);
     } finally {
       await server.close();
       rmSync(appRoot, { force: true, recursive: true });

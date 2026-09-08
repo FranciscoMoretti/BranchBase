@@ -34,16 +34,16 @@ const mount = async () => {
     ])
   );
   Object.assign(globalThis, {
-    document: dom.document,
+    CustomEvent: dom.CustomEvent,
     Element: dom.Element,
     HTMLElement: dom.HTMLElement,
     IS_REACT_ACT_ENVIRONMENT: true,
-    CustomEvent: dom.CustomEvent,
-    navigator: dom.navigator,
-    Node: dom.Node,
-    requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
-    cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
     MutationObserver: dom.window.MutationObserver,
+    Node: dom.Node,
+    cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
+    document: dom.document,
+    navigator: dom.navigator,
+    requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
     window: dom,
   });
   const client = new QueryClient({
@@ -67,7 +67,7 @@ const mount = async () => {
 
 afterEach(async () => {
   if (root) {
-    await act(async () => root?.unmount());
+    await act(() => root?.unmount());
   }
   root = null;
   dom = null;
@@ -123,7 +123,7 @@ test("dirty Back cancel then discard preserves indexed history", async () => {
   }
   const appDom = dom;
   await settleHistory();
-  const history = appDom.window.history;
+  const { history } = appDom.window;
   const anchor = appDom.document.createElement("a");
   anchor.href = "/?view=machine&section=configuration";
   anchor.textContent = "Settings";

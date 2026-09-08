@@ -50,7 +50,7 @@ interface RejectedRequest {
 }
 
 const bearerMatches = (request: IncomingMessage, token: string): boolean => {
-  const authorization = request.headers.authorization;
+  const { authorization } = request.headers;
   if (!authorization?.startsWith("Bearer ")) {
     return false;
   }

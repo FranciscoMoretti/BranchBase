@@ -32,15 +32,15 @@ export const DeleteWorktreeDialog = ({
   repoPath: string;
   worktree: WorktreeSnapshot;
 }) => {
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const confirm = async () => {
     try {
-      setError(null);
+      setMessage(null);
       await mutation.mutateAsync({ repoPath, worktreeId: worktree.id });
       onClose();
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not delete worktree"
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Could not delete worktree"
       );
     }
   };
@@ -66,7 +66,7 @@ export const DeleteWorktreeDialog = ({
           never forces removal.
         </p>
         <FormFeedback
-          error={error ? new Error(error) : null}
+          error={message ? new Error(message) : null}
           title="Could not remove worktree"
         />
         <AlertDialogFooter>

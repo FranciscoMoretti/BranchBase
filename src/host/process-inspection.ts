@@ -12,7 +12,7 @@ export const processIsLive = (pid: number): boolean => {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
+    const { code } = error as NodeJS.ErrnoException;
     if (code === "EPERM") {
       return true;
     }

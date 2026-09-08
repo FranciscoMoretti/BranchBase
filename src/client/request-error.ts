@@ -1,5 +1,5 @@
 const CONNECTION_MESSAGE =
-  /failed to fetch|fetch failed|networkerror|network request failed|load failed|connection to branchbase is unavailable|connection_unavailable/i;
+  /failed to fetch|fetch failed|networkerror|network request failed|load failed|connection to branchbase is unavailable|connection_unavailable/iu;
 export const isConnectionError = (error: Error): boolean =>
   error.name === "TimeoutError" ||
   error.name === "AbortError" ||

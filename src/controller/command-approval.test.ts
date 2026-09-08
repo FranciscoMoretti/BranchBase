@@ -33,7 +33,7 @@ const store = () => {
 };
 afterEach(() => {
   for (const directory of directories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { force: true, recursive: true });
   }
 });
 const observedFixture = () => {
@@ -50,16 +50,16 @@ const observedFixture = () => {
   writeFileSync(
     pathModule.join(repoPath, ".branchbase.json"),
     JSON.stringify({
-      version: 1,
-      setup: { argv: ["true"] },
       appGroups: {
         service: {
+          apps: { api: { protocol: "http", readiness: "tcp" } },
           instances: { mode: "selectable" },
           start: { argv: ["true"] },
           stop: "process",
-          apps: { api: { protocol: "http", readiness: "tcp" } },
         },
       },
+      setup: { argv: ["true"] },
+      version: 1,
     })
   );
   git("add", ".branchbase.json");
@@ -83,9 +83,9 @@ const observedFixture = () => {
   return {
     ...fixture,
     controller,
-    state,
     repoPath,
     snapshot: controller.inspect(repoPath),
+    state,
   };
 };
 
@@ -100,19 +100,19 @@ test("trust revocation preserves retained runtime ownership", async () => {
     expect(controller.inspect(repoPath).trusted).toBe(true);
     const instanceId = snapshot.worktrees[0].appGroups[0].instance.id;
     state.saveRun(
-      { repoPath, instanceId },
+      { instanceId, repoPath },
       {
         apps: {},
         createdAt: new Date().toISOString(),
         groupId: "service",
         instanceId,
         instanceIdsByGroup: { service: instanceId },
-        worktreePath: repoPath,
         stop: "process",
+        worktreePath: repoPath,
       }
     );
     expect(() => controller.revokeTrust(repoPath)).toThrow("Stop App groups");
-    expect(state.run({ repoPath, instanceId })).not.toBeNull();
+    expect(state.run({ instanceId, repoPath })).not.toBeNull();
     expect(controller.inspect(repoPath).trusted).toBe(true);
   } finally {
     await controller.close();
@@ -121,8 +121,9 @@ test("trust revocation preserves retained runtime ownership", async () => {
 
 test("trust revocation blocks pending work on a persisted undiscovered worktree", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
-  const processes = (controller as unknown as { processes: ProcessSupervisor })
-    .processes;
+  const { processes } = controller as unknown as {
+    processes: ProcessSupervisor;
+  };
   const persistedWorktreePath = pathModule.join(repoPath, "persisted-worktree");
   let pending: Promise<unknown> | undefined;
   let managed:
@@ -154,14 +155,12 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
       worktreeLabel: "persisted-worktree",
       worktreePath: persistedWorktreePath,
     });
-    const appGroups = (
-      controller as unknown as {
-        appGroups: {
-          hasPendingLifecycle: (worktreePath: string) => boolean;
-          start: (target: AppGroupTarget) => Promise<unknown>;
-        };
-      }
-    ).appGroups;
+    const { appGroups } = controller as unknown as {
+      appGroups: {
+        hasPendingLifecycle: (worktreePath: string) => boolean;
+        start: (target: AppGroupTarget) => Promise<unknown>;
+      };
+    };
     pending = appGroups.start({
       config,
       groupId: "service",
@@ -205,15 +204,16 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
         persistedWorktreePath
       );
     }
-    await pending?.catch(() => undefined);
+    await pending?.catch(() => {});
     await controller.close();
   }
 });
 
 test("trust revocation blocks a setup process for a persisted worktree", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
-  const processes = (controller as unknown as { processes: ProcessSupervisor })
-    .processes;
+  const { processes } = controller as unknown as {
+    processes: ProcessSupervisor;
+  };
   const worktreePath = pathModule.join(repoPath, "persisted-setup-worktree");
   const markerPath = pathModule.join(worktreePath, "cwd-moved");
   let processId: string | undefined;

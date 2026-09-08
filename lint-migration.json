@@ -1,29 +1,11 @@
 {
   "rules": {
     "no-await-in-loop": "off",
-    "no-plusplus": "off",
     "no-promise-executor-return": "off",
-    "no-shadow": "off",
-    "one-var": "off",
-    "prefer-const": "off",
-    "prefer-destructuring": "off",
-    "prefer-named-capture-group": "off",
-    "preserve-caught-error": "off",
     "promise/avoid-new": "off",
     "promise/no-nesting": "off",
     "promise/param-names": "off",
     "promise/prefer-await-to-callbacks": "off",
-    "promise/prefer-await-to-then": "off",
-    "require-await": "off",
-    "require-unicode-regexp": "off",
-    "sort-keys": "off",
-    "sort-vars": "off",
-    "typescript/no-dynamic-delete": "off",
-    "unicorn/catch-error-name": "off",
-    "unicorn/consistent-function-scoping": "off",
-    "unicorn/no-array-reduce": "off",
-    "unicorn/no-await-expression-member": "off",
-    "unicorn/no-useless-undefined": "off",
-    "unicorn/prefer-type-error": "off"
+    "promise/prefer-await-to-then": "off"
   }
 }

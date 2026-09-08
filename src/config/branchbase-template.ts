@@ -1,7 +1,7 @@
 import type { BranchBaseAppGroup } from "./branchbase-schema";
 
-const TOKEN_PATTERN = /\{([^{}]+)\}/;
-const BRACE_PATTERN = /[{}]/;
+const TOKEN_PATTERN = /\{(?<token>[^{}]+)\}/u;
+const BRACE_PATTERN = /[{}]/u;
 
 export interface ResolvedTemplateApp {
   directUrl?: string;

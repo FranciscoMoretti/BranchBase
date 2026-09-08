@@ -1,5 +1,5 @@
-const SAFE_ARGUMENT = /^[A-Za-z0-9_./:@%+=,-]+$/;
-const WHITESPACE = /\s/;
+const SAFE_ARGUMENT = /^[A-Za-z0-9_./:@%+=,-]+$/u;
+const WHITESPACE = /\s/u;
 
 interface ParseState {
   argument: string;

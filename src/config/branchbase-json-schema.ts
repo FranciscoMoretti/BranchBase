@@ -8,7 +8,7 @@ const SCHEMA_ID =
 export const branchbaseJsonSchema = (): Record<string, unknown> => ({
   ...z.toJSONSchema(BranchBaseConfigSchema, { io: "input" }),
   $id: SCHEMA_ID,
-  title: "BranchBase configuration",
   description:
     "Configure repository commands, dynamic App endpoints, readiness, and exposed App-group environments.",
+  title: "BranchBase configuration",
 });

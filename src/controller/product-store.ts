@@ -25,10 +25,10 @@ import type {
 export { ProductCatalogError } from "./product-catalog-error";
 
 const StoreSchema = z.strictObject({
-  folders: z.array(DevelopmentFolderSchema).default([]),
-  excludedPaths: z.array(z.string()).default([]),
   detected: z.record(z.string(), z.record(z.string(), z.string())).default({}),
   events: z.array(ActivityEventSchema).default([]),
+  excludedPaths: z.array(z.string()).default([]),
+  folders: z.array(DevelopmentFolderSchema).default([]),
   observations: z
     .record(z.string(), z.record(z.string(), z.string()))
     .default({}),
@@ -213,7 +213,7 @@ export class ProductStore {
         "You can watch up to 20 development folders. Remove one before adding another."
       );
     }
-    state.folders.push({ path, addedAt: new Date().toISOString() });
+    state.folders.push({ addedAt: new Date().toISOString(), path });
     this.write(state);
   }
   removeFolder(path: string) {
@@ -248,18 +248,20 @@ export class ProductStore {
           continue;
         }
         const action = current[key] ? "Detected" : "No longer detected";
-        const worktreeId = key.split(":")[1];
+        const [, worktreeId] = key.split(":");
+        const discoveryEventId = randomUUID();
+        const discoveryEventAt = new Date().toISOString();
         state.events.push({
+          at: discoveryEventAt,
+          id: discoveryEventId,
+          kind: "discovery",
+          message: `${action}: ${current[key] ?? previous[key]}`,
+          repoPath: observation.repoPath,
+          severity: "info",
           worktreeId,
           worktreeName:
             current[`worktree:${worktreeId}`] ??
             previous[`worktree:${worktreeId}`],
-          id: randomUUID(),
-          at: new Date().toISOString(),
-          repoPath: observation.repoPath,
-          kind: "discovery",
-          severity: "info",
-          message: `${action}: ${current[key] ?? previous[key]}`,
         });
       }
     }
@@ -288,11 +290,11 @@ export class ProductStore {
     const current: Record<string, string> = {};
     const events: Omit<ActivityEvent, "id" | "at">[] = [];
     const observation = {
-      previous,
       current,
       events,
-      seen: new Set<string>(),
+      previous,
       repoPath: workspace.repoPath,
+      seen: new Set<string>(),
     };
     for (const worktree of workspace.worktrees) {
       observeWorktreeFields(worktree, observation);

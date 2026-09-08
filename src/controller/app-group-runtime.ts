@@ -310,7 +310,7 @@ export class AppGroupRuntime {
     instance: AppGroupInstance,
     ports: ReturnType<typeof inspectListeningPorts>
   ): AppGroupSnapshot {
-    const run = instance.run;
+    const { run } = instance;
     if (!run) {
       throw new Error("Cleanup target has no persisted run");
     }
@@ -358,45 +358,54 @@ export class AppGroupRuntime {
         worktreePath: processPath,
       });
     });
+    const groupSnapshotDependencies = this.inspectDependencies(
+      target,
+      group,
+      run
+    );
+    const groupSnapshotPending = this.lifecycleOperations.has(
+      lifecycleKey(target.repoPath, instance.id)
+    );
+    const groupSnapshotHealth = groupHealth(apps);
+    const groupSnapshotInstances =
+      instance.mode === "selectable"
+        ? this.state
+            .instances(
+              target.repoPath,
+              target.groupId,
+              repositoryCommandFingerprint(target.config)
+            )
+            .map((option) => ({
+              id: option.id,
+              name: option.name,
+              running: this.instanceIsRunning(option, group.stop, ports),
+            }))
+        : [
+            {
+              id: instance.id,
+              name: instance.name,
+              running: this.instanceIsRunning(instance, group.stop, ports),
+            },
+          ];
+    const groupSnapshotName = displayName(target.groupId, group);
     return {
       apps,
       category: group.category ?? "application",
-      run: run
-        ? { startedAt: run.createdAt, worktreePath: run.worktreePath }
-        : null,
-      dependencies: this.inspectDependencies(target, group, run),
-      pending: this.lifecycleOperations.has(
-        lifecycleKey(target.repoPath, instance.id)
-      ),
-      health: groupHealth(apps),
+      dependencies: groupSnapshotDependencies,
+      health: groupSnapshotHealth,
       id: target.groupId,
       instance: {
         id: instance.id,
         mode: instance.mode,
         name: instance.name,
       },
-      instances:
-        instance.mode === "selectable"
-          ? this.state
-              .instances(
-                target.repoPath,
-                target.groupId,
-                repositoryCommandFingerprint(target.config)
-              )
-              .map((option) => ({
-                id: option.id,
-                name: option.name,
-                running: this.instanceIsRunning(option, group.stop, ports),
-              }))
-          : [
-              {
-                id: instance.id,
-                name: instance.name,
-                running: this.instanceIsRunning(instance, group.stop, ports),
-              },
-            ],
-      name: displayName(target.groupId, group),
+      instances: groupSnapshotInstances,
+      name: groupSnapshotName,
+      pending: groupSnapshotPending,
       processRunning,
+      run: run
+        ? { startedAt: run.createdAt, worktreePath: run.worktreePath }
+        : null,
       stop: group.stop === "process" ? "process" : "command",
     };
   }
@@ -593,7 +602,7 @@ export class AppGroupRuntime {
     instance: AppGroupInstance,
     stopCommandTrusted: boolean
   ): Promise<"already-stopped" | "stopped"> {
-    const run = instance.run;
+    const { run } = instance;
     if (!run) {
       return "already-stopped";
     }
@@ -728,12 +737,14 @@ export class AppGroupRuntime {
     const operationKeys = [...new Set(keys)].toSorted();
     const predecessor = Promise.all(
       operationKeys.map((key) =>
-        (this.lifecycleOperations.get(key) ?? Promise.resolve()).catch(
-          () => undefined
-        )
+        (this.lifecycleOperations.get(key) ?? Promise.resolve()).catch(() => {
+          // A predecessor failure does not block the next operation.
+        })
       )
-    ).then(() => undefined);
-    let release: () => void = () => undefined;
+    ).then(() => {
+      // Predecessor completion only releases the operation queue.
+    });
+    let release: (() => void) | undefined;
     const completion = new Promise<void>((resolve) => {
       release = resolve;
     });
@@ -745,7 +756,7 @@ export class AppGroupRuntime {
     try {
       return await operation();
     } finally {
-      release();
+      release?.();
       for (const key of operationKeys) {
         if (this.lifecycleOperations.get(key) === tail) {
           this.lifecycleOperations.delete(key);
@@ -814,7 +825,7 @@ export class AppGroupRuntime {
     stop: BranchBaseAppGroup["stop"],
     ports: ReturnType<typeof inspectListeningPorts>
   ): boolean {
-    const run = instance.run;
+    const { run } = instance;
     if (!run) {
       return false;
     }
@@ -957,8 +968,8 @@ export class AppGroupRuntime {
         logId: context.processId,
         ownerId: context.processId,
         ownerRoot: context.processPath,
-        trackExitFailure: true,
         processId: context.processId,
+        trackExitFailure: true,
       });
     } catch (error) {
       throw new AppGroupLifecycleError("start-failed", errorMessage(error));

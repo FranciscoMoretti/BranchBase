@@ -37,7 +37,7 @@ import {
 } from "./schemas";
 
 const MAX_BODY = 64 * 1024;
-const COMMAND_PATH = /^\/api\/commands\/([a-z-]+)$/;
+const COMMAND_PATH = /^\/api\/commands\/(?<command>[a-z-]+)$/u;
 const CONTENT_TYPES: Record<string, string> = {
   ".css": "text/css",
   ".html": "text/html",
@@ -142,7 +142,7 @@ export const createBranchBaseServer = async (
   let shutdownPromise: Promise<void> | null = null;
 
   const authorized = (request: IncomingMessage): boolean => {
-    const origin = request.headers.origin;
+    const { origin } = request.headers;
     const expectedOrigin = `http://${request.headers.host}`;
     return (
       request.headers["x-branchbase-token"] === token &&
@@ -398,7 +398,9 @@ export const createBranchBaseServer = async (
         controller.close(),
         vite?.close() ?? Promise.resolve(),
       ])
-        .then(() => undefined)
+        .then(() => {
+          // Cleanup completion is intentionally ignored.
+        })
         .finally(() => {
           if (exitCleanupRegistered) {
             process.off("exit", cleanupCodexHookCapability);

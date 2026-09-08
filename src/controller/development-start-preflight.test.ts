@@ -21,10 +21,10 @@ import { ProcessSupervisor } from "../runtime/process-supervisor";
 import { WorkspaceController } from "./workspace-controller";
 
 const inMemoryRoutingEngine = (): LocalRoutingEngine => ({
-  activate: async (_route: LocalRoute) => undefined,
-  deactivate: async (_route: LocalRoute) => undefined,
+  activate: (_route: LocalRoute) => Promise.resolve(),
+  deactivate: (_route: LocalRoute) => Promise.resolve(),
   observe: (_route: LocalRoute): LocalRouteState => "inactive",
-  prepare: async () => undefined,
+  prepare: () => Promise.resolve(),
   url: (hostname: string) => `http://${hostname}:1355`,
 });
 
@@ -48,8 +48,6 @@ it("runs the development Start preflight before local state or repository code",
   writeFileSync(
     pathModule.join(repository, ".branchbase.json"),
     JSON.stringify({
-      version: 1,
-      setup: { argv: ["true"] },
       appGroups: {
         Chat: {
           apps: { chat: { protocol: "http", readiness: "tcp" } },
@@ -64,6 +62,8 @@ it("runs the development Start preflight before local state or repository code",
           stop: "process",
         },
       },
+      setup: { argv: ["true"] },
+      version: 1,
     })
   );
   git(repository, "add", ".branchbase.json");
@@ -71,11 +71,11 @@ it("runs the development Start preflight before local state or repository code",
 
   const statePath = pathModule.join(temporary, "state.json");
   const controller = new WorkspaceController(undefined, {
-    processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
-    routing: inMemoryRoutingEngine(),
     developmentStartPreflight: () => {
       throw new Error("Production BranchBase is already using this worktree");
     },
+    processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
+    routing: inMemoryRoutingEngine(),
     state: new FileBranchBaseStateStore(statePath),
   });
   const worktreeId = Buffer.from(realpathSync(repository)).toString(

@@ -167,8 +167,10 @@ export class PortlessRoutingEngine implements LocalRoutingEngine {
     }
     this.run(["proxy", "start", "--port", String(this.port), "--no-tls"]);
     await waitUntil(
-      async () =>
-        isPortlessProxyResponding(this.url(PORTLESS_PROXY_PROBE_HOSTNAME)),
+      () =>
+        Promise.resolve(
+          isPortlessProxyResponding(this.url(PORTLESS_PROXY_PROBE_HOSTNAME))
+        ),
       `Portless proxy did not start on port ${this.port}`
     );
   }

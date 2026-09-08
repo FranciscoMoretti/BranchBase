@@ -208,10 +208,9 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     port: number
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      let timeout: ReturnType<typeof setTimeout>;
       const handlers = {
         cleanup() {
-          clearTimeout(timeout);
+          clearTimeout(handlers.timeout);
           child.off("error", handlers.onError);
           child.off("exit", handlers.onExit);
           child.off("message", handlers.onMessage);
@@ -237,11 +236,11 @@ export class DevelopmentRouting implements LocalRoutingEngine {
             reject(new Error(received.message));
           }
         },
+        timeout: setTimeout(() => {
+          handlers.cleanup();
+          reject(new Error(`Portless proxy did not start on port ${port}`));
+        }, START_TIMEOUT_MS),
       };
-      timeout = setTimeout(() => {
-        handlers.cleanup();
-        reject(new Error(`Portless proxy did not start on port ${port}`));
-      }, START_TIMEOUT_MS);
       child.once("error", handlers.onError);
       child.once("exit", handlers.onExit);
       child.on("message", handlers.onMessage);

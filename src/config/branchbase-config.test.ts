@@ -6,27 +6,26 @@ import type { BranchBaseConfig } from "./branchbase-schema";
 describe("BranchBase App group environment", () => {
   it("renders one dynamically assigned HTTP endpoint into the trusted command", () => {
     const config: BranchBaseConfig = {
-      version: 1,
-      setup: { argv: ["true"] },
       appGroups: {
         web: {
-          instances: { mode: "per-worktree" },
           apps: { site: { protocol: "http", readiness: "tcp" } },
           env: {
             APP_HOST: "{apps.site.host}",
             APP_PORT: "{apps.site.port}",
             APP_URL: "{apps.site.url}",
           },
+          instances: { mode: "per-worktree" },
           start: { argv: ["bun", "run", "dev", "--port", "{apps.site.port}"] },
           stop: "process",
         },
       },
+      setup: { argv: ["true"] },
+      version: 1,
     };
 
     expect(
       resolveStartCommand(config, "web", {
         web: {
-          id: "web",
           apps: {
             site: {
               directUrl: "http://127.0.0.1:43127",
@@ -35,6 +34,7 @@ describe("BranchBase App group environment", () => {
               url: "http://site.main.example.localhost:1355",
             },
           },
+          id: "web",
         },
       })
     ).toEqual({
@@ -49,32 +49,31 @@ describe("BranchBase App group environment", () => {
 
   it("renders another selected instance's stable HTTP endpoint", () => {
     const config: BranchBaseConfig = {
-      version: 1,
-      setup: { argv: ["true"] },
       appGroups: {
         api: {
-          instances: { mode: "per-worktree" },
           apps: { service: { protocol: "http", readiness: "tcp" } },
+          instances: { mode: "per-worktree" },
           start: { argv: ["bun", "run", "api"] },
           stop: "process",
         },
         web: {
-          instances: { mode: "per-worktree" },
           apps: { site: { protocol: "http", readiness: "tcp" } },
           env: {
             API_URL: "{appGroups.api.apps.service.url}",
             WEB_PORT: "{apps.site.port}",
           },
+          instances: { mode: "per-worktree" },
           start: { argv: ["bun", "run", "web"] },
           stop: "process",
         },
       },
+      setup: { argv: ["true"] },
+      version: 1,
     };
 
     expect(
       resolveStartCommand(config, "web", {
         api: {
-          id: "api",
           apps: {
             service: {
               directUrl: "http://127.0.0.1:49153",
@@ -83,10 +82,11 @@ describe("BranchBase App group environment", () => {
               url: "http://service.main.repo.localhost:1355",
             },
           },
+          id: "api",
         },
         web: {
-          id: "web",
           apps: { site: { host: "127.0.0.1", port: 49_152 } },
+          id: "web",
         },
       }).env
     ).toEqual({

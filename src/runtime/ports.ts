@@ -2,8 +2,8 @@ import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 import pathModule from "node:path";
 
-const LINE_BREAK = /\r?\n/;
-const PORT_AT_END = /:(\d+)(?:\s|$)/;
+const LINE_BREAK = /\r?\n/u;
+const PORT_AT_END = /:(?<port>\d+)(?:\s|$)/u;
 
 interface PortSnapshot {
   pidsByPort: Map<number, Set<number>>;
