@@ -20,8 +20,8 @@ const fakeCommand = (
       new URL("fixtures/fake-codex-app-server.ts", import.meta.url)
     ),
   ],
-  executable: process.execPath,
   env: { ...env, BRANCHBASE_FAKE_CODEX_SCENARIO: scenario },
+  executable: process.execPath,
 });
 
 const fakeAdapter = (

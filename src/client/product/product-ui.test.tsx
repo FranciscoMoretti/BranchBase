@@ -15,21 +15,21 @@ import { worktree } from "./test-fixtures";
 
 const noop = () => undefined;
 const controls: GroupControls = {
-  review: noop,
   blocked: () => false,
   inspect: noop,
   restart: noop,
   retry: noop,
+  review: noop,
   toggle: noop,
 };
 const group = (id: string): AppGroupSnapshot => ({
-  id,
-  name: id,
-  health: "partially-running",
   apps: worktree.apps,
-  processRunning: true,
-  instance: { id: `${id}-instance`, name: "main", mode: "per-worktree" },
+  health: "partially-running",
+  id,
+  instance: { id: `${id}-instance`, mode: "per-worktree", name: "main" },
   instances: [],
+  name: id,
+  processRunning: true,
   stop: "process",
 });
 const list = (groups: AppGroupSnapshot[], expanded = false) =>
@@ -112,8 +112,8 @@ test("configuration fallback and unavailable task discovery retain recovery path
         ...worktree,
         configuration: {
           ...worktree.configuration,
-          preference: "checkout",
           error: "Missing configuration",
+          preference: "checkout",
         },
       }}
     />

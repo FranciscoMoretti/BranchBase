@@ -62,8 +62,6 @@ it("runs the development Start preflight before local state or repository code",
   writeFileSync(
     pathModule.join(repository, ".branchbase.json"),
     JSON.stringify({
-      version: 1,
-      setup: { argv: ["true"] },
       appGroups: {
         Chat: {
           apps: { chat: { protocol: "http", readiness: "tcp" } },
@@ -78,6 +76,8 @@ it("runs the development Start preflight before local state or repository code",
           stop: "process",
         },
       },
+      setup: { argv: ["true"] },
+      version: 1,
     })
   );
   git(repository, "add", ".branchbase.json");
@@ -85,11 +85,11 @@ it("runs the development Start preflight before local state or repository code",
 
   const statePath = pathModule.join(temporary, "state.json");
   const controller = new WorkspaceController(undefined, {
-    processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
-    routing: new InMemoryRoutingEngine(),
     developmentStartPreflight: () => {
       throw new Error("Production BranchBase is already using this worktree");
     },
+    processes: new ProcessSupervisor(pathModule.join(temporary, "processes")),
+    routing: new InMemoryRoutingEngine(),
     state: new FileBranchBaseStateStore(statePath),
   });
   const worktreeId = Buffer.from(realpathSync(repository)).toString(

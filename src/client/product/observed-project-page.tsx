@@ -183,8 +183,8 @@ const ObservedSettings = ({
           onClick={() =>
             command.mutate({
               command: "save-project",
-              repoPath: data.repoPath,
               name: resolvedName,
+              repoPath: data.repoPath,
             })
           }
         >

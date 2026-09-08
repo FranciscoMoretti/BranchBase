@@ -62,8 +62,8 @@ describe("BranchBase Codex hook runner", () => {
     const child = spawn([RUNNER, event], {
       env: {
         ...process.env,
-        PLUGIN_ROOT,
         BRANCHBASE_CODEX_CAPABILITY_PATH: capabilityPath,
+        PLUGIN_ROOT,
       },
       stderr: "pipe",
       stdin: new Blob([JSON.stringify(input)]),

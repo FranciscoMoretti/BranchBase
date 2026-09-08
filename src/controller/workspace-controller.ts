@@ -88,49 +88,9 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
   "add-development-folder": (controller, input) => {
     controller.addDevelopmentFolder(String(input.repoPath));
     return {
-      ok: true,
       command: "add-development-folder",
       message: "Development folder added",
-    };
-  },
-  "remove-development-folder": (controller, input) => {
-    controller.removeDevelopmentFolder(String(input.repoPath));
-    return {
       ok: true,
-      command: "remove-development-folder",
-      message: "Folder removed; projects kept",
-    };
-  },
-  "scan-development-folders": (controller) => {
-    controller.scanDevelopmentFolders();
-    return {
-      ok: true,
-      command: "scan-development-folders",
-      message: "Folder scan complete",
-    };
-  },
-  "save-project": (controller, input) => {
-    controller.saveProject(
-      String(input.repoPath),
-      input.name as string | undefined,
-      input.pins as AppPin[] | undefined
-    );
-    return { ok: true, command: "save-project", message: "Project saved" };
-  },
-  "remove-project": (controller, input) => {
-    controller.removeProject(String(input.repoPath));
-    return {
-      ok: true,
-      command: "remove-project",
-      message: "Project removed; files kept on disk",
-    };
-  },
-  "revoke-trust": (controller, input) => {
-    controller.revokeTrust(String(input.repoPath));
-    return {
-      ok: true,
-      command: "revoke-trust",
-      message: "Command approvals revoked",
     };
   },
   "clear-logs": clearLogs,
@@ -140,9 +100,49 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
   "initialize-repository": initializeRepositoryCommand,
   "pick-repository": pickRepository,
   "preview-repository-config": previewRepositoryConfig,
+  "remove-development-folder": (controller, input) => {
+    controller.removeDevelopmentFolder(String(input.repoPath));
+    return {
+      command: "remove-development-folder",
+      message: "Folder removed; projects kept",
+      ok: true,
+    };
+  },
+  "remove-project": (controller, input) => {
+    controller.removeProject(String(input.repoPath));
+    return {
+      command: "remove-project",
+      message: "Project removed; files kept on disk",
+      ok: true,
+    };
+  },
   "restart-apps": restartApps,
   "restart-running-apps": restartRunningApps,
   "retry-apps": retryApps,
+  "revoke-trust": (controller, input) => {
+    controller.revokeTrust(String(input.repoPath));
+    return {
+      command: "revoke-trust",
+      message: "Command approvals revoked",
+      ok: true,
+    };
+  },
+  "save-project": (controller, input) => {
+    controller.saveProject(
+      String(input.repoPath),
+      input.name as string | undefined,
+      input.pins as AppPin[] | undefined
+    );
+    return { command: "save-project", message: "Project saved", ok: true };
+  },
+  "scan-development-folders": (controller) => {
+    controller.scanDevelopmentFolders();
+    return {
+      command: "scan-development-folders",
+      message: "Folder scan complete",
+      ok: true,
+    };
+  },
   "select-app-group-instance": selectAppGroupInstance,
   "select-worktree-config-source": selectWorktreeConfigSource,
   "setup-all-apps": setupAllApps,
@@ -625,39 +625,47 @@ export class WorkspaceController {
       }
     }
 
+    const snapshotResources = processTreeUsage(
+      samples,
+      globalProcesses
+        .filter((process) => projectOwners.has(process.ownerId))
+        .map((process) => process.pid)
+    );
+    const snapshotGlobalRunningCount = new Set(
+      worktrees.flatMap((worktree) =>
+        worktree.appGroups.flatMap((group) =>
+          group.instances
+            .filter((instance) => instance.running)
+            .map((instance) => instance.id)
+        )
+      )
+    ).size;
+    const snapshotRepoName = pathModule.basename(worktrees[0].path);
+    const snapshotTrustCommands = trustCommands(config);
+    const snapshotTrustFingerprint = repositoryCommandFingerprint(config);
+    const snapshotTrustRequired = repositoryRequiresTrust(config);
+    const snapshotTrusted = repositoryIsTrusted(
+      projectRoot,
+      config,
+      this.processes.controlDirectory
+    );
+    const snapshotUpdatedAt = new Date().toISOString();
     const snapshot: WorkspaceSnapshot = {
       globalProcesses,
-      resources: processTreeUsage(
-        samples,
-        globalProcesses
-          .filter((process) => projectOwners.has(process.ownerId))
-          .map((process) => process.pid)
-      ),
-      globalRunningCount: new Set(
-        worktrees.flatMap((worktree) =>
-          worktree.appGroups.flatMap((group) =>
-            group.instances
-              .filter((instance) => instance.running)
-              .map((instance) => instance.id)
-          )
-        )
-      ).size,
+      globalRunningCount: snapshotGlobalRunningCount,
       mainWorktreePath: worktrees[0].path,
       projectDefaultConfig: config,
       projectDefaultConfigPath: configPath,
       projectDefaultConfigRevision: configDocument.revision,
       projectDefaultPrimaryAppGroup: primaryGroupId,
-      repoName: pathModule.basename(worktrees[0].path),
+      repoName: snapshotRepoName,
       repoPath: projectRoot,
-      trustCommands: trustCommands(config),
-      trustFingerprint: repositoryCommandFingerprint(config),
-      trustRequired: repositoryRequiresTrust(config),
-      trusted: repositoryIsTrusted(
-        projectRoot,
-        config,
-        this.processes.controlDirectory
-      ),
-      updatedAt: new Date().toISOString(),
+      resources: snapshotResources,
+      trustCommands: snapshotTrustCommands,
+      trustFingerprint: snapshotTrustFingerprint,
+      trustRequired: snapshotTrustRequired,
+      trusted: snapshotTrusted,
+      updatedAt: snapshotUpdatedAt,
       worktrees,
     };
     this.product.observe(snapshot);
@@ -704,15 +712,15 @@ export class WorkspaceController {
         observation = this.observeRepository(project.path);
         return {
           ...project,
-          observation,
           error: null,
+          observation,
           workspace: observation.configured ? this.inspect(project.path) : null,
         };
       } catch (error) {
         return {
           ...project,
-          observation,
           error: error instanceof Error ? error.message : String(error),
+          observation,
           workspace: null,
         };
       }
@@ -1016,8 +1024,8 @@ export class WorkspaceController {
       logId: worktree.id,
       ownerId: worktree.id,
       ownerRoot: worktree.path,
-      trackExitFailure: true,
       processId: setupProcessId(worktree.id),
+      trackExitFailure: true,
     });
   }
 

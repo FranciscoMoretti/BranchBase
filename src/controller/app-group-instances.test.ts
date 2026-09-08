@@ -263,21 +263,21 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Apps: {
+              apps: { Web: { protocol: "http" } },
               start: { argv: ["true"] },
               stop: "process",
-              apps: { Web: { protocol: "http" } },
             },
             Services: {
+              apps: { Database: { protocol: "tcp" } },
               instances: { mode: "selectable" },
               start: { argv: ["true"] },
               stop: { argv: ["true"] },
-              apps: { Database: { protocol: "tcp" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       git(repository, "add", ".branchbase.json");
@@ -285,8 +285,8 @@ describe("App-group instance assignment", () => {
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
       const controller = new WorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new InMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -367,10 +367,10 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Services: {
+              apps: { Service: { protocol: "tcp" } },
+              env: { SERVICE_PORT: "{apps.Service.port}" },
               instances: { mode: "selectable" },
               start: {
                 argv: [
@@ -380,10 +380,10 @@ describe("App-group instance assignment", () => {
                 ],
               },
               stop: "process",
-              env: { SERVICE_PORT: "{apps.Service.port}" },
-              apps: { Service: { protocol: "tcp" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       git(repository, "add", ".branchbase.json");
@@ -391,8 +391,8 @@ describe("App-group instance assignment", () => {
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new InMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -442,23 +442,8 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Apps: {
-              start: {
-                argv: [
-                  "bun",
-                  "-e",
-                  "const fs=require('node:fs');const http=require('node:http');fs.writeFileSync('resolved-env.txt',process.env.DATABASE_PORT+'\\n'+process.env.WEB_PORT);http.createServer((_request,response)=>response.end('ok')).listen(Number(process.env.WEB_PORT),'127.0.0.1')",
-                ],
-              },
-              stop: "process",
-              env: {
-                DATABASE_PORT: "{appGroups.Services.apps.Database.port}",
-                SLOW_PORT: "{apps.Slow.port}",
-                WEB_PORT: "{apps.Web.port}",
-              },
               apps: {
                 Slow: {
                   protocol: "http",
@@ -471,20 +456,35 @@ describe("App-group instance assignment", () => {
                 },
                 Web: { protocol: "http" },
               },
+              env: {
+                DATABASE_PORT: "{appGroups.Services.apps.Database.port}",
+                SLOW_PORT: "{apps.Slow.port}",
+                WEB_PORT: "{apps.Web.port}",
+              },
+              start: {
+                argv: [
+                  "bun",
+                  "-e",
+                  "const fs=require('node:fs');const http=require('node:http');fs.writeFileSync('resolved-env.txt',process.env.DATABASE_PORT+'\\n'+process.env.WEB_PORT);http.createServer((_request,response)=>response.end('ok')).listen(Number(process.env.WEB_PORT),'127.0.0.1')",
+                ],
+              },
+              stop: "process",
             },
             Services: {
+              apps: { Database: { protocol: "tcp" } },
               instances: { mode: "selectable" },
               start: { argv: ["true"] },
               stop: { argv: ["true"] },
-              apps: { Database: { protocol: "tcp" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       const routing = new InMemoryRoutingEngine();
       controller = new TrustedWorkspaceController(undefined, {
-        routing,
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing,
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -597,10 +597,9 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Apps: {
+              apps: { Web: { protocol: "http" } },
               start: {
                 argv: [
                   "bun",
@@ -609,14 +608,15 @@ describe("App-group instance assignment", () => {
                 ],
               },
               stop: "process",
-              apps: { Web: { protocol: "http" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       const controller = new TrustedWorkspaceController(undefined, {
-        routing: new FailingPrepareRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new FailingPrepareRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -648,20 +648,20 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Apps: {
+              apps: { Api: { protocol: "tcp" } },
               start: { argv: [`missing-branchbase-command-${process.pid}`] },
               stop: "process",
-              apps: { Api: { protocol: "tcp" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       const controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new InMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -689,10 +689,10 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Apps: {
+              apps: { Web: { protocol: "http" } },
+              env: { WEB_PORT: "{apps.Web.port}" },
               start: {
                 argv: [
                   "bun",
@@ -701,16 +701,16 @@ describe("App-group instance assignment", () => {
                 ],
               },
               stop: "process",
-              env: { WEB_PORT: "{apps.Web.port}" },
-              apps: { Web: { protocol: "http" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       const routing = new RecoverableActivationRoutingEngine();
       controller = new TrustedWorkspaceController(undefined, {
-        routing,
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing,
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -762,22 +762,8 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Apps: {
-              start: {
-                argv: [
-                  "bun",
-                  "-e",
-                  "const fs=require('node:fs');const http=require('node:http');http.createServer((_request,response)=>response.end('ok')).listen(Number(process.env.WEB_PORT),'127.0.0.1');http.createServer((_request,response)=>(response.statusCode=fs.existsSync('delayed-ready')?200:503,response.end('status'))).listen(Number(process.env.DELAYED_PORT),'127.0.0.1')",
-                ],
-              },
-              stop: "process",
-              env: {
-                DELAYED_PORT: "{apps.Delayed.port}",
-                WEB_PORT: "{apps.Web.port}",
-              },
               apps: {
                 Delayed: {
                   protocol: "http",
@@ -790,13 +776,27 @@ describe("App-group instance assignment", () => {
                 },
                 Web: { protocol: "http" },
               },
+              env: {
+                DELAYED_PORT: "{apps.Delayed.port}",
+                WEB_PORT: "{apps.Web.port}",
+              },
+              start: {
+                argv: [
+                  "bun",
+                  "-e",
+                  "const fs=require('node:fs');const http=require('node:http');http.createServer((_request,response)=>response.end('ok')).listen(Number(process.env.WEB_PORT),'127.0.0.1');http.createServer((_request,response)=>(response.statusCode=fs.existsSync('delayed-ready')?200:503,response.end('status'))).listen(Number(process.env.DELAYED_PORT),'127.0.0.1')",
+                ],
+              },
+              stop: "process",
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new InMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -843,19 +843,8 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Services: {
-              start: {
-                argv: [
-                  "bun",
-                  "-e",
-                  "const fs=require('node:fs');fs.writeFileSync('start-count',String(Number(fs.existsSync('start-count')?fs.readFileSync('start-count','utf8'):0)+1));require('node:http').createServer((_request,response)=>(response.statusCode=fs.existsSync('service-ready')?200:503,response.end('status'))).listen(Number(process.env.SERVICE_PORT),'127.0.0.1')",
-                ],
-              },
-              stop: { argv: ["true"] },
-              env: { SERVICE_PORT: "{apps.Service.port}" },
               apps: {
                 Service: {
                   protocol: "http",
@@ -867,13 +856,24 @@ describe("App-group instance assignment", () => {
                   },
                 },
               },
+              env: { SERVICE_PORT: "{apps.Service.port}" },
+              start: {
+                argv: [
+                  "bun",
+                  "-e",
+                  "const fs=require('node:fs');fs.writeFileSync('start-count',String(Number(fs.existsSync('start-count')?fs.readFileSync('start-count','utf8'):0)+1));require('node:http').createServer((_request,response)=>(response.statusCode=fs.existsSync('service-ready')?200:503,response.end('status'))).listen(Number(process.env.SERVICE_PORT),'127.0.0.1')",
+                ],
+              },
+              stop: { argv: ["true"] },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new InMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),
@@ -923,24 +923,24 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Services: {
+              apps: { Database: { protocol: "tcp" } },
               instances: { mode: "selectable" },
               start: { argv: ["true"] },
               stop: { argv: ["true"] },
-              apps: { Database: { protocol: "tcp" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       const state = new FileBranchBaseStateStore(
         pathModule.join(temporary, "state.json")
       );
       const controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new InMemoryRoutingEngine(),
         state,
       });
       const initial = controller.inspect(repository);
@@ -1020,15 +1020,18 @@ describe("App-group instance assignment", () => {
       writeFileSync(
         pathModule.join(repository, ".branchbase.json"),
         JSON.stringify({
-          version: 1,
-          setup: { argv: ["true"] },
           appGroups: {
             Apps: {
+              apps: { Web: { protocol: "http" } },
               start: { argv: ["true"] },
               stop: "process",
-              apps: { Web: { protocol: "http" } },
             },
             Services: {
+              apps: { Database: { protocol: "tcp" } },
+              env: {
+                DB_PORT: "{apps.Database.port}",
+                PRODUCT_PORT: "{appGroups.Apps.apps.Web.port}",
+              },
               instances: { mode: "selectable" },
               start: {
                 argv: [
@@ -1044,13 +1047,10 @@ describe("App-group instance assignment", () => {
                   "require('node:fs').writeFileSync('stopped-with-port.txt',process.env.PRODUCT_PORT)",
                 ],
               },
-              env: {
-                DB_PORT: "{apps.Database.port}",
-                PRODUCT_PORT: "{appGroups.Apps.apps.Web.port}",
-              },
-              apps: { Database: { protocol: "tcp" } },
             },
           },
+          setup: { argv: ["true"] },
+          version: 1,
         })
       );
       git(repository, "add", ".branchbase.json");
@@ -1058,8 +1058,8 @@ describe("App-group instance assignment", () => {
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
       controller = new TrustedWorkspaceController(undefined, {
-        routing: new InMemoryRoutingEngine(),
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
+        routing: new InMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
           pathModule.join(temporary, "state.json")
         ),

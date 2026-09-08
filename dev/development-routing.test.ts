@@ -100,6 +100,11 @@ const listenOnPort = (
 const waitForChildReady = (child: ChildProcess): Promise<void> =>
   new Promise((resolve, reject) => {
     const handlers = {
+      cleanup() {
+        child.off("error", handlers.onError);
+        child.off("exit", handlers.onExit);
+        child.off("message", handlers.onMessage);
+      },
       onError(error: Error) {
         handlers.cleanup();
         reject(error);
@@ -118,11 +123,6 @@ const waitForChildReady = (child: ChildProcess): Promise<void> =>
           handlers.cleanup();
           resolve();
         }
-      },
-      cleanup() {
-        child.off("error", handlers.onError);
-        child.off("exit", handlers.onExit);
-        child.off("message", handlers.onMessage);
       },
     };
     child.once("error", handlers.onError);

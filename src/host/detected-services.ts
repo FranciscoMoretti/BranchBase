@@ -37,10 +37,10 @@ export const parseListeners = (output: string) => {
         Number(match[1]) <= 65_535
       ) {
         rows.push({
-          pid,
-          command,
-          port: Number(match[1]),
           address: line.slice(1),
+          command,
+          pid,
+          port: Number(match[1]),
         });
       }
     }
@@ -65,8 +65,8 @@ export const parseCwds = (output: string) => {
 const run = (program: string, args: string[]) =>
   spawnSync(program, args, {
     encoding: "utf-8",
-    timeout: 3000,
     maxBuffer: 8 * 1024 * 1024,
+    timeout: 3000,
   });
 const startedTimes = () => {
   const result = new Map<number, string>();
@@ -195,9 +195,9 @@ export class DetectedServices {
         services.push({
           ...row,
           cwd: realpathSync(cwd),
-          startedAt: times.get(row.pid) ?? null,
-          resources: processTreeUsage(samples, [row.pid]),
           managed: owned.has(row.pid),
+          resources: processTreeUsage(samples, [row.pid]),
+          startedAt: times.get(row.pid) ?? null,
           url: null,
         });
       } catch {
@@ -212,7 +212,7 @@ export class DetectedServices {
       const limitWarning = "Showing the first 256 listeners.";
       warning = [warning, limitWarning].filter(Boolean).join(" ") || null;
     }
-    this.cached = { at: Date.now(), services, warning, samples };
+    this.cached = { at: Date.now(), samples, services, warning };
     return this.cached;
   }
   webUrl(service: DetectedService): string | null {

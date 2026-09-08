@@ -121,10 +121,10 @@ export class ProjectDiscovery {
         if (!(saved.has(root) || excluded.has(root))) {
           this.store.saveProject(root, pathModule.basename(root));
           this.store.append({
-            repoPath: root,
             kind: "discovery",
-            severity: "info",
             message: "Project discovered in development folder",
+            repoPath: root,
+            severity: "info",
           });
         }
       }
@@ -163,8 +163,8 @@ export class ProjectDiscovery {
     }
     const inspected = this.services.inspect(this.managedPids());
     const result: Observation = {
-      repoPath,
       configured: findBranchBaseConfig(repoPath) !== null,
+      repoPath,
       updatedAt: new Date().toISOString(),
       warning: inspected.warning,
       worktrees: worktrees.map((worktree, index) => ({

@@ -9,21 +9,21 @@ import {
 describe("workspace snapshot transport schema", () => {
   it("preserves slot-free App groups and endpoint lifecycle state", () => {
     const snapshot = WorkspaceSnapshotSchema.parse({
-      projectDefaultConfig: {
-        version: 1,
-        setup: { argv: ["bun", "install"] },
-        appGroups: {
-          product: {
-            name: "Product Apps",
-            start: { argv: ["bun", "run", "dev"] },
-            stop: "process",
-            apps: { web: { protocol: "http", readiness: "tcp" } },
-          },
-        },
-      },
       globalProcesses: [],
       globalRunningCount: 1,
       mainWorktreePath: "/repo",
+      projectDefaultConfig: {
+        appGroups: {
+          product: {
+            apps: { web: { protocol: "http", readiness: "tcp" } },
+            name: "Product Apps",
+            start: { argv: ["bun", "run", "dev"] },
+            stop: "process",
+          },
+        },
+        setup: { argv: ["bun", "install"] },
+        version: 1,
+      },
       projectDefaultConfigPath: "/repo/.branchbase.json",
       projectDefaultConfigRevision: "revision",
       projectDefaultPrimaryAppGroup: "product",
@@ -119,7 +119,7 @@ describe("workspace snapshot transport schema", () => {
     expect(
       AppGroupSnapshotSchema.safeParse({
         ...appGroup,
-        run: { startedAt: "now", worktreePath: "/repo", unexpected: true },
+        run: { startedAt: "now", unexpected: true, worktreePath: "/repo" },
       }).success
     ).toBe(false);
     expect(
@@ -127,10 +127,10 @@ describe("workspace snapshot transport schema", () => {
         ...appGroup,
         dependencies: [
           {
+            extra: true,
             groupId: "infra",
             instanceId: "main",
             name: "Database",
-            extra: true,
           },
         ],
       }).success

@@ -113,7 +113,7 @@ const scenarios: Record<string, ScenarioHandler> = {
       params.useStateDbOnly === true &&
       !("sourceKinds" in params);
     if (!safeRequest) {
-      send({ id: message.id, error: { code: -32_602 } });
+      send({ error: { code: -32_602 }, id: message.id });
       return;
     }
     const secondPage = params.cursor === "opaque-next-page";
@@ -210,7 +210,7 @@ const scenarios: Record<string, ScenarioHandler> = {
     });
   },
   unsupported(message) {
-    send({ id: message.id, error: { code: -32_602 } });
+    send({ error: { code: -32_602 }, id: message.id });
   },
   "wrong-cwd"(message) {
     send({
@@ -243,7 +243,7 @@ const handleInitialize = (message: RequestMessage): void => {
     capabilities.requestAttestation !== false ||
     clientInfo?.name !== "branchbase"
   ) {
-    send({ id: message.id, error: { code: -32_602 } });
+    send({ error: { code: -32_602 }, id: message.id });
     return;
   }
   if (
@@ -270,7 +270,7 @@ const handleMessage = (message: RequestMessage): void => {
     return;
   }
   if (!ready) {
-    send({ id: message.id, error: { code: -32_000 } });
+    send({ error: { code: -32_000 }, id: message.id });
     return;
   }
   listRequestCount += 1;

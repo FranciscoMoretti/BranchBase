@@ -94,9 +94,9 @@ export const ActivityPage = ({
                     {
                       all: "All events",
                       command: "Commands",
-                      runtime: "Runtime",
-                      discovery: "Discoveries",
                       configuration: "Configuration",
+                      discovery: "Discoveries",
+                      runtime: "Runtime",
                     } as Record<string, string>
                   )[kind]
                 }
@@ -168,10 +168,10 @@ export const ActivityPage = ({
             <article className="product-event" key={event.id}>
               <time dateTime={event.at}>
                 {new Date(event.at).toLocaleString(undefined, {
-                  month: "short",
                   day: "numeric",
                   hour: "2-digit",
                   minute: "2-digit",
+                  month: "short",
                 })}
               </time>
               <Clock3Icon />
@@ -190,9 +190,9 @@ export const ActivityPage = ({
                 <a
                   className="product-link"
                   href={hrefFor({
+                    group: event.groupId,
                     repo: event.repoPath,
                     worktree: event.worktreeId,
-                    group: event.groupId,
                   })}
                 >
                   Inspect

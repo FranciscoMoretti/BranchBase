@@ -150,18 +150,18 @@ try {
     pathModule.join(fixtureDirectory, ".branchbase.json"),
     `${JSON.stringify(
       {
-        version: 1,
-        setup: { argv: ["bun", "install"] },
         appGroups: {
           Apps: {
-            start: { argv: ["bun", "run", "dev"] },
-            stop: "process",
-            env: { PORT: "{apps.fixture.port}" },
             apps: {
               fixture: { protocol: "http", readiness: "tcp" },
             },
+            env: { PORT: "{apps.fixture.port}" },
+            start: { argv: ["bun", "run", "dev"] },
+            stop: "process",
           },
         },
+        setup: { argv: ["bun", "install"] },
+        version: 1,
       },
       null,
       2
@@ -174,9 +174,9 @@ try {
 
   const port = await unusedPort();
   daemonEnvironment = {
-    HOME: homeDirectory,
     BRANCHBASE_NO_OPEN: "1",
     BRANCHBASE_PORT: String(port),
+    HOME: homeDirectory,
   };
   const startOutput = run(cliPath, ["start", "--repo", fixtureDirectory], {
     cwd: installDirectory,

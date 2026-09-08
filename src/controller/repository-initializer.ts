@@ -107,22 +107,22 @@ export const planRepositoryInitialization = (
   const config: WorktreeEnvConfig = {
     $schema:
       "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json",
-    version: 1,
-    setup,
     appGroups: {
       Apps: {
-        instances: { mode: "per-worktree" },
-        start,
-        stop: "process",
-        env: { PORT: "{apps.App.port}" },
         apps: {
           App: {
             protocol: "http",
             readiness: "tcp",
           },
         },
+        env: { PORT: "{apps.App.port}" },
+        instances: { mode: "per-worktree" },
+        start,
+        stop: "process",
       },
     },
+    setup,
+    version: 1,
   };
   return {
     config,
