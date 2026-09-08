@@ -46,7 +46,7 @@ export class CodexAppServerClient {
   }
 
   async close(): Promise<void> {
-    const child = this.child;
+    const { child } = this;
     this.child = null;
     this.initialized = null;
     this.outputBuffer = Buffer.alloc(0);
@@ -122,7 +122,7 @@ export class CodexAppServerClient {
   }
 
   private fail(message: string): void {
-    const child = this.child;
+    const { child } = this;
     this.child = null;
     this.initialized = null;
     this.outputBuffer = Buffer.alloc(0);
@@ -133,7 +133,7 @@ export class CodexAppServerClient {
   }
 
   private async request(method: string, params: unknown): Promise<unknown> {
-    const child = this.child;
+    const { child } = this;
     if (!child?.stdin?.writable) {
       throw new CodexIntegrationUnavailableError("Codex app-server exited");
     }
@@ -180,7 +180,9 @@ export class CodexAppServerClient {
       this.child = null;
       this.initialized = null;
     });
-    child.stdin?.on("error", () => undefined);
+    child.stdin?.on("error", () => {
+      // The process lifecycle reports stdin failures.
+    });
     if (!child.stdout) {
       throw new CodexIntegrationUnavailableError(
         "Codex app-server output is unavailable"

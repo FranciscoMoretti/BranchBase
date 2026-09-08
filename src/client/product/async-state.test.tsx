@@ -15,9 +15,9 @@ import { ProjectsPage } from "./projects-page";
 const base: QueryState = {
   data: undefined,
   error: null,
-  isPending: true,
   isFetching: true,
-  refetch: () => undefined,
+  isPending: true,
+  refetch: () => {},
 };
 let activeRoot: Root | null = null;
 let activeDom: Window | null = null;
@@ -39,13 +39,13 @@ const previousGlobals = new Map(
 const mountDom = () => {
   activeDom = new Window({ url: "http://localhost/" });
   Object.assign(globalThis, {
-    document: activeDom.document,
     Element: activeDom.Element,
     HTMLElement: activeDom.HTMLElement,
-    navigator: activeDom.navigator,
-    Node: activeDom.Node,
-    window: activeDom,
     IS_REACT_ACT_ENVIRONMENT: true,
+    Node: activeDom.Node,
+    document: activeDom.document,
+    navigator: activeDom.navigator,
+    window: activeDom,
   });
   const container = activeDom.document.createElement("div");
   activeDom.document.body.append(container);
@@ -54,7 +54,7 @@ const mountDom = () => {
 };
 afterEach(async () => {
   if (activeRoot) {
-    await act(async () => activeRoot?.unmount());
+    await act(() => activeRoot?.unmount());
   }
   activeRoot = null;
   activeDom = null;
@@ -77,8 +77,8 @@ test("initial load reserves the same content region as initial failure, without 
   const loading = region({});
   const failed = region({
     error: new TypeError("Failed to fetch"),
-    isPending: false,
     isFetching: false,
+    isPending: false,
   });
   for (const html of [loading, failed]) {
     expect(html).toContain("product-query-status");
@@ -94,8 +94,8 @@ test("refresh failure preserves usable content and offers a read-only retry", ()
   const html = region({
     data: [1],
     error: new Error("Failed to fetch"),
-    isPending: false,
     isFetching: false,
+    isPending: false,
   });
   expect(html).toContain("Saved project");
   expect(html).toContain("Showing the last successful update");
@@ -229,9 +229,9 @@ const page = (
       .getQueryCache()
       .build(client, { queryKey: key })
       .setState({
-        status: "error",
         error: new TypeError("Failed to fetch"),
         fetchStatus: "idle",
+        status: "error",
       });
   }
   const html = renderToStaticMarkup(

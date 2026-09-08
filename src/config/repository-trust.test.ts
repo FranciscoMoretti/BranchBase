@@ -21,8 +21,6 @@ import {
 
 const config = (mode: "per-worktree" | "selectable") =>
   BranchBaseConfigSchema.parse({
-    version: 1,
-    setup: { argv: ["true"] },
     appGroups: {
       Apps: {
         apps: { Web: { protocol: "http" } },
@@ -31,6 +29,8 @@ const config = (mode: "per-worktree" | "selectable") =>
         stop: "process",
       },
     },
+    setup: { argv: ["true"] },
+    version: 1,
   });
 
 describe("repository trust fingerprint", () => {
@@ -63,8 +63,8 @@ describe("repository trust fingerprint", () => {
     try {
       const file = pathModule.join(directory, "trusted-repositories.json");
       const contents = JSON.stringify({
-        "/code/valid": "retained-fingerprint",
         "/code/invalid": { trusted: true },
+        "/code/valid": "retained-fingerprint",
       });
       writeFileSync(file, contents);
 
@@ -164,8 +164,8 @@ describe("repository trust fingerprint", () => {
             BRANCHBASE_TEST_DIR: directory,
             BRANCHBASE_TEST_REPO: `/code/concurrent-${index}`,
           },
-          stdout: "ignore",
           stderr: "pipe",
+          stdout: "ignore",
         })
       );
       const resultPromise = Promise.all(

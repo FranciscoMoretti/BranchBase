@@ -20,7 +20,7 @@ export const scanRepositories = (root: string, maxDepth = 3, limit = 2000) => {
   if (!statSync(canonical).isDirectory()) {
     throw new Error("Choose a development folder.");
   }
-  const queue = [{ path: canonical, depth: 0 }];
+  const queue = [{ depth: 0, path: canonical }];
   const repositories: string[] = [];
   let visited = 0;
   let unreadable = 0;
@@ -29,7 +29,7 @@ export const scanRepositories = (root: string, maxDepth = 3, limit = 2000) => {
     if (!current) {
       break;
     }
-    visited++;
+    visited += 1;
     if (existsSync(pathModule.join(current.path, ".git"))) {
       repositories.push(current.path);
       continue;
@@ -47,13 +47,13 @@ export const scanRepositories = (root: string, maxDepth = 3, limit = 2000) => {
           !EXCLUDED.has(entry.name)
         ) {
           queue.push({
-            path: pathModule.join(current.path, entry.name),
             depth: current.depth + 1,
+            path: pathModule.join(current.path, entry.name),
           });
         }
       }
     } catch {
-      unreadable++;
+      unreadable += 1;
     }
   }
   let warning: string | null = null;

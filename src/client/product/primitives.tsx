@@ -90,7 +90,7 @@ export const CopyButton = ({
     >
       {state === "copied" ? <CheckIcon /> : <CopyIcon />}
       <span aria-atomic="true" aria-live="polite" className="sr-only">
-        {{ failed: "Clipboard unavailable", copied: "Copied", idle: "" }[state]}
+        {{ copied: "Copied", failed: "Clipboard unavailable", idle: "" }[state]}
       </span>
     </Button>
   );

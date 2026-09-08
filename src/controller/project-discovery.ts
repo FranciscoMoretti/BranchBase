@@ -97,12 +97,13 @@ export class ProjectDiscovery {
     const roots = new Set<string>();
     try {
       const scan = scanRepositories(path);
-      warning = scan.warning;
-      if (scan.repositories.length > 100) {
+      const { repositories, warning: scanWarning } = scan;
+      warning = scanWarning;
+      if (repositories.length > 100) {
         warning =
           "Showing the first 100 repositories in this folder. Add more specific folders to discover the rest.";
       }
-      for (const candidate of scan.repositories.slice(0, 100)) {
+      for (const candidate of repositories.slice(0, 100)) {
         try {
           const root = this.worktrees(candidate)[0]?.path;
           if (root) {
@@ -121,10 +122,10 @@ export class ProjectDiscovery {
         if (!(saved.has(root) || excluded.has(root))) {
           this.store.saveProject(root, pathModule.basename(root));
           this.store.append({
-            repoPath: root,
             kind: "discovery",
-            severity: "info",
             message: "Project discovered in development folder",
+            repoPath: root,
+            severity: "info",
           });
         }
       }
@@ -163,8 +164,8 @@ export class ProjectDiscovery {
     }
     const inspected = this.services.inspect(this.managedPids());
     const result: Observation = {
-      repoPath,
       configured: findBranchBaseConfig(repoPath) !== null,
+      repoPath,
       updatedAt: new Date().toISOString(),
       warning: inspected.warning,
       worktrees: worktrees.map((worktree, index) => ({

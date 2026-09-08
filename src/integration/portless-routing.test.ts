@@ -367,8 +367,10 @@ test("runs a configured Stop command for an external runtime", async () => {
       .inspect(fixture.root)
       .worktrees.find((worktree) => worktree.isMain)
       ?.appGroups.find((group) => group.id === "external")?.apps[0];
+    const externalUrl = external?.url;
+    const externalResponse = externalUrl ? await fetch(externalUrl) : null;
     assert(
-      external?.open && external.url && (await fetch(external.url)).ok,
+      external?.open && externalUrl && externalResponse?.ok,
       "Configured-command App group did not start"
     );
     await fixture.controller.stopAppGroup(fixture.root, main.id, "external");

@@ -82,9 +82,10 @@ export const ProductApp = () => {
     }
     historyInitialized.current = true;
   }, []);
-  const historyAction = useRef<
-    { kind: "restore" | "accept"; index: number } | undefined
-  >(undefined);
+  const historyAction = useRef<{
+    kind: "restore" | "accept";
+    index: number;
+  } | null>(null);
   const currentHref = useRef(window.location.href);
   const scrollPositions = useRef(new Map<string, number>());
   const [pendingHref, setPendingHref] = useState<string | null>(null);
@@ -119,7 +120,7 @@ export const ProductApp = () => {
   );
   useEffect(() => {
     const setDirty = (event: Event) => {
-      const detail = (event as CustomEvent<boolean>).detail;
+      const { detail } = event as CustomEvent<boolean>;
       if (typeof detail === "boolean") {
         dirty.current = detail;
       }
@@ -136,7 +137,7 @@ export const ProductApp = () => {
       const targetIndex = readHistoryIndex(window.history.state);
       const action = historyAction.current;
       if (action && targetIndex === action.index) {
-        historyAction.current = undefined;
+        historyAction.current = null;
         if (action.kind === "restore") {
           return;
         }
@@ -159,7 +160,7 @@ export const ProductApp = () => {
               targetIndex,
             },
           };
-          historyAction.current = { kind: "restore", index: currentIndex };
+          historyAction.current = { index: currentIndex, kind: "restore" };
           setPendingHref(target);
           window.history.go(currentIndex - targetIndex);
           return;
@@ -171,7 +172,7 @@ export const ProductApp = () => {
           "",
           currentHref.current
         );
-        pendingNavigation.current = { href: target, fallback: true };
+        pendingNavigation.current = { fallback: true, href: target };
         setPendingHref(target);
         return;
       }
@@ -252,8 +253,8 @@ export const ProductApp = () => {
     }
     const frame = requestAnimationFrame(() =>
       window.scrollTo({
-        top: scrollPositions.current.get(window.location.href) ?? 0,
         behavior: "instant",
+        top: scrollPositions.current.get(window.location.href) ?? 0,
       })
     );
     return () => cancelAnimationFrame(frame);
@@ -373,8 +374,8 @@ export const ProductApp = () => {
                   setPendingHref(null);
                   if (pending?.traversal) {
                     historyAction.current = {
-                      kind: "accept",
                       index: pending.traversal.targetIndex,
+                      kind: "accept",
                     };
                     window.history.go(pending.traversal.delta);
                   } else if (pending?.fallback) {

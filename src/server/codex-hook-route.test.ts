@@ -16,7 +16,6 @@ describe("Codex hook HTTP route", () => {
     const handler = createCodexHookRequestHandler({
       observe: (observation) => {
         observations.push(observation);
-        return undefined;
       },
       token: "hook-secret",
     });
@@ -130,23 +129,18 @@ describe("Codex hook HTTP route", () => {
         method: "POST",
       });
 
-    expect((await request({ authorization: "Bearer wrong" })).status).toBe(403);
-    expect(
-      (
-        await request({
-          authorization: "Bearer hook-secret",
-          origin: "https://example.com",
-        })
-      ).status
-    ).toBe(403);
-    expect(
-      (
-        await request(
-          { authorization: "Bearer hook-secret" },
-          { ...payload, prompt: "must not cross the bridge" }
-        )
-      ).status
-    ).toBe(400);
+    const wrongToken = await request({ authorization: "Bearer wrong" });
+    expect(wrongToken.status).toBe(403);
+    const browserOrigin = await request({
+      authorization: "Bearer hook-secret",
+      origin: "https://example.com",
+    });
+    expect(browserOrigin.status).toBe(403);
+    const contentBearing = await request(
+      { authorization: "Bearer hook-secret" },
+      { ...payload, prompt: "must not cross the bridge" }
+    );
+    expect(contentBearing.status).toBe(400);
     expect(observations).toEqual([]);
   });
 
@@ -161,15 +155,13 @@ describe("Codex hook HTTP route", () => {
         method: "POST",
       });
 
-    expect((await request("{}", "text/plain")).status).toBe(415);
-    expect(
-      (
-        await request(
-          JSON.stringify({ padding: "x".repeat(17 * 1024) }),
-          "application/json"
-        )
-      ).status
-    ).toBe(413);
+    const wrongContentType = await request("{}", "text/plain");
+    expect(wrongContentType.status).toBe(415);
+    const oversized = await request(
+      JSON.stringify({ padding: "x".repeat(17 * 1024) }),
+      "application/json"
+    );
+    expect(oversized.status).toBe(413);
     expect(observations).toEqual([]);
   });
 });

@@ -14,7 +14,7 @@ export const observePortlessRoute = async (
   url: string
 ): Promise<PortlessRouteObservation> => {
   try {
-    const hostname = new URL(url).hostname;
+    const { hostname } = new URL(url);
     const response = await fetch(url, {
       signal: AbortSignal.timeout(500),
     });

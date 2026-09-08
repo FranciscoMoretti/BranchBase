@@ -70,10 +70,10 @@ const attentionHref = (
   }
 ): string =>
   hrefFor({
-    repo,
-    worktree: worktree.id,
     group: worktree.primaryAppGroup,
     panel: worktree.configuration.trusted ? "logs" : "configuration",
+    repo,
+    worktree: worktree.id,
   });
 const projectSummary = (
   project: ProjectOverview,
@@ -119,7 +119,7 @@ const attentionNotice = (
   return null;
 };
 const ProjectRow = ({ project }: { project: ProjectOverview }) => {
-  const workspace = project.workspace;
+  const { workspace } = project;
   const detected =
     project.observation?.worktrees.flatMap((worktree) =>
       worktree.services
@@ -288,10 +288,10 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
                       onClick={() =>
                         mutation.mutate({
                           command: "save-project",
-                          repoPath: project.path,
                           pins: project.pins.filter(
                             (_, position) => position !== index
                           ),
+                          repoPath: project.path,
                         })
                       }
                       variant="ghost"

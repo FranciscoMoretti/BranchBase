@@ -18,7 +18,8 @@ export const assertProductionWorktreeAvailable = (
     throw new Error(
       `Could not verify Production BranchBase state at ${statePath}: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
+      { cause: error }
     );
   }
   if (!run) {

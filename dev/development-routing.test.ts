@@ -149,7 +149,8 @@ const waitForProxyStatus = async (
   do {
     try {
       // oxlint-disable-next-line no-await-in-loop -- Proxy status polling observes each attempt before waiting.
-      if ((await proxyResponse(port, hostname)).status === expected) {
+      const response = await proxyResponse(port, hostname);
+      if (response.status === expected) {
         return;
       }
     } catch {
@@ -188,7 +189,7 @@ it("routes through the embedded development proxy", async () => {
     pathModule.join(tmpdir(), "branchbase-routing-")
   );
   const reservation = await reserveBackingPort();
-  const port = reservation.port;
+  const { port } = reservation;
   const backend = await listenBackend();
   let routing: DevelopmentRouting | undefined;
 
@@ -262,9 +263,11 @@ it("publishes a route before the backing app accepts traffic", async () => {
     });
     await routing.activate(route);
     expect(routing.observe(route)).toBe("active");
-    expect(
-      (await proxyResponse(proxyReservation.port, route.hostname)).status
-    ).toBe(502);
+    const unavailable = await proxyResponse(
+      proxyReservation.port,
+      route.hostname
+    );
+    expect(unavailable.status).toBe(502);
 
     backend = await listenBackend(route.port);
     await waitForProxyStatus(proxyReservation.port, route.hostname, 200);
@@ -283,7 +286,7 @@ it("restores persistent aliases when the embedded proxy reopens", async () => {
     pathModule.join(tmpdir(), "branchbase-routing-reopen-")
   );
   const reservation = await reserveBackingPort();
-  const port = reservation.port;
+  const { port } = reservation;
   const backend = await listenBackend();
   let first: DevelopmentRouting | undefined;
   let reopened: DevelopmentRouting | undefined;
@@ -308,7 +311,8 @@ it("restores persistent aliases when the embedded proxy reopens", async () => {
     expect(
       reopened.observe({ hostname: "app.localhost", port: backend.port })
     ).toBe("active");
-    expect((await proxyResponse(port, "app.localhost")).status).toBe(200);
+    const reopenedResponse = await proxyResponse(port, "app.localhost");
+    expect(reopenedResponse.status).toBe(200);
   } finally {
     await reopened?.close();
     await first?.close();
@@ -323,7 +327,7 @@ it("keeps a published route active while its backend recovers", async () => {
     pathModule.join(tmpdir(), "branchbase-routing-recovery-")
   );
   const reservation = await reserveBackingPort();
-  const port = reservation.port;
+  const { port } = reservation;
   const route = { hostname: "recovering.localhost", port: 0 };
   let backend: Awaited<ReturnType<typeof listenBackend>> | undefined;
   let first: DevelopmentRouting | undefined;
@@ -348,7 +352,8 @@ it("keeps a published route active while its backend recovers", async () => {
       stateDirectory: temporary,
     });
     expect(reopened.observe(route)).toBe("active");
-    expect((await proxyResponse(port, route.hostname)).status).toBe(502);
+    const unavailable = await proxyResponse(port, route.hostname);
+    expect(unavailable.status).toBe(502);
 
     backend = await listenBackend(route.port);
     await waitForProxyStatus(port, route.hostname, 200);
@@ -357,7 +362,8 @@ it("keeps a published route active while its backend recovers", async () => {
     await backend.close();
     backend = undefined;
     expect(reopened.observe(route)).toBe("active");
-    expect((await proxyResponse(port, route.hostname)).status).toBe(502);
+    const unavailableAgain = await proxyResponse(port, route.hostname);
+    expect(unavailableAgain.status).toBe(502);
 
     backend = await listenBackend(route.port);
     await waitForProxyStatus(port, route.hostname, 200);
@@ -376,7 +382,7 @@ it("rejects occupied ports and releases both loopback listeners", async () => {
     pathModule.join(tmpdir(), "branchbase-routing-port-")
   );
   const reservation = await reserveBackingPort();
-  const port = reservation.port;
+  const { port } = reservation;
   let routing: DevelopmentRouting | undefined;
   let closeIpv4: (() => Promise<void>) | undefined;
   let closeIpv6: (() => Promise<void>) | undefined;
@@ -426,7 +432,7 @@ it("stops the proxy when its Bun parent is killed", async () => {
     pathModule.join(tmpdir(), "branchbase-routing-crash-")
   );
   const reservation = await reserveBackingPort();
-  const port = reservation.port;
+  const { port } = reservation;
   await reservation.release();
   const parent = fork(
     fileURLToPath(

@@ -71,7 +71,7 @@ const acquireDevelopmentOwnership = (
     );
   } catch (error) {
     if (error instanceof ExclusiveFileLockBusyError) {
-      throw new Error(
+      throw new TypeError(
         "BranchBase development is already running for this checkout",
         { cause: error }
       );
@@ -140,7 +140,7 @@ const openDevelopmentRouting = async (
   for (let attempt = 0; attempt < 5; attempt += 1) {
     // oxlint-disable-next-line no-await-in-loop -- Proxy port reservations retry sequentially against conflicting ports.
     const reservation = await reserveBackingPort(conflictingPorts);
-    const port = reservation.port;
+    const { port } = reservation;
     // oxlint-disable-next-line no-await-in-loop -- Each reserved port is released before the next retry.
     await reservation.release();
     try {
@@ -218,8 +218,6 @@ export const openDevelopmentSession = async (
         codexHooks: new CodexHookActivityStore({
           file: pathModule.join(codexControlDirectory, "activity.json"),
         }),
-        processes: new ProcessSupervisor(controlDirectory),
-        routing,
         developmentStartPreflight: (worktreePath) => {
           assertProductionWorktreeAvailable(worktreePath, {
             productionControlDirectory: pathModule.join(
@@ -228,6 +226,8 @@ export const openDevelopmentSession = async (
             ),
           });
         },
+        processes: new ProcessSupervisor(controlDirectory),
+        routing,
         state: new FileBranchBaseStateStore(statePath),
       },
       profile,

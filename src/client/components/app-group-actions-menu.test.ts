@@ -17,9 +17,9 @@ const group = (health: AppGroupSnapshot["health"]): AppGroupSnapshot => ({
 const itemIds = (target: AppGroupSnapshot): string[] =>
   appGroupCommandMenuItems({
     group: target,
-    onRestart: () => undefined,
-    onRetry: () => undefined,
-    onToggle: () => undefined,
+    onRestart: () => {},
+    onRetry: () => {},
+    onToggle: () => {},
     pending: false,
   }).map((item) => item.id);
 

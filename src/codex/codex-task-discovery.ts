@@ -104,13 +104,14 @@ export class CodexTaskDiscoveryAdapter implements CodexIntegrationAdapter {
   }
 
   async close(): Promise<void> {
-    const clientPromise = this.clientPromise;
+    const { clientPromise } = this;
     this.clientPromise = undefined;
     if (!clientPromise) {
       return;
     }
     try {
-      await (await clientPromise).close();
+      const client = await clientPromise;
+      await client.close();
     } catch {
       // A failed executable resolution has no child process to close.
     }

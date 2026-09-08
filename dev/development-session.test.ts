@@ -49,7 +49,7 @@ it("isolates development resources from the production runtime", async () => {
   try {
     mkdirSync(expectedProductionDirectory, { recursive: true });
     writeFileSync(productionState, "production-state\n");
-    const port = proxyPort.port;
+    const { port } = proxyPort;
     await proxyPort.release();
     opened = await openDevelopmentSession({
       appRoot,
@@ -93,7 +93,7 @@ it("allows only one development writer per checkout", async () => {
     pathModule.join(tmpdir(), "branchbase-development-lock-")
   );
   const proxyPort = await reserveBackingPort();
-  const port = proxyPort.port;
+  const { port } = proxyPort;
   let first: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
   let reopened: Awaited<ReturnType<typeof openDevelopmentSession>> | undefined;
   const options = {
@@ -158,7 +158,7 @@ it("releases session ownership when proxy shutdown fails", async () => {
     closeProxy = routing.close.bind(routing);
     routing.close = () =>
       Promise.reject(new Error("simulated shutdown failure"));
-    const warning = spyOn(console, "warn").mockImplementation(() => undefined);
+    const warning = spyOn(console, "warn").mockImplementation(() => {});
     try {
       await expect(opened.close()).resolves.toBeUndefined();
     } finally {

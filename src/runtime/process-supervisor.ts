@@ -20,8 +20,8 @@ import { processStartMarker } from "../host/process-inspection";
 import { delay } from "./async-utils";
 import { pathInside, pidOwnedByWorktree } from "./ports";
 
-const LINE_BREAK = /\r?\n/;
-const TRAILING_LINE_BREAK = /\r?\n$/;
+const LINE_BREAK = /\r?\n/u;
+const TRAILING_LINE_BREAK = /\r?\n$/u;
 const GRACEFUL_STOP_ATTEMPTS = 20;
 const FORCE_STOP_ATTEMPTS = 10;
 const STOP_POLL_MS = 100;
@@ -32,8 +32,8 @@ const ProcessRecordSchema = z.strictObject({
   label: z.string().min(1).optional(),
   ownerId: z.string().min(1).optional(),
   pid: z.number().int().positive(),
-  startedAt: z.string().min(1),
   startMarker: z.string().min(1),
+  startedAt: z.string().min(1),
 });
 const ProcessFailureSchema = z.strictObject({
   failedAt: z.string().min(1),
@@ -81,7 +81,7 @@ export const appGroupInstanceProcessId = (instanceId: string): string =>
   `${instanceId}--app-group-instance`;
 
 const safeId = (processId: string): string =>
-  processId.replaceAll(/[^A-Za-z0-9_-]/g, "_");
+  processId.replaceAll(/[^A-Za-z0-9_-]/gu, "_");
 
 const isMissingPathError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -208,14 +208,16 @@ export class ProcessSupervisor {
     if (!child.pid) {
       throw new Error(`Failed to start ${command}`);
     }
+    const recordStartedAt = new Date().toISOString();
+    const recordStartMarker = processStartMarker(child.pid);
     const record: ProcessRecord = {
       argv: input.argv,
       cwd: input.cwd,
-      pid: child.pid,
       label: input.label,
       ownerId: input.ownerId ?? input.logId ?? input.processId,
-      startedAt: new Date().toISOString(),
-      startMarker: processStartMarker(child.pid),
+      pid: child.pid,
+      startMarker: recordStartMarker,
+      startedAt: recordStartedAt,
     };
     this.processes.set(input.processId, { child, record });
     writeFileSync(this.pidPath(input.processId), `${JSON.stringify(record)}\n`);

@@ -7,7 +7,7 @@ import type { ProxyServer } from "portless";
 const IPV6_UNAVAILABLE_CODES = new Set(["EADDRNOTAVAIL", "EAFNOSUPPORT"]);
 
 const port = Number(process.argv[2]);
-const stateDirectory = process.argv[3];
+const [stateDirectory] = process.argv.slice(3);
 if (
   !(Number.isInteger(port) && port >= 1 && port <= 65_535 && stateDirectory)
 ) {
@@ -22,7 +22,9 @@ let closePromise: Promise<void> | undefined;
 const createServer = (): ProxyServer => {
   const server = createProxyServer({
     getRoutes: () => store.loadRoutes(),
-    onError: () => undefined,
+    onError: () => {
+      // The proxy reports errors through its lifecycle.
+    },
     proxyPort: port,
     strict: true,
     tld: "localhost",
@@ -102,7 +104,7 @@ try {
     await listen(ipv6, "::1");
     servers.push(ipv6);
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
+    const { code } = error as NodeJS.ErrnoException;
     if (!IPV6_UNAVAILABLE_CODES.has(code ?? "")) {
       throw error;
     }
