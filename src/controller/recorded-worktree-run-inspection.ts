@@ -27,7 +27,7 @@ const canonicalPath = (path: string): string | null => {
   try {
     return realpathSync(path);
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
+    const { code } = error as NodeJS.ErrnoException;
     if (code === "ENOENT" || code === "ENOTDIR") {
       return null;
     }

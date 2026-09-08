@@ -261,7 +261,7 @@ export class ProductStore {
           continue;
         }
         const action = current[key] ? "Detected" : "No longer detected";
-        const worktreeId = key.split(":")[1];
+        const [, worktreeId] = key.split(":");
         const discoveryEventId = randomUUID();
         const discoveryEventAt = new Date().toISOString();
         state.events.push({

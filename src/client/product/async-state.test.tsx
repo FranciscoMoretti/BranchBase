@@ -17,7 +17,7 @@ const base: QueryState = {
   error: null,
   isFetching: true,
   isPending: true,
-  refetch: () => undefined,
+  refetch: () => {},
 };
 let activeRoot: Root | null = null;
 let activeDom: Window | null = null;
@@ -54,7 +54,7 @@ const mountDom = () => {
 };
 afterEach(async () => {
   if (activeRoot) {
-    await act(async () => activeRoot?.unmount());
+    await act(() => activeRoot?.unmount());
   }
   activeRoot = null;
   activeDom = null;

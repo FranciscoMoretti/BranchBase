@@ -121,8 +121,9 @@ test("trust revocation preserves retained runtime ownership", async () => {
 
 test("trust revocation blocks pending work on a persisted undiscovered worktree", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
-  const processes = (controller as unknown as { processes: ProcessSupervisor })
-    .processes;
+  const { processes } = controller as unknown as {
+    processes: ProcessSupervisor;
+  };
   const persistedWorktreePath = pathModule.join(repoPath, "persisted-worktree");
   let pending: Promise<unknown> | undefined;
   let managed:
@@ -154,14 +155,12 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
       worktreeLabel: "persisted-worktree",
       worktreePath: persistedWorktreePath,
     });
-    const appGroups = (
-      controller as unknown as {
-        appGroups: {
-          hasPendingLifecycle: (worktreePath: string) => boolean;
-          start: (target: AppGroupTarget) => Promise<unknown>;
-        };
-      }
-    ).appGroups;
+    const { appGroups } = controller as unknown as {
+      appGroups: {
+        hasPendingLifecycle: (worktreePath: string) => boolean;
+        start: (target: AppGroupTarget) => Promise<unknown>;
+      };
+    };
     pending = appGroups.start({
       config,
       groupId: "service",
@@ -205,15 +204,16 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
         persistedWorktreePath
       );
     }
-    await pending?.catch(() => undefined);
+    await pending?.catch(() => {});
     await controller.close();
   }
 });
 
 test("trust revocation blocks a setup process for a persisted worktree", async () => {
   const { controller, state, repoPath, snapshot } = observedFixture();
-  const processes = (controller as unknown as { processes: ProcessSupervisor })
-    .processes;
+  const { processes } = controller as unknown as {
+    processes: ProcessSupervisor;
+  };
   const worktreePath = pathModule.join(repoPath, "persisted-setup-worktree");
   const markerPath = pathModule.join(worktreePath, "cwd-moved");
   let processId: string | undefined;

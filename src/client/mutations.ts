@@ -73,7 +73,7 @@ export const useCommands = (repoPath: string) => {
     updateRepositoryConfig,
   };
   // Dialogs present their own errors next to the submitted fields.
-  const latest = Object.entries(mutations)
+  const [latest] = Object.entries(mutations)
     .filter(
       ([name]) =>
         ![
@@ -85,6 +85,6 @@ export const useCommands = (repoPath: string) => {
     )
     .filter(([, mutation]) => mutation.error)
     .map(([, mutation]) => mutation)
-    .toSorted((a, b) => b.submittedAt - a.submittedAt)[0];
+    .toSorted((a, b) => b.submittedAt - a.submittedAt);
   return { ...mutations, error: latest?.error ?? null };
 };

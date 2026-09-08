@@ -184,7 +184,7 @@ export const revokeRepositoryTrust = (
   const directory = controlDirectory ?? defaultControlDirectory();
   withTrustStoreLock(directory, (file) => {
     const store = trustStore(directory, true);
-    delete store[repoPath];
+    Reflect.deleteProperty(store, repoPath);
     writeTrustStore(file, store);
   });
 };

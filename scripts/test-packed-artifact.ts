@@ -53,7 +53,7 @@ const unusedPort = async (): Promise<number> => {
   });
   const address = server.address();
   assert(address && typeof address !== "string", "Could not reserve a port");
-  const port = address.port;
+  const { port } = address;
   await new Promise<void>((resolveClose, reject) => {
     server.close((error) => (error ? reject(error) : resolveClose()));
   });
@@ -215,12 +215,12 @@ try {
     ui.ok && uiHtml.includes("/assets/"),
     "Packed daemon did not serve the production UI"
   );
-  const assetPath = uiHtml.match(/(?:src|href)="(\/assets\/[^"]+)"/)?.[1];
+  const assetPath = uiHtml.match(
+    /(?:src|href)="(?<assetPath>\/assets\/[^"]+)"/u
+  )?.[1];
   assert(assetPath, "Packed production UI did not reference a built asset");
-  assert(
-    (await fetch(`${baseUrl}${assetPath}`)).ok,
-    "Packed daemon did not serve its built UI asset"
-  );
+  const assetResponse = await fetch(`${baseUrl}${assetPath}`);
+  assert(assetResponse.ok, "Packed daemon did not serve its built UI asset");
 
   assert(
     run(cliPath, ["stop"], {

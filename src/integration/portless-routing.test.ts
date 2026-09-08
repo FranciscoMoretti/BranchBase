@@ -155,8 +155,9 @@ test("isolates routes, environments, logs, and stable URLs across worktrees", as
       "Stopping one worktree did not retain only its stable endpoint assignments"
     );
     for (const url of Object.values(linkedUrls)) {
+      const response = await fetch(url);
       assert(
-        (await fetch(url)).status === 404,
+        response.status === 404,
         "A stopped worktree route remained active"
       );
     }
@@ -185,10 +186,10 @@ test("isolates routes, environments, logs, and stable URLs across worktrees", as
       (item) => item.path !== fixture.linkedPath
     )) {
       for (const app of worktree.appGroups[0]?.apps ?? []) {
-        assert(
-          app.url && (await fetch(app.url)).ok,
-          "Stopping one worktree affected another"
-        );
+        const appUrl = app.url;
+        assert(appUrl, "A worktree App lost its URL");
+        const response = await fetch(appUrl);
+        assert(response.ok, "Stopping one worktree affected another");
       }
     }
   } finally {
@@ -344,8 +345,10 @@ test("runs a configured Stop command for an external runtime", async () => {
       .inspect(fixture.root)
       .worktrees.find((worktree) => worktree.isMain)
       ?.appGroups.find((group) => group.id === "external")?.apps[0];
+    const externalUrl = external?.url;
+    const externalResponse = externalUrl ? await fetch(externalUrl) : null;
     assert(
-      external?.open && external.url && (await fetch(external.url)).ok,
+      external?.open && externalUrl && externalResponse?.ok,
       "Configured-command App group did not start"
     );
     await fixture.controller.stopAppGroup(fixture.root, main.id, "external");

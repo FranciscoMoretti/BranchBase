@@ -18,8 +18,8 @@ import { z } from "zod";
 import { processStartMarker } from "../host/process-inspection";
 import { pathInside, pidOwnedByWorktree } from "./ports";
 
-const LINE_BREAK = /\r?\n/;
-const TRAILING_LINE_BREAK = /\r?\n$/;
+const LINE_BREAK = /\r?\n/u;
+const TRAILING_LINE_BREAK = /\r?\n$/u;
 const GRACEFUL_STOP_ATTEMPTS = 20;
 const FORCE_STOP_ATTEMPTS = 10;
 const STOP_POLL_MS = 100;
@@ -79,7 +79,7 @@ export const appGroupInstanceProcessId = (instanceId: string): string =>
   `${instanceId}--app-group-instance`;
 
 const safeId = (processId: string): string =>
-  processId.replaceAll(/[^A-Za-z0-9_-]/g, "_");
+  processId.replaceAll(/[^A-Za-z0-9_-]/gu, "_");
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));

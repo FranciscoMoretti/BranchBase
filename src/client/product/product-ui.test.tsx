@@ -13,7 +13,7 @@ import type { GroupControls } from "./environment-list";
 import { GroupDetails } from "./group-details";
 import { worktree } from "./test-fixtures";
 
-const noop = () => undefined;
+const noop = () => {};
 const controls: GroupControls = {
   blocked: () => false,
   inspect: noop,
@@ -86,7 +86,7 @@ test("group details keep readiness separate from routing and use a managed log v
         onBack={noop}
         onClearLogs={noop}
         onConfigSource={noop}
-        onCreateInstance={async () => undefined}
+        onCreateInstance={async () => {}}
         onSelectInstance={noop}
         onTabChange={noop}
         repoPath="/tmp/project"

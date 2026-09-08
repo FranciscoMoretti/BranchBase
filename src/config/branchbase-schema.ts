@@ -10,13 +10,13 @@ export const BranchBaseAppGroupNameSchema = z.string().min(1);
 export const BranchBaseAppIdSchema = z.string().min(1);
 export const BranchBaseEnvironmentNameSchema = z
   .string()
-  .regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
+  .regex(/^[A-Za-z_][A-Za-z0-9_]*$/u);
 
 const HttpReadinessSchema = z.strictObject({
   path: z.string().startsWith("/").default("/"),
   statuses: z
     .string()
-    .regex(/^\d{3}-\d{3}$/)
+    .regex(/^\d{3}-\d{3}$/u)
     .refine((range) => {
       const [minimum, maximum] = range.split("-").map(Number);
       return (

@@ -65,7 +65,7 @@ describe("request recovery", () => {
     let calls = 0;
     globalThis.fetch = ((input: string | URL | Request) => {
       if (String(input) === "/api/session") {
-        calls++;
+        calls += 1;
         return calls === 1
           ? Promise.reject(new TypeError("Failed to fetch"))
           : Promise.resolve(Response.json({ token: "qa-token" }));

@@ -6,7 +6,7 @@ import pathModule from "node:path";
 import { FileBranchBaseStateStore } from "./local-state";
 import type { InstanceRequest } from "./local-state";
 
-const COLLISION_SAFE_HOSTNAME = /^web-[a-f0-9]{6}\.main\.chat-js\.localhost$/;
+const COLLISION_SAFE_HOSTNAME = /^web-[a-f0-9]{6}\.main\.chat-js\.localhost$/u;
 
 const request = (
   overrides: Partial<Parameters<FileBranchBaseStateStore["instance"]>[0]> = {}

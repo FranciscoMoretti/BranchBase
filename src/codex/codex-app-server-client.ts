@@ -46,7 +46,7 @@ export class CodexAppServerClient {
   }
 
   async close(): Promise<void> {
-    const child = this.child;
+    const { child } = this;
     this.child = null;
     this.initialized = null;
     this.outputBuffer = Buffer.alloc(0);
@@ -111,7 +111,7 @@ export class CodexAppServerClient {
   }
 
   private fail(message: string): void {
-    const child = this.child;
+    const { child } = this;
     this.child = null;
     this.initialized = null;
     this.outputBuffer = Buffer.alloc(0);
@@ -122,7 +122,7 @@ export class CodexAppServerClient {
   }
 
   private request(method: string, params: unknown): Promise<unknown> {
-    const child = this.child;
+    const { child } = this;
     if (!child?.stdin?.writable) {
       return Promise.reject(
         new CodexIntegrationUnavailableError("Codex app-server exited")
@@ -159,7 +159,9 @@ export class CodexAppServerClient {
       this.child = null;
       this.initialized = null;
     });
-    child.stdin?.on("error", () => undefined);
+    child.stdin?.on("error", () => {
+      // The process lifecycle reports stdin failures.
+    });
     if (!child.stdout) {
       throw new CodexIntegrationUnavailableError(
         "Codex app-server output is unavailable"
@@ -246,21 +248,22 @@ const commandIsAvailable = (
       }
     );
     let settled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const finish = (available: boolean) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timer);
-      resolve(available);
+    const handlers = {
+      finish(available: boolean) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(handlers.timer);
+        resolve(available);
+      },
+      timer: setTimeout(() => {
+        child.kill("SIGTERM");
+        handlers.finish(false);
+      }, timeoutMs),
     };
-    timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      finish(false);
-    }, timeoutMs);
-    child.once("error", () => finish(false));
-    child.once("exit", (code) => finish(code === 0));
+    child.once("error", () => handlers.finish(false));
+    child.once("exit", (code) => handlers.finish(code === 0));
   });
 
 export const resolveCodexCommand = async (

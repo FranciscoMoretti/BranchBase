@@ -4,9 +4,9 @@ import pathModule from "node:path";
 
 const CLIENT_ROOT = pathModule.join(import.meta.dir);
 const FORBIDDEN_PRIMITIVES =
-  /<(button|details|dialog|input|select|summary|textarea)\b/;
+  /<(?<tag>button|details|dialog|input|select|summary|textarea)\b/u;
 const FORBIDDEN_PRIMITIVE_IMPORTS =
-  /from ["'](?:@radix-ui\/|react-resizable-panels)/;
+  /from ["'](?:@radix-ui\/|react-resizable-panels)/u;
 
 const componentFiles = (directory: string): string[] =>
   readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

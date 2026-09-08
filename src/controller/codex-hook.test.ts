@@ -167,10 +167,10 @@ describe("WorkspaceController Codex hook bridge", () => {
 
       expect(first.additionalContext).toBeDefined();
       expect(unchanged).toEqual({ accepted: true });
-      expect(
-        (await controller.inspectCodex(root)).worktrees[worktreeId].tasks[0]
-          .contextSharedAt
-      ).toBe("2026-07-18T13:00:00.000Z");
+      const inspected = await controller.inspectCodex(root);
+      expect(inspected.worktrees[worktreeId].tasks[0].contextSharedAt).toBe(
+        "2026-07-18T13:00:00.000Z"
+      );
 
       expect(
         controller.handleCodexHook(

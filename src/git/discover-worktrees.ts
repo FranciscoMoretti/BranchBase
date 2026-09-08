@@ -1,4 +1,4 @@
-const LINE_BREAK = /\r?\n/;
+const LINE_BREAK = /\r?\n/u;
 
 export interface DiscoveredWorktree {
   branch: string | null;

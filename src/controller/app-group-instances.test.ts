@@ -422,7 +422,7 @@ describe("App-group instance assignment", () => {
       if (controller && mainId) {
         await controller
           .stopAppGroup(repository, mainId, "Services")
-          .catch(() => undefined);
+          .catch(() => {});
       }
       rmSync(temporary, { force: true, recursive: true });
     }
@@ -495,7 +495,7 @@ describe("App-group instance assignment", () => {
         await controller.startAppGroup(repository, worktreeId, "Apps")
       ).toBe("started");
       expect(routing.prepared).toBe(true);
-      const running = controller.inspect(repository).worktrees[0];
+      const [running] = controller.inspect(repository).worktrees;
       const apps = running?.appGroups.find((group) => group.id === "Apps");
       const services = running?.appGroups.find(
         (group) => group.id === "Services"
@@ -575,12 +575,12 @@ describe("App-group instance assignment", () => {
       ).toBe("stopped");
     } finally {
       if (blocker) {
-        await close(blocker).catch(() => undefined);
+        await close(blocker).catch(() => {});
       }
       if (controller && worktreeId) {
         await controller
           .stopAppGroup(repository, worktreeId, "Apps")
-          .catch(() => undefined);
+          .catch(() => {});
       }
       rmSync(temporary, { force: true, recursive: true });
     }
@@ -743,7 +743,7 @@ describe("App-group instance assignment", () => {
       if (controller && worktreeId) {
         await controller
           .stopAppGroup(repository, worktreeId, "Apps")
-          .catch(() => undefined);
+          .catch(() => {});
       }
       rmSync(temporary, { force: true, recursive: true });
     }
@@ -824,7 +824,7 @@ describe("App-group instance assignment", () => {
       if (controller && worktreeId) {
         await controller
           .stopAppGroup(repository, worktreeId, "Apps")
-          .catch(() => undefined);
+          .catch(() => {});
       }
       rmSync(temporary, { force: true, recursive: true });
     }
@@ -905,7 +905,7 @@ describe("App-group instance assignment", () => {
       if (controller && worktreeId) {
         await controller
           .stopAppGroup(repository, worktreeId, "Services")
-          .catch(() => undefined);
+          .catch(() => {});
       }
       rmSync(temporary, { force: true, recursive: true });
     }
@@ -944,7 +944,7 @@ describe("App-group instance assignment", () => {
         state,
       });
       const initial = controller.inspect(repository);
-      const worktree = initial.worktrees[0];
+      const [worktree] = initial.worktrees;
       const group = worktree?.appGroups[0];
       expect(group).toBeDefined();
       await listen(listener, 0);
@@ -999,7 +999,7 @@ describe("App-group instance assignment", () => {
       expect(replacedListener?.apps[0]?.ownership).toBe("owned");
       expect(replacedListener?.health).toBe("running");
     } finally {
-      await close(listener).catch(() => undefined);
+      await close(listener).catch(() => {});
       rmSync(temporary, { force: true, recursive: true });
     }
   });
@@ -1088,7 +1088,7 @@ describe("App-group instance assignment", () => {
       if (controller && featureId) {
         await controller
           .stopAppGroup(repository, featureId, "Services")
-          .catch(() => undefined);
+          .catch(() => {});
       }
       rmSync(temporary, { force: true, recursive: true });
     }

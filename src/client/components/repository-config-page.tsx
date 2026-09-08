@@ -15,7 +15,7 @@ import { Textarea } from "./ui/textarea";
 export const RepositoryConfigPage = ({
   config,
   configPath,
-  error,
+  error: saveError,
   navigationRequest,
   onClose,
   onDirtyChange,
@@ -41,9 +41,9 @@ export const RepositoryConfigPage = ({
   const parsed = useMemo(() => {
     try {
       return BranchBaseConfigSchema.safeParse(JSON.parse(source));
-    } catch (caught) {
+    } catch (error) {
       return {
-        message: caught instanceof Error ? caught.message : "Invalid JSON",
+        message: error instanceof Error ? error.message : "Invalid JSON",
         success: false as const,
       };
     }
@@ -148,7 +148,7 @@ export const RepositoryConfigPage = ({
             value={source}
           />
           <FormFeedback
-            error={validationMessage ? new Error(validationMessage) : error}
+            error={validationMessage ? new Error(validationMessage) : saveError}
             title={
               validationMessage
                 ? "Configuration needs attention"

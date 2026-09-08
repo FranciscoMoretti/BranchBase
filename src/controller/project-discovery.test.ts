@@ -61,6 +61,18 @@ const repository = (path: string) => {
   );
   return path;
 };
+const makeService = (cwd: string, pid: number): DetectedService => ({
+  address: `127.0.0.1:${pid}`,
+  command: "bun",
+  cwd,
+  managed: false,
+  pid,
+  port: pid,
+  resources: null,
+  startedAt: null,
+  url: null,
+});
+
 const controller = (directory: string) =>
   new WorkspaceController(undefined, {
     processes: new ProcessSupervisor(pathModule.join(directory, "control")),
@@ -216,22 +228,11 @@ test("associated services exclude managed, nested, and unrelated paths", () => {
   const inside = pathModule.join(repo, "packages", "web");
   mkdirSync(inside, { recursive: true });
   const store = new ProductStore(pathModule.join(root, "state"));
-  const service = (cwd: string, pid: number): DetectedService => ({
-    address: `127.0.0.1:${pid}`,
-    command: "bun",
-    cwd,
-    managed: false,
-    pid,
-    port: pid,
-    resources: null,
-    startedAt: null,
-    url: null,
-  });
   let services = [
-    service(inside, 1001),
-    { ...service(inside, 1004), managed: true },
-    service(nested, 1002),
-    service(`${repo}-other`, 1003),
+    makeService(inside, 1001),
+    { ...makeService(inside, 1004), managed: true },
+    makeService(nested, 1002),
+    makeService(`${repo}-other`, 1003),
   ];
   const probed: number[] = [];
   let warning: string | null = null;

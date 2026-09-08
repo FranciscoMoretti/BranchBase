@@ -127,11 +127,17 @@ export const WorkspacePage = ({
     },
     retry: actions.retryAppGroup,
     review: (worktree) =>
-      trust.requestTrust("Review worktree commands", () => undefined, {
-        approvals: [{ fingerprint: worktree.configuration.trustFingerprint }],
-        commands: worktree.configuration.trustCommands,
-        trusted: false,
-      }),
+      trust.requestTrust(
+        "Review worktree commands",
+        () => {
+          // Trust approval does not need a follow-up action.
+        },
+        {
+          approvals: [{ fingerprint: worktree.configuration.trustFingerprint }],
+          commands: worktree.configuration.trustCommands,
+          trusted: false,
+        }
+      ),
     toggle: (worktree, group) => {
       if (appGroupIsRunning(group) && consumers(group).length > 1) {
         setShared({ group, restart: false, worktree });
@@ -167,11 +173,17 @@ export const WorkspacePage = ({
           onSectionChange={(section) => navigate({ ...location, section })}
           project={project}
           review={() =>
-            trust.requestTrust("Review commands", () => undefined, {
-              approvals: [{ fingerprint: data.trustFingerprint }],
-              commands: data.trustCommands,
-              trusted: false,
-            })
+            trust.requestTrust(
+              "Review commands",
+              () => {
+                // Trust approval does not need a follow-up action.
+              },
+              {
+                approvals: [{ fingerprint: data.trustFingerprint }],
+                commands: data.trustCommands,
+                trusted: false,
+              }
+            )
           }
           section={location.section}
         />

@@ -5,10 +5,10 @@ import { worktreeCommandMenuItems } from "./worktree-command-menu";
 import type { WorktreeCommandActions } from "./worktree-command-menu";
 
 const actions: WorktreeCommandActions = {
-  onRestart: () => undefined,
-  onSetup: () => undefined,
-  onStart: () => undefined,
-  onStop: () => undefined,
+  onRestart: () => {},
+  onSetup: () => {},
+  onStart: () => {},
+  onStop: () => {},
 };
 
 const worktree = (health: WorktreeSnapshot["health"]): WorktreeSnapshot => ({
