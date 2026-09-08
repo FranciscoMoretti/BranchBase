@@ -20,7 +20,65 @@ interface TemplateValue {
   value: string | null;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: token availability is most legible as one protocol-aware matrix.
+interface TemplateApp {
+  directUrl?: string;
+  host?: string;
+  port?: number;
+  protocol?: "http" | "tcp";
+  url?: string;
+}
+
+const addTemplateValue = (
+  values: Map<string, TemplateValue>,
+  token: string,
+  value: string | null
+): void => {
+  const existing = values.get(token);
+  values.set(token, {
+    ambiguous: existing !== undefined,
+    value: existing?.value ?? value,
+  });
+};
+
+const addAppTemplateValues = (
+  values: Map<string, TemplateValue>,
+  groupId: string,
+  currentGroup: string,
+  appId: string,
+  app: TemplateApp
+): void => {
+  const resolved = app.port !== undefined;
+  const isHttp = resolved ? app.url !== undefined : app.protocol === "http";
+  const prefixes = [`appGroups.${groupId}.apps.${appId}`];
+  if (groupId === currentGroup) {
+    prefixes.push(`apps.${appId}`);
+  }
+  for (const prefix of prefixes) {
+    addTemplateValue(
+      values,
+      `{${prefix}.host}`,
+      resolved ? (app.host ?? null) : null
+    );
+    addTemplateValue(
+      values,
+      `{${prefix}.port}`,
+      resolved ? String(app.port) : null
+    );
+    if (isHttp) {
+      addTemplateValue(
+        values,
+        `{${prefix}.directUrl}`,
+        resolved ? (app.directUrl ?? null) : null
+      );
+      addTemplateValue(
+        values,
+        `{${prefix}.url}`,
+        resolved ? (app.url ?? null) : null
+      );
+    }
+  }
+};
+
 const templateValues = (
   appGroups: Record<
     string,
@@ -29,40 +87,9 @@ const templateValues = (
   currentGroup: string
 ): Map<string, TemplateValue> => {
   const values = new Map<string, TemplateValue>();
-  const add = (token: string, value: string | null): void => {
-    const existing = values.get(token);
-    values.set(token, {
-      ambiguous: existing !== undefined,
-      value: existing?.value ?? value,
-    });
-  };
   for (const [groupId, group] of Object.entries(appGroups)) {
     for (const [appId, app] of Object.entries(group.apps)) {
-      const resolved = app.port !== undefined;
-      const isHttp = resolved ? app.url !== undefined : app.protocol === "http";
-      const fullPrefix = `appGroups.${groupId}.apps.${appId}`;
-      add(`{${fullPrefix}.host}`, resolved ? (app.host ?? null) : null);
-      add(`{${fullPrefix}.port}`, resolved ? String(app.port) : null);
-      if (isHttp) {
-        add(
-          `{${fullPrefix}.directUrl}`,
-          resolved ? (app.directUrl ?? null) : null
-        );
-        add(`{${fullPrefix}.url}`, resolved ? (app.url ?? null) : null);
-      }
-      if (groupId !== currentGroup) {
-        continue;
-      }
-      const localPrefix = `apps.${appId}`;
-      add(`{${localPrefix}.host}`, resolved ? (app.host ?? null) : null);
-      add(`{${localPrefix}.port}`, resolved ? String(app.port) : null);
-      if (isHttp) {
-        add(
-          `{${localPrefix}.directUrl}`,
-          resolved ? (app.directUrl ?? null) : null
-        );
-        add(`{${localPrefix}.url}`, resolved ? (app.url ?? null) : null);
-      }
+      addAppTemplateValues(values, groupId, currentGroup, appId, app);
     }
   }
   return values;

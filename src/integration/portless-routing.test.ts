@@ -5,6 +5,7 @@ import { createServer } from "node:net";
 import pathModule from "node:path";
 
 import { repositoryCommandFingerprint } from "../config/repository-trust";
+import type { WorkspaceSnapshot } from "../controller/workspace-snapshot";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import {
   assert,
@@ -14,6 +15,129 @@ import {
   processIsLive,
   waitUntil,
 } from "./portless-fixture";
+
+const assertInitialRoutesHidden = (snapshot: WorkspaceSnapshot): void => {
+  assert(
+    snapshot.worktrees.length === 3,
+    "Git worktrees were not all discovered"
+  );
+  assert(
+    snapshot.worktrees.every((worktree) =>
+      worktree.appGroups.every((group) =>
+        group.apps.every((app) => !(app.open || app.port || app.url))
+      )
+    ),
+    "A route or Backing endpoint was exposed before Start"
+  );
+};
+
+const assertRunningWorktrees = async (
+  fixture: PortlessIntegrationFixture,
+  running: WorkspaceSnapshot
+): Promise<{ linkedId: string; linkedUrls: Record<string, string> }> => {
+  const ports = new Set<number>();
+  const urls = new Set<string>();
+  const worktreePaths = running.worktrees.map((worktree) => worktree.path);
+  for (const worktree of running.worktrees) {
+    const api = endpoint(worktree, "api");
+    const site = endpoint(worktree, "site");
+    assert(
+      api.open && api.port && api.url,
+      `API did not open for ${worktree.path}`
+    );
+    assert(
+      site.open && site.port && site.url,
+      `Site did not open for ${worktree.path}`
+    );
+    for (const app of [api, site]) {
+      assert(!ports.has(app.port as number), "Backing ports collided");
+      assert(!urls.has(app.url as string), "Friendly URLs collided");
+      ports.add(app.port as number);
+      urls.add(app.url as string);
+      const response = await fetch(app.url as string);
+      const body = (await response.json()) as {
+        app?: string;
+        environment?: Record<string, string>;
+      };
+      assert(
+        response.ok && body.app === app.id,
+        `${app.id} routed incorrectly`
+      );
+      assert(
+        body.environment?.API_PORT === String(api.port) &&
+          body.environment.API_URL === api.url &&
+          body.environment.API_DIRECT_URL === api.directUrl &&
+          body.environment.SITE_PORT === String(site.port) &&
+          body.environment.SITE_URL === site.url &&
+          body.environment.SITE_DIRECT_URL === site.directUrl,
+        `${worktree.path} received an incomplete Repository environment`
+      );
+    }
+    const logs = fixture.controller
+      .logs(fixture.root, worktree.id, "development")
+      .join("\n");
+    assert(
+      logs.includes(worktree.path) &&
+        worktreePaths
+          .filter((path) => path !== worktree.path)
+          .every((path) => !logs.includes(path)),
+      `Logs were not isolated for ${worktree.path}`
+    );
+  }
+  assert(
+    ports.size === 6 && urls.size === 6,
+    "Expected six independent endpoints"
+  );
+  const linked = running.worktrees.find(
+    (worktree) => worktree.path === fixture.linkedPath
+  );
+  assert(linked, "Linked worktree disappeared");
+  return {
+    linkedId: linked.id,
+    linkedUrls: Object.fromEntries(
+      linked.appGroups[0]?.apps.map((app) => [app.id, app.url as string]) ?? []
+    ),
+  };
+};
+
+const assertLinkedWorktreeStopped = async (
+  fixture: PortlessIntegrationFixture,
+  linkedUrls: Record<string, string>
+): Promise<WorkspaceSnapshot> => {
+  const afterStop = fixture.controller.inspect(fixture.root);
+  const stoppedLinked = afterStop.worktrees.find(
+    (worktree) => worktree.path === fixture.linkedPath
+  );
+  assert(
+    stoppedLinked?.appGroups[0]?.apps.every(
+      (app) => !app.open && app.port !== null && app.url === null
+    ),
+    "Stopping one worktree did not retain only its stable endpoint assignments"
+  );
+  for (const url of Object.values(linkedUrls)) {
+    assert(
+      (await fetch(url)).status === 404,
+      "A stopped worktree route remained active"
+    );
+  }
+  return afterStop;
+};
+
+const assertOtherWorktreesRemainLive = async (
+  fixture: PortlessIntegrationFixture,
+  snapshot: WorkspaceSnapshot
+): Promise<void> => {
+  for (const worktree of snapshot.worktrees.filter(
+    (item) => item.path !== fixture.linkedPath
+  )) {
+    for (const app of worktree.appGroups[0]?.apps ?? []) {
+      assert(
+        app.url && (await fetch(app.url)).ok,
+        "Stopping one worktree affected another"
+      );
+    }
+  }
+};
 
 test("serializes concurrent lifecycle requests and scopes trust to the fixture", async () => {
   const fixture = await PortlessIntegrationFixture.create();
@@ -54,18 +178,7 @@ test("isolates routes, environments, logs, and stable URLs across worktrees", as
   const fixture = await PortlessIntegrationFixture.create();
   try {
     const before = fixture.controller.inspect(fixture.root);
-    assert(
-      before.worktrees.length === 3,
-      "Git worktrees were not all discovered"
-    );
-    assert(
-      before.worktrees.every((worktree) =>
-        worktree.appGroups.every((group) =>
-          group.apps.every((app) => !(app.open || app.port || app.url))
-        )
-      ),
-      "A route or Backing endpoint was exposed before Start"
-    );
+    assertInitialRoutesHidden(before);
 
     await Promise.all(
       before.worktrees.map((worktree) =>
@@ -78,93 +191,21 @@ test("isolates routes, environments, logs, and stable URLs across worktrees", as
     );
 
     const running = fixture.controller.inspect(fixture.root);
-    const ports = new Set<number>();
-    const urls = new Set<string>();
-    const worktreePaths = running.worktrees.map((worktree) => worktree.path);
-    for (const worktree of running.worktrees) {
-      const api = endpoint(worktree, "api");
-      const site = endpoint(worktree, "site");
-      assert(
-        api.open && api.port && api.url,
-        `API did not open for ${worktree.path}`
-      );
-      assert(
-        site.open && site.port && site.url,
-        `Site did not open for ${worktree.path}`
-      );
-      for (const app of [api, site]) {
-        assert(!ports.has(app.port as number), "Backing ports collided");
-        assert(!urls.has(app.url as string), "Friendly URLs collided");
-        ports.add(app.port as number);
-        urls.add(app.url as string);
-        const response = await fetch(app.url as string);
-        const body = (await response.json()) as {
-          app?: string;
-          environment?: Record<string, string>;
-        };
-        assert(
-          response.ok && body.app === app.id,
-          `${app.id} routed incorrectly`
-        );
-        assert(
-          body.environment?.API_PORT === String(api.port) &&
-            body.environment.API_URL === api.url &&
-            body.environment.API_DIRECT_URL === api.directUrl &&
-            body.environment.SITE_PORT === String(site.port) &&
-            body.environment.SITE_URL === site.url &&
-            body.environment.SITE_DIRECT_URL === site.directUrl,
-          `${worktree.path} received an incomplete Repository environment`
-        );
-      }
-      const logs = fixture.controller
-        .logs(fixture.root, worktree.id, "development")
-        .join("\n");
-      assert(
-        logs.includes(worktree.path) &&
-          worktreePaths
-            .filter((path) => path !== worktree.path)
-            .every((path) => !logs.includes(path)),
-        `Logs were not isolated for ${worktree.path}`
-      );
-    }
-    assert(
-      ports.size === 6 && urls.size === 6,
-      "Expected six independent endpoints"
-    );
-
-    const linked = running.worktrees.find(
-      (worktree) => worktree.path === fixture.linkedPath
-    );
-    assert(linked, "Linked worktree disappeared");
-    const linkedUrls = Object.fromEntries(
-      linked.appGroups[0]?.apps.map((app) => [app.id, app.url as string]) ?? []
+    const { linkedId, linkedUrls } = await assertRunningWorktrees(
+      fixture,
+      running
     );
     await fixture.controller.stopAppGroup(
       fixture.root,
-      linked.id,
+      linkedId,
       "development"
     );
-    const afterStop = fixture.controller.inspect(fixture.root);
-    const stoppedLinked = afterStop.worktrees.find(
-      (worktree) => worktree.path === fixture.linkedPath
-    );
-    assert(
-      stoppedLinked?.appGroups[0]?.apps.every(
-        (app) => !app.open && app.port !== null && app.url === null
-      ),
-      "Stopping one worktree did not retain only its stable endpoint assignments"
-    );
-    for (const url of Object.values(linkedUrls)) {
-      assert(
-        (await fetch(url)).status === 404,
-        "A stopped worktree route remained active"
-      );
-    }
+    const afterStop = await assertLinkedWorktreeStopped(fixture, linkedUrls);
 
     fixture.rebuildController();
     await fixture.controller.startAppGroup(
       fixture.root,
-      linked.id,
+      linkedId,
       "development"
     );
     const restartedLinked = fixture.controller
@@ -178,19 +219,10 @@ test("isolates routes, environments, logs, and stable URLs across worktrees", as
     );
     await fixture.controller.stopAppGroup(
       fixture.root,
-      linked.id,
+      linkedId,
       "development"
     );
-    for (const worktree of afterStop.worktrees.filter(
-      (item) => item.path !== fixture.linkedPath
-    )) {
-      for (const app of worktree.appGroups[0]?.apps ?? []) {
-        assert(
-          app.url && (await fetch(app.url)).ok,
-          "Stopping one worktree affected another"
-        );
-      }
-    }
+    await assertOtherWorktreesRemainLive(fixture, afterStop);
   } finally {
     await fixture.cleanup();
   }

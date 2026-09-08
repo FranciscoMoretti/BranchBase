@@ -10,6 +10,8 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 
+import type { Observation } from "../../controller/discovery-contract";
+import type { ProjectOverview } from "../../controller/product-contract";
 import { runCommand } from "../api";
 import { Button } from "../components/ui/button";
 import {
@@ -55,6 +57,34 @@ interface PendingNavigation {
   href: string;
   traversal?: { delta: number; targetIndex: number };
 }
+
+const pageContent = ({
+  location,
+  observation,
+  project,
+}: {
+  location: ProductLocation;
+  observation: Observation | undefined;
+  project: ProjectOverview | undefined;
+}): ReactNode => {
+  if (location.view === "machine") {
+    return <BranchBaseSettings />;
+  }
+  if (!location.repo) {
+    return location.view === "activity" ? <ActivityPage /> : <ProjectsPage />;
+  }
+  if (observation && !observation.configured) {
+    return (
+      <ObservedProjectPage
+        data={observation}
+        key={observation.repoPath}
+        location={location}
+        project={project}
+      />
+    );
+  }
+  return null;
+};
 
 export const ProductApp = () => {
   const [location, setLocation] = useState(readLocation);
@@ -271,23 +301,13 @@ export const ProductApp = () => {
     (item) =>
       item.path === workspace.data?.repoPath || item.path === location.repo
   );
-  let content: ReactNode;
-  if (location.view === "machine") {
-    content = <BranchBaseSettings />;
-  } else if (!location.repo) {
-    content =
-      location.view === "activity" ? <ActivityPage /> : <ProjectsPage />;
-  } else if (observation.data && !observation.data.configured) {
-    content = (
-      <ObservedProjectPage
-        data={observation.data}
-        key={observation.data.repoPath}
-        location={location}
-        project={project}
-      />
-    );
-  } else if (workspace.data) {
-    content = (
+  const content =
+    pageContent({
+      location,
+      observation: observation.data,
+      project,
+    }) ??
+    (workspace.data ? (
       <WorkspacePage
         data={workspace.data}
         key={workspace.data.repoPath}
@@ -295,14 +315,9 @@ export const ProductApp = () => {
         navigate={navigate}
         observation={observation.data}
         project={project}
-        refresh={() => {
-          workspace.refetch();
-        }}
+        refresh={workspace.refetch}
       />
-    );
-  } else {
-    content = null;
-  }
+    ) : null);
   const workspaceView = location.repo && location.view !== "machine";
 
   const projectQuery = observation.data?.configured

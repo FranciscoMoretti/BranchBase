@@ -325,5 +325,4 @@ export class DevelopmentRouting implements LocalRoutingEngine {
   private isLive(): boolean {
     return this.child.exitCode === null && this.child.signalCode === null;
   }
-
 }

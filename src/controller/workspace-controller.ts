@@ -71,8 +71,8 @@ import type {
   BranchBaseCommandResult,
 } from "./command-contract";
 import type { Observation } from "./discovery-contract";
-import type { AppPin, ProjectOverview } from "./product-contract";
 import { MissingWorktreeConfigError } from "./missing-worktree-config-error";
+import type { AppPin, ProjectOverview } from "./product-contract";
 import { ProductStore } from "./product-store";
 import { ProjectDiscovery } from "./project-discovery";
 import { initializeRepository as initializeRepositoryConfig } from "./repository-initializer";

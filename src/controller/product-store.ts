@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import { DevelopmentFolderSchema } from "./discovery-contract";
 import type { Observation as RepositoryObservation } from "./discovery-contract";
+import { ProductCatalogError } from "./product-catalog-error";
 import { ActivityEventSchema, ProjectRecordSchema } from "./product-contract";
 import type { ActivityEvent, AppPin } from "./product-contract";
 import type {
@@ -20,7 +21,6 @@ import type {
   WorkspaceSnapshot,
   WorktreeSnapshot,
 } from "./workspace-snapshot";
-import { ProductCatalogError } from "./product-catalog-error";
 
 export { ProductCatalogError } from "./product-catalog-error";
 

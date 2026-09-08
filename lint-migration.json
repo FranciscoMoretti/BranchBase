@@ -1,6 +1,5 @@
 {
   "rules": {
-    "complexity": "off",
     "no-await-in-loop": "off",
     "no-plusplus": "off",
     "no-promise-executor-return": "off",
