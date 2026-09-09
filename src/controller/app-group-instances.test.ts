@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { once } from "node:events";
 import {
@@ -14,6 +14,7 @@ import type { Server } from "node:net";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
+import type { BranchBaseConfig } from "../config/branchbase-schema";
 import {
   repositoryCommandFingerprint,
   trustRepository,
@@ -82,8 +83,8 @@ const blockingPrepareRoutingEngine = (): BlockingPrepareRoutingEngine => {
       routing.prepared = true;
       return Promise.resolve();
     }
-    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-    const result = Promise.withResolvers<void>();
+
+    const result: PromiseWithResolvers<void> = Promise.withResolvers();
     releasePrepare = () => result.resolve();
     return result.promise;
   };
@@ -115,17 +116,17 @@ const recoverableActivationRoutingEngine =
     return routing;
   };
 
-class TrustedWorkspaceController extends WorkspaceController {
-  // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the trust seam.
-  override assertTrusted(): void {
-    // This fixture controls every command and does not touch repository trust.
-  }
-
-  // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the config trust seam.
-  protected override assertConfigTrusted(): void {
-    // This fixture controls every command and does not touch repository trust.
-  }
-}
+const trustedController = (
+  runtime: ConstructorParameters<typeof WorkspaceController>[1]
+): WorkspaceController => {
+  const controller = new WorkspaceController(undefined, runtime);
+  spyOn(controller, "assertTrusted").mockImplementation(() => {});
+  const configTrustSeam = controller as unknown as {
+    assertConfigTrusted: (repoPath: string, config: BranchBaseConfig) => void;
+  };
+  spyOn(configTrustSeam, "assertConfigTrusted").mockImplementation(() => {});
+  return controller;
+};
 
 const git = (cwd: string, ...args: string[]): void => {
   const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
@@ -243,7 +244,7 @@ const requiredDatabaseEndpoint = (run: ReturnType<typeof requiredRun>) => {
 };
 
 const createCrossGroupFixture = (): {
-  controller: TrustedWorkspaceController;
+  controller: WorkspaceController;
   repository: string;
   routing: InMemoryRoutingEngine;
   temporary: string;
@@ -298,7 +299,7 @@ const createCrossGroupFixture = (): {
     })
   );
   const routing = inMemoryRoutingEngine();
-  const controller = new TrustedWorkspaceController(undefined, {
+  const controller = trustedController({
     processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
     routing,
     state: new FileBranchBaseStateStore(
@@ -320,7 +321,7 @@ const close = async (server: Server): Promise<void> => {
 
 const cleanupCrossGroupFixture = async (fixture: {
   blocker: Server | null;
-  controller: TrustedWorkspaceController;
+  controller: WorkspaceController;
   repository: string;
   temporary: string;
   worktreeId: string;
@@ -563,7 +564,7 @@ describe("App-group instance assignment", () => {
       git(repository, "commit", "-qm", "test config");
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
-      controller = new TrustedWorkspaceController(undefined, {
+      controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
@@ -725,7 +726,7 @@ describe("App-group instance assignment", () => {
           version: 1,
         })
       );
-      const controller = new TrustedWorkspaceController(undefined, {
+      const controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing: failingPrepareRoutingEngine(),
         state: new FileBranchBaseStateStore(
@@ -770,7 +771,7 @@ describe("App-group instance assignment", () => {
           version: 1,
         })
       );
-      const controller = new TrustedWorkspaceController(undefined, {
+      const controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
@@ -819,7 +820,7 @@ describe("App-group instance assignment", () => {
         })
       );
       const routing = recoverableActivationRoutingEngine();
-      controller = new TrustedWorkspaceController(undefined, {
+      controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing,
         state: new FileBranchBaseStateStore(
@@ -905,7 +906,7 @@ describe("App-group instance assignment", () => {
           version: 1,
         })
       );
-      controller = new TrustedWorkspaceController(undefined, {
+      controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
@@ -982,7 +983,7 @@ describe("App-group instance assignment", () => {
           version: 1,
         })
       );
-      controller = new TrustedWorkspaceController(undefined, {
+      controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(
@@ -1049,7 +1050,7 @@ describe("App-group instance assignment", () => {
       const state = new FileBranchBaseStateStore(
         pathModule.join(temporary, "state.json")
       );
-      const controller = new TrustedWorkspaceController(undefined, {
+      const controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing: inMemoryRoutingEngine(),
         state,
@@ -1163,7 +1164,7 @@ describe("App-group instance assignment", () => {
       git(repository, "commit", "-qm", "test config");
       git(repository, "worktree", "add", "-qb", "feature", featureWorktree);
 
-      controller = new TrustedWorkspaceController(undefined, {
+      controller = trustedController({
         processes: new ProcessSupervisor(pathModule.join(temporary, "control")),
         routing: inMemoryRoutingEngine(),
         state: new FileBranchBaseStateStore(

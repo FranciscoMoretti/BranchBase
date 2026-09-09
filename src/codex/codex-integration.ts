@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export { CodexIntegrationUnavailableError } from "./codex-integration-error";
-export { UnavailableCodexIntegrationAdapter } from "./unavailable-codex-integration-adapter";
+export { createUnavailableCodexIntegrationAdapter } from "./unavailable-codex-integration-adapter";
 
 const IsoTimestampSchema = z.iso.datetime({ offset: true });
 

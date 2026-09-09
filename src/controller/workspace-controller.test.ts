@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
   mkdirSync,
@@ -456,14 +456,10 @@ describe("controller command contract", () => {
   });
 
   it("checks repository trust synchronously before App-group operations", () => {
-    class UntrustedController extends WorkspaceController {
-      // oxlint-disable-next-line eslint/class-methods-use-this -- This test adapter overrides the trust seam.
-      override assertTrusted(): never {
-        throw new Error("trust checked");
-      }
-    }
-
-    const controller = new UntrustedController();
+    const controller = new WorkspaceController();
+    spyOn(controller, "assertTrusted").mockImplementation(() => {
+      throw new Error("trust checked");
+    });
     expect(() =>
       controller.retryAppGroup("/not-inspected", "worktree", "apps")
     ).toThrow("trust checked");

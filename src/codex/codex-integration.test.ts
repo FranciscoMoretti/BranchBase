@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 
 import {
   CodexIntegrationUnavailableError,
+  createUnavailableCodexIntegrationAdapter,
   FakeCodexIntegrationAdapter,
   projectCodexIntegration,
-  UnavailableCodexIntegrationAdapter,
 } from "./codex-integration";
 
 describe("Codex integration projection", () => {
@@ -76,7 +76,7 @@ describe("Codex integration projection", () => {
     expect(await fake.loadAssociatedTasks(worktrees)).toEqual(adapterSnapshot);
     expect(fake.requests).toEqual([worktrees]);
     await expect(
-      new UnavailableCodexIntegrationAdapter().loadAssociatedTasks(worktrees)
+      createUnavailableCodexIntegrationAdapter().loadAssociatedTasks(worktrees)
     ).rejects.toBeInstanceOf(CodexIntegrationUnavailableError);
   });
 });

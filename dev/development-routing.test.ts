@@ -1,7 +1,6 @@
 import { expect, it } from "bun:test";
-import { fork } from "node:child_process";
-import type { ChildProcess } from "node:child_process";
-import { EventEmitter, once } from "node:events";
+import { ChildProcess, fork } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, request } from "node:http";
 import type { IncomingMessage } from "node:http";
@@ -77,11 +76,7 @@ const proxyResponse = async (
 };
 
 it("waits for a child close after a shutdown error", async () => {
-  // oxlint-disable-next-line unicorn/prefer-event-target -- ChildProcess lifecycle tests require Node EventEmitter semantics.
-  const child = Object.assign(new EventEmitter(), {
-    exitCode: null,
-    signalCode: null,
-  }) as unknown as ChildProcess;
+  const child = new ChildProcess();
   const closing = waitForRoutingExit(child);
   let outcome = "pending";
   const observed = (async () => {
@@ -118,8 +113,7 @@ const listenOnPort = async (
 };
 
 const waitForChildReady = async (child: ChildProcess): Promise<void> => {
-  // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-  const result = Promise.withResolvers<void>();
+  const result: PromiseWithResolvers<void> = Promise.withResolvers();
   const handlers = {
     cleanup() {
       child.off("error", handlers.onError);
