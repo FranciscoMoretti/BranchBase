@@ -34,14 +34,18 @@ const globalNames = [
   "Node",
   "window",
 ] as const;
-let activePreviousGlobals = new Map<string, PropertyDescriptor | undefined>();
+const activePreviousGlobals = new Map<
+  (typeof globalNames)[number],
+  PropertyDescriptor | undefined
+>();
 const mountDom = () => {
-  activePreviousGlobals = new Map(
-    globalNames.map((name) => [
+  activePreviousGlobals.clear();
+  for (const name of globalNames) {
+    activePreviousGlobals.set(
       name,
-      Object.getOwnPropertyDescriptor(globalThis, name),
-    ])
-  );
+      Object.getOwnPropertyDescriptor(globalThis, name)
+    );
+  }
   activeDom = new Window({ url: "http://localhost/" });
   Object.assign(globalThis, {
     Element: activeDom.Element,
@@ -87,14 +91,14 @@ afterEach(async () => {
   }
   activeRoot = null;
   activeDom = null;
-  for (const name of globalNames) {
-    const descriptor = activePreviousGlobals.get(name);
+  for (const [name, descriptor] of activePreviousGlobals) {
     if (descriptor) {
       Object.defineProperty(globalThis, name, descriptor);
     } else {
       Reflect.deleteProperty(globalThis, name);
     }
   }
+  activePreviousGlobals.clear();
 });
 const region = (overrides: Partial<QueryState>) =>
   renderToStaticMarkup(
