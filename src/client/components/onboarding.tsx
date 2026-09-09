@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { EmptyMedia } from "./ui/empty";
-import { Field, FieldGroup, FieldLabel } from "./ui/field";
+import { Field, FieldGroup, FieldLabel, FieldTitle } from "./ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "./ui/input-group";
 
 export const Onboarding = ({
@@ -138,7 +138,7 @@ export const Onboarding = ({
                   </FieldLabel>
                   <div className="flex items-center gap-2 max-sm:flex-col max-sm:items-stretch">
                     <InputGroup>
-                      <InputGroupAddon>
+                      <InputGroupAddon htmlFor="onboarding-repo-path">
                         <FolderGit2Icon />
                       </InputGroupAddon>
                       <InputGroupInput
@@ -179,7 +179,7 @@ export const Onboarding = ({
           </CardContent>
           {recents.length > 0 ? (
             <CardFooter className="flex-col items-stretch gap-1">
-              <FieldLabel>Recent repositories</FieldLabel>
+              <FieldTitle>Recent repositories</FieldTitle>
               {recents.map((path) => (
                 <Button
                   className="w-full justify-start truncate"

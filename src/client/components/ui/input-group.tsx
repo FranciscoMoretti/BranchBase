@@ -14,7 +14,7 @@ const InputGroup = ({ className, ...props }: React.ComponentProps<"div">) => (
       className
     )}
     data-slot="input-group"
-    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Input groups compose controls and addons in a neutral wrapper.
+    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Input groups compose controls and addons; fieldset would impose form semantics on this layout primitive.
     role="group"
     {...props}
   />
@@ -41,32 +41,22 @@ const inputGroupAddonVariants = cva(
   }
 );
 
-// oxlint-disable jsx-a11y/click-events-have-key-events -- The addon forwards pointer focus to its associated input, which is already keyboard-focusable.
-// oxlint-disable jsx-a11y/no-noninteractive-element-interactions -- The addon is a neutral wrapper that forwards pointer focus to its associated input.
 const InputGroupAddon = ({
   className,
   align = "inline-start",
+  htmlFor,
   ...props
-}: React.ComponentProps<"div"> &
-  VariantProps<typeof inputGroupAddonVariants>) => (
-  <div
+}: Omit<React.ComponentProps<"label">, "htmlFor"> & {
+  htmlFor: string;
+} & VariantProps<typeof inputGroupAddonVariants>) => (
+  <label
     className={cn(inputGroupAddonVariants({ align }), className)}
     data-align={align}
     data-slot="input-group-addon"
-    onClick={(e) => {
-      if ((e.target as HTMLElement).closest("button")) {
-        return;
-      }
-      e.currentTarget.parentElement?.querySelector("input")?.focus();
-    }}
-    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The addon is descriptive content, not a standalone form group.
-    role="group"
+    htmlFor={htmlFor}
     {...props}
   />
 );
-// oxlint-enable jsx-a11y/click-events-have-key-events
-// oxlint-enable jsx-a11y/no-noninteractive-element-interactions
-
 const inputGroupButtonVariants = cva(
   "flex items-center gap-2 text-xs shadow-none",
   {

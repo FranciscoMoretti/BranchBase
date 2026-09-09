@@ -1,5 +1,5 @@
 import { RotateCcwIcon, XIcon } from "lucide-react";
-import { Component } from "react";
+import { Component, useState } from "react";
 import type { ReactNode } from "react";
 
 import { ErrorDetails } from "../product/async-state";
@@ -25,11 +25,15 @@ interface RecoveryBoundaryState {
   error: Error | null;
 }
 
-export class RecoveryBoundary extends Component<
-  RecoveryBoundaryProps,
+interface RecoveryBoundaryInnerProps extends RecoveryBoundaryProps {
+  onRetry: () => void;
+}
+
+class RecoveryBoundaryInner extends Component<
+  RecoveryBoundaryInnerProps,
   RecoveryBoundaryState
 > {
-  constructor(props: RecoveryBoundaryProps) {
+  constructor(props: RecoveryBoundaryInnerProps) {
     super(props);
     this.state = { error: null };
   }
@@ -37,11 +41,6 @@ export class RecoveryBoundary extends Component<
   static getDerivedStateFromError(error: Error): RecoveryBoundaryState {
     return { error };
   }
-
-  private readonly handleReset = (): void => {
-    // oxlint-disable-next-line react/no-set-state -- Error boundaries must clear captured errors to retry their children.
-    this.setState({ error: null });
-  };
 
   render(): ReactNode {
     if (!this.state.error) {
@@ -72,7 +71,7 @@ export class RecoveryBoundary extends Component<
                 Reload page
               </Button>
             )}
-            <Button onClick={this.handleReset}>
+            <Button onClick={this.props.onRetry}>
               <RotateCcwIcon data-icon="inline-start" />
               Try again
             </Button>
@@ -82,3 +81,14 @@ export class RecoveryBoundary extends Component<
     );
   }
 }
+
+export const RecoveryBoundary = (props: RecoveryBoundaryProps) => {
+  const [generation, setGeneration] = useState(0);
+  return (
+    <RecoveryBoundaryInner
+      {...props}
+      key={generation}
+      onRetry={() => setGeneration((current) => current + 1)}
+    />
+  );
+};

@@ -7,6 +7,10 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { RecoveryBoundary } from "../components/recovery-boundary";
+import { Button } from "../components/ui/button";
+import { useRepositoryOpen } from "../use-repository-open";
+import { useRepositoryPicker } from "../use-repository-picker";
 import { ActivityPage } from "./activity-page";
 import { ActionFeedback, FormFeedback, QueryContent } from "./async-state";
 import type { QueryState } from "./async-state";
@@ -30,13 +34,18 @@ const globalNames = [
   "Node",
   "window",
 ] as const;
-const previousGlobals = new Map(
-  globalNames.map((name) => [
-    name,
-    Object.getOwnPropertyDescriptor(globalThis, name),
-  ])
-);
+const activePreviousGlobals = new Map<
+  (typeof globalNames)[number],
+  PropertyDescriptor | undefined
+>();
 const mountDom = () => {
+  activePreviousGlobals.clear();
+  for (const name of globalNames) {
+    activePreviousGlobals.set(
+      name,
+      Object.getOwnPropertyDescriptor(globalThis, name)
+    );
+  }
   activeDom = new Window({ url: "http://localhost/" });
   Object.assign(globalThis, {
     Element: activeDom.Element,
@@ -52,20 +61,44 @@ const mountDom = () => {
   activeRoot = createRoot(container as unknown as HTMLElement);
   return container;
 };
+const OpenHarness = () => {
+  const state = useRepositoryOpen(() => Promise.resolve());
+  return (
+    <>
+      <Button onClick={() => state.open("/repo")} type="button">
+        Open
+      </Button>
+      <output data-status>{state.pending ? "pending" : "idle"}</output>
+      <p>{state.error?.message}</p>
+    </>
+  );
+};
+const PickerHarness = () => {
+  const state = useRepositoryPicker();
+  return (
+    <>
+      <Button onClick={() => state.handleBrowse()} type="button">
+        Browse
+      </Button>
+      <output data-status>{state.pending ? "pending" : "idle"}</output>
+      <p>{state.error}</p>
+    </>
+  );
+};
 afterEach(async () => {
   if (activeRoot) {
     await act(() => activeRoot?.unmount());
   }
   activeRoot = null;
   activeDom = null;
-  for (const name of globalNames) {
-    const descriptor = previousGlobals.get(name);
+  for (const [name, descriptor] of activePreviousGlobals) {
     if (descriptor) {
       Object.defineProperty(globalThis, name, descriptor);
     } else {
       Reflect.deleteProperty(globalThis, name);
     }
   }
+  activePreviousGlobals.clear();
 });
 const region = (overrides: Partial<QueryState>) =>
   renderToStaticMarkup(
@@ -199,7 +232,9 @@ test("DOM feedback exposes loading and mutation failure states", async () => {
       </>
     );
   });
-  expect(container.querySelector('[role="status"]')).not.toBeNull();
+  expect(container.querySelector("output")?.textContent).toContain(
+    "Loading projects"
+  );
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
     "Could not save"
   );
@@ -254,4 +289,54 @@ test("Activity separates unavailable history from successfully empty history", (
   expect(page("activity", "error")).not.toContain("No matching activity");
   expect(page("activity", "pending")).not.toContain("No matching activity");
   expect(page("activity", "success")).toContain("No matching activity");
+});
+test("repository open clears pending state after a rejected request", async () => {
+  const container = mountDom();
+  await act(() => activeRoot?.render(<OpenHarness />));
+  const open = container.querySelector("button");
+  expect(open).not.toBeNull();
+  await act(() => open?.click());
+  expect(container.querySelector("[data-status]")?.textContent).toBe("idle");
+  expect(container.textContent).toContain(
+    "Connection to BranchBase is unavailable"
+  );
+});
+test("repository picker clears pending state after a rejected request", async () => {
+  const container = mountDom();
+  await act(() => activeRoot?.render(<PickerHarness />));
+  const browse = container.querySelector("button");
+  expect(browse).not.toBeNull();
+  await act(() => browse?.click());
+  expect(container.querySelector("[data-status]")?.textContent).toBe("idle");
+  expect(container.textContent).toContain(
+    "Connection to BranchBase is unavailable"
+  );
+});
+test("recovery boundary remounts children after a render failure", async () => {
+  const container = mountDom();
+  let shouldThrow = true;
+  const FlakyContent = () => {
+    if (shouldThrow) {
+      throw new Error("Transient render failure");
+    }
+    return <p>Recovered content</p>;
+  };
+  await act(() => {
+    activeRoot?.render(
+      <RecoveryBoundary
+        description="Try again to restore the interface."
+        title="The interface stopped"
+      >
+        <FlakyContent />
+      </RecoveryBoundary>
+    );
+  });
+  expect(container.textContent).toContain("Try again");
+  shouldThrow = false;
+  const retry = [...container.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Try again")
+  );
+  expect(retry).not.toBeNull();
+  await act(() => retry?.click());
+  expect(container.textContent).toContain("Recovered content");
 });

@@ -150,9 +150,8 @@ const QueryPlaceholder = ({
     );
   }
   return (
-    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Skeleton rows are flow content; this container exposes their loading state to assistive technology.
-    <div className="product-loading" role="status">
-      <span className="sr-only">Loading {label.toLowerCase()}</span>
+    <div className="product-loading">
+      <output className="sr-only">Loading {label.toLowerCase()}</output>
       {[0, 1, 2].map((row) => (
         <div aria-hidden="true" className="product-skeleton-row" key={row}>
           <i />

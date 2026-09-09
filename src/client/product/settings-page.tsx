@@ -6,7 +6,12 @@ import { RepositoryConfigPage } from "../components/repository-config-page";
 import { ThemeToggle } from "../components/theme-toggle";
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";
-import { Field, FieldGroup, FieldLabel } from "../components/ui/field";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "../components/ui/field";
 import { Input } from "../components/ui/input";
 import { useCommands } from "../mutations";
 import { useCodexIntegration } from "../queries";
@@ -166,7 +171,7 @@ export const SettingsPage = ({
                     />
                   </Field>
                   <Field>
-                    <FieldLabel>Repository path</FieldLabel>
+                    <FieldTitle>Repository path</FieldTitle>
                     <div className="product-actions">
                       <code>{data.repoPath}</code>
                       <CopyButton
