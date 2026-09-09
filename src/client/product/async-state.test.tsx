@@ -11,6 +11,9 @@ import { ActivityPage } from "./activity-page";
 import { ActionFeedback, FormFeedback, QueryContent } from "./async-state";
 import type { QueryState } from "./async-state";
 import { ProjectsPage } from "./projects-page";
+import { Button } from "../components/ui/button";
+import { useRepositoryOpen } from "../use-repository-open";
+import { useRepositoryPicker } from "../use-repository-picker";
 
 const base: QueryState = {
   data: undefined,
@@ -51,6 +54,30 @@ const mountDom = () => {
   activeDom.document.body.append(container);
   activeRoot = createRoot(container as unknown as HTMLElement);
   return container;
+};
+const OpenHarness = () => {
+  const state = useRepositoryOpen(() => Promise.resolve());
+  return (
+    <>
+      <Button onClick={() => state.open("/repo")} type="button">
+        Open
+      </Button>
+      <output data-status>{state.pending ? "pending" : "idle"}</output>
+      <p>{state.error?.message}</p>
+    </>
+  );
+};
+const PickerHarness = () => {
+  const state = useRepositoryPicker();
+  return (
+    <>
+      <Button onClick={() => state.handleBrowse()} type="button">
+        Browse
+      </Button>
+      <output data-status>{state.pending ? "pending" : "idle"}</output>
+      <p>{state.error}</p>
+    </>
+  );
 };
 afterEach(async () => {
   if (activeRoot) {
@@ -256,4 +283,26 @@ test("Activity separates unavailable history from successfully empty history", (
   expect(page("activity", "error")).not.toContain("No matching activity");
   expect(page("activity", "pending")).not.toContain("No matching activity");
   expect(page("activity", "success")).toContain("No matching activity");
+});
+test("repository open clears pending state after a rejected request", async () => {
+  const container = mountDom();
+  await act(() => activeRoot?.render(<OpenHarness />));
+  const open = container.querySelector("button");
+  expect(open).not.toBeNull();
+  await act(() => open?.click());
+  expect(container.querySelector("[data-status]")?.textContent).toBe("idle");
+  expect(container.textContent).toContain(
+    "Connection to BranchBase is unavailable"
+  );
+});
+test("repository picker clears pending state after a rejected request", async () => {
+  const container = mountDom();
+  await act(() => activeRoot?.render(<PickerHarness />));
+  const browse = container.querySelector("button");
+  expect(browse).not.toBeNull();
+  await act(() => browse?.click());
+  expect(container.querySelector("[data-status]")?.textContent).toBe("idle");
+  expect(container.textContent).toContain(
+    "Connection to BranchBase is unavailable"
+  );
 });
