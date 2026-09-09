@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
 import { CodexHookActivityStore } from "../codex/codex-hook-activity";
-import { UnavailableCodexIntegrationAdapter } from "../codex/codex-integration";
+import { createUnavailableCodexIntegrationAdapter } from "../codex/codex-integration";
 import type { BranchBaseConfig } from "../config/branchbase-schema";
 import { WorkspaceController } from "../controller/workspace-controller";
 import type { AppEndpointSnapshot } from "../controller/workspace-snapshot";
@@ -201,7 +201,7 @@ export class PortlessIntegrationFixture {
   }
 
   private createController(): WorkspaceController {
-    return new WorkspaceController(new UnavailableCodexIntegrationAdapter(), {
+    return new WorkspaceController(createUnavailableCodexIntegrationAdapter(), {
       codexHooks: new CodexHookActivityStore({ persist: false }),
       processes: new ProcessSupervisor(this.controlDirectory),
       routing: this.routing,

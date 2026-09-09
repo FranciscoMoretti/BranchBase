@@ -62,7 +62,7 @@ import {
   ProcessSupervisor,
   setupProcessId,
 } from "../runtime/process-supervisor";
-import { AppGroupRuntime } from "./app-group-runtime";
+import { AppGroupRuntime, isDetachedGroupId } from "./app-group-runtime";
 import type { AppGroupTarget } from "./app-group-runtime";
 import { parseCommandInput, parseCommandResult } from "./command-contract";
 import type {
@@ -860,7 +860,7 @@ export class WorkspaceController {
     worktreeIdValue: string,
     groupId: string
   ): Promise<"already-stopped" | "stopped"> {
-    if (this.appGroups.isDetachedGroupId(groupId)) {
+    if (isDetachedGroupId(groupId)) {
       const { workspace, worktree } = this.worktree(repoPath, worktreeIdValue);
       return this.appGroups.stopDetached(
         workspace.repoPath,

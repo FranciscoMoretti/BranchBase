@@ -58,8 +58,8 @@ export class CodexAppServerClient {
     if (child.exitCode !== null || child.signalCode !== null) {
       return;
     }
-    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-    const exited = Promise.withResolvers<void>();
+
+    const exited: PromiseWithResolvers<void> = Promise.withResolvers();
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
       exited.resolve();
@@ -89,8 +89,7 @@ export class CodexAppServerClient {
 
   private initialize(): Promise<void> {
     if (!this.initialized) {
-      // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-      const result = Promise.withResolvers<void>();
+      const result: PromiseWithResolvers<void> = Promise.withResolvers();
       const initialization = result.promise;
       const run = async (): Promise<void> => {
         try {

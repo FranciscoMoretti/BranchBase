@@ -120,6 +120,9 @@ const detachedGroupId = (instanceId: string): string => `cleanup:${instanceId}`;
 const detachedInstanceId = (groupId: string): string | null =>
   groupId.startsWith("cleanup:") ? groupId.slice("cleanup:".length) : null;
 
+export const isDetachedGroupId = (groupId: string): boolean =>
+  detachedInstanceId(groupId) !== null;
+
 const detachedTarget = (
   repoPath: string,
   instance: AppGroupInstance,
@@ -572,10 +575,6 @@ export class AppGroupRuntime {
     return (this.pendingWorktreeOperations.get(worktreePath) ?? 0) > 0;
   }
 
-  // oxlint-disable-next-line eslint/class-methods-use-this -- This predicate is a public runtime seam with no instance state.
-  readonly isDetachedGroupId = (groupId: string): boolean =>
-    detachedInstanceId(groupId) !== null;
-
   private async stopUnlocked(
     target: AppGroupTarget,
     instance: AppGroupInstance
@@ -759,8 +758,8 @@ export class AppGroupRuntime {
         })
       );
     })();
-    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-    const completion = Promise.withResolvers<void>();
+
+    const completion: PromiseWithResolvers<void> = Promise.withResolvers();
     const tail = (async () => {
       await predecessor;
       await completion.promise;
