@@ -268,13 +268,13 @@ test("re-adopts a surviving process and recovers routes after a proxy crash", as
     writeFileSync(
       harnessPath,
       `const { CodexHookActivityStore } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/codex/codex-hook-activity.ts"))});
-const { UnavailableCodexIntegrationAdapter } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/codex/codex-integration.ts"))});
+const { createUnavailableCodexIntegrationAdapter } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/codex/codex-integration.ts"))});
 const { WorkspaceController } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/controller/workspace-controller.ts"))});
 const { PortlessRoutingEngine } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/local-routing.ts"))});
 const { FileBranchBaseStateStore } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/local-state.ts"))});
 const { ProcessSupervisor } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/process-supervisor.ts"))});
 const { writeFileSync } = await import("node:fs");
-const controller = new WorkspaceController(new UnavailableCodexIntegrationAdapter(), {
+const controller = new WorkspaceController(createUnavailableCodexIntegrationAdapter(), {
   codexHooks: new CodexHookActivityStore({ persist: false }),
   processes: new ProcessSupervisor(${JSON.stringify(fixture.controlDirectory)}),
   routing: new PortlessRoutingEngine({ port: ${fixture.proxyPort}, stateDirectory: ${JSON.stringify(fixture.portlessState)} }),

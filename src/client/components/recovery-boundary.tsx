@@ -1,6 +1,6 @@
 import { RotateCcwIcon, XIcon } from "lucide-react";
 import { Component } from "react";
-import type { ErrorInfo, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { ErrorDetails } from "../product/async-state";
 import { Button } from "./ui/button";
@@ -36,12 +36,6 @@ export class RecoveryBoundary extends Component<
 
   static getDerivedStateFromError(error: Error): RecoveryBoundaryState {
     return { error };
-  }
-
-  // oxlint-disable-next-line eslint/class-methods-use-this -- React invokes this lifecycle override without instance state.
-  componentDidCatch(_error: Error, _info: ErrorInfo): void {
-    // React reports the component stack in development. The recovery UI keeps
-    // the rest of the dashboard usable in production.
   }
 
   private readonly handleReset = (): void => {
