@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import { serve } from "bun";
 
-import { delay } from "../runtime/async-utils";
+import { delay, pollUntil } from "../runtime/async-utils";
 import {
   DetectedServices,
   NEGATIVE_PROBE_TTL_MS,
@@ -61,12 +61,19 @@ test("HTTP detection requires a response, including non-2xx responses", async ()
     };
     expect(detector.webUrl(service)).toBeNull();
     const expectedUrl = `http://127.0.0.1:${server.port}`;
-    const deadline = Date.now() + 1000;
     let detectedUrl = detector.webUrl(service);
-    while (detectedUrl !== expectedUrl && Date.now() < deadline) {
-      // oxlint-disable-next-line no-await-in-loop -- Service probe polling observes each attempt before waiting.
-      await delay(25);
-      detectedUrl = detector.webUrl(service);
+    if (detectedUrl !== expectedUrl) {
+      await pollUntil(
+        () => {
+          detectedUrl = detector.webUrl(service);
+          return detectedUrl === expectedUrl;
+        },
+        {
+          intervalMs: 25,
+          message: "HTTP detection did not become available",
+          timeoutMs: 1000,
+        }
+      );
     }
     expect(detectedUrl).toBe(expectedUrl);
   } finally {
@@ -106,12 +113,19 @@ test("HTTP detection retries a failed probe after the short negative cache", asy
   try {
     expect(detector.webUrl(service)).toBeNull();
     const expectedUrl = `http://127.0.0.1:${port}`;
-    const deadline = Date.now() + NEGATIVE_PROBE_TTL_MS + PROBE_TIMEOUT_MS;
     let detectedUrl = detector.webUrl(service);
-    while (detectedUrl !== expectedUrl && Date.now() < deadline) {
-      // oxlint-disable-next-line no-await-in-loop -- Service probe polling observes each attempt before waiting.
-      await delay(25);
-      detectedUrl = detector.webUrl(service);
+    if (detectedUrl !== expectedUrl) {
+      await pollUntil(
+        () => {
+          detectedUrl = detector.webUrl(service);
+          return detectedUrl === expectedUrl;
+        },
+        {
+          intervalMs: 25,
+          message: "HTTP detection did not recover after negative cache expiry",
+          timeoutMs: NEGATIVE_PROBE_TTL_MS + PROBE_TIMEOUT_MS,
+        }
+      );
     }
     expect(detectedUrl).toBe(expectedUrl);
   } finally {

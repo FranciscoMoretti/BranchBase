@@ -14,7 +14,7 @@ import pathModule from "node:path";
 
 import { loadBranchBaseConfig } from "../config/branchbase-config";
 import { repositoryCommandFingerprint } from "../config/repository-trust";
-import { delay } from "../runtime/async-utils";
+import { pollUntil } from "../runtime/async-utils";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import {
   ProcessSupervisor,
@@ -174,15 +174,19 @@ test("trust revocation blocks pending work on a persisted undiscovered worktree"
     });
 
     expect(appGroups.hasPendingLifecycle(persistedWorktreePath)).toBe(true);
-    for (let attempt = 0; attempt < 100 && !managed; attempt += 1) {
-      managed = processes
-        .listManagedProcesses()
-        .find((process) => process.cwd === persistedWorktreePath);
-      if (!managed) {
-        // oxlint-disable-next-line no-await-in-loop -- Managed process polling observes each attempt before waiting.
-        await delay(10);
+    await pollUntil(
+      () => {
+        managed = processes
+          .listManagedProcesses()
+          .find((process) => process.cwd === persistedWorktreePath);
+        return managed !== undefined;
+      },
+      {
+        intervalMs: 10,
+        maxAttempts: 100,
+        message: "Managed process did not appear",
       }
-    }
+    );
     expect(managed).toBeDefined();
     expect(() => controller.revokeTrust(repoPath)).toThrow("Stop App groups");
     if (!managed) {
@@ -238,6 +242,10 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
       worktreePath,
     });
     processId = setupProcessId(worktreeId);
+    const startedProcessId = processId;
+    if (startedProcessId === undefined) {
+      throw new Error("Expected a setup process identity");
+    }
     const pid = processes.startManagedProcess({
       argv: [
         "sh",
@@ -254,17 +262,19 @@ test("trust revocation blocks a setup process for a persisted worktree", async (
       processId,
     });
     let managed = false;
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      if (
-        existsSync(markerPath) &&
-        processes.managedPidByIdentity(processId, worktreeId) === pid
-      ) {
-        managed = true;
-        break;
+    await pollUntil(
+      () => {
+        managed =
+          existsSync(markerPath) &&
+          processes.managedPidByIdentity(startedProcessId, worktreeId) === pid;
+        return managed;
+      },
+      {
+        intervalMs: 10,
+        maxAttempts: 50,
+        message: "Managed process identity did not become available",
       }
-      // oxlint-disable-next-line no-await-in-loop -- Managed process polling observes each attempt before waiting.
-      await delay(10);
-    }
+    );
     expect(managed).toBe(true);
     expect(
       processes.managedPidByIdentity(processId, `${worktreeId}-mismatch`)

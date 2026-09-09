@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 
 import { RouteStore } from "portless";
 
-import { delay } from "../src/runtime/async-utils";
+import { pollUntil } from "../src/runtime/async-utils";
 import type {
   LocalRoute,
   LocalRouteState,
@@ -23,8 +23,6 @@ import { DevelopmentProxyPortConflictError } from "./development-proxy-port-conf
 export { DevelopmentProxyPortConflictError } from "./development-proxy-port-conflict-error";
 
 const require = createRequire(import.meta.url);
-const OBSERVATION_TIMEOUT_MS = 5000;
-const POLL_INTERVAL_MS = 50;
 const START_TIMEOUT_MS = 5000;
 const STOP_TIMEOUT_MS = 2500;
 
@@ -60,22 +58,6 @@ const routeKey = (hostname: string, port: number): string =>
   `${hostname}\0${port}`;
 
 const ignoreChildError = () => null;
-
-const waitUntil = async (
-  condition: () => Promise<boolean>,
-  message: string
-): Promise<void> => {
-  const deadline = Date.now() + OBSERVATION_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
-    if (await condition()) {
-      return;
-    }
-    // oxlint-disable-next-line no-await-in-loop -- Proxy readiness polling observes each attempt before waiting.
-    await delay(POLL_INTERVAL_MS);
-  }
-  throw new Error(message);
-};
 
 export const waitForExit = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
@@ -147,14 +129,18 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     if (!current) {
       this.store.addRoute(route.hostname, route.port, 0);
     }
-    await waitUntil(
+    await pollUntil(
       async () =>
         this.isLive() &&
         (await isPublishedPortlessRoute(
           this.url(route.hostname),
           this.url(PORTLESS_PROXY_PROBE_HOSTNAME)
         )),
-      `Portless did not activate ${route.hostname}`
+      {
+        intervalMs: 50,
+        message: `Portless did not activate ${route.hostname}`,
+        timeoutMs: 5000,
+      }
     );
     this.verifiedRoutes.add(routeKey(route.hostname, route.port));
   }
@@ -178,11 +164,15 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     }
     this.verifiedRoutes.delete(routeKey(route.hostname, route.port));
     this.store.removeRoute(route.hostname, 0);
-    return waitUntil(
+    return pollUntil(
       async () =>
         (await observePortlessRoute(this.url(route.hostname))) ===
         "unregistered",
-      `Portless did not deactivate ${route.hostname}`
+      {
+        intervalMs: 50,
+        message: `Portless did not deactivate ${route.hostname}`,
+        timeoutMs: 5000,
+      }
     );
   }
 

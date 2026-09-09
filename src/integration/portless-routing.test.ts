@@ -55,7 +55,9 @@ const assertRunningWorktrees = async (
   const ports = new Set<number>();
   const urls = new Set<string>();
   const worktreePaths = running.worktrees.map((worktree) => worktree.path);
-  for (const worktree of running.worktrees) {
+  const assertWorktree = async (
+    worktree: WorkspaceSnapshot["worktrees"][number]
+  ) => {
     const api = endpoint(worktree, "api");
     const site = endpoint(worktree, "site");
     assert(
@@ -66,7 +68,6 @@ const assertRunningWorktrees = async (
       site.open && site.port && site.url,
       `Site did not open for ${worktree.path}`
     );
-    // oxlint-disable-next-line no-await-in-loop -- Endpoint assertions keep each worktree batch together while sharing collision sets.
     await Promise.all(
       [api, site].map(async (app) => {
         assert(!ports.has(app.port as number), "Backing ports collided");
@@ -103,7 +104,8 @@ const assertRunningWorktrees = async (
           .every((path) => !logs.includes(path)),
       `Logs were not isolated for ${worktree.path}`
     );
-  }
+  };
+  await Promise.all(running.worktrees.map(assertWorktree));
   assert(
     ports.size === 6 && urls.size === 6,
     "Expected six independent endpoints"

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
-import { delay } from "./async-utils";
+import { delay, pollUntil } from "./async-utils";
 import { ProcessSupervisor } from "./process-supervisor";
 
 const worktreeId = `clear-log-test-${process.pid}`;
@@ -27,16 +27,21 @@ beforeEach(() => {
 });
 
 const waitForProcessExit = async (pid: number): Promise<void> => {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    try {
-      process.kill(pid, 0);
-    } catch {
-      return;
+  await pollUntil(
+    () => {
+      try {
+        process.kill(pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    },
+    {
+      intervalMs: 25,
+      maxAttempts: 40,
+      message: `Process ${pid} did not exit`,
     }
-    // oxlint-disable-next-line no-await-in-loop -- Process exit polling observes each attempt before waiting.
-    await delay(25);
-  }
-  throw new Error(`Process ${pid} did not exit`);
+  );
 };
 
 afterEach(() => {
@@ -142,13 +147,14 @@ describe("managed logs", () => {
       ownerRoot: process.cwd(),
       processId: stopTestId,
     });
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      if (supervisor.readManagedLog(stopTestId).includes("ready")) {
-        break;
+    await pollUntil(
+      () => supervisor.readManagedLog(stopTestId).includes("ready"),
+      {
+        intervalMs: 10,
+        maxAttempts: 20,
+        message: "Managed process did not become ready",
       }
-      // oxlint-disable-next-line no-await-in-loop -- Process readiness polling observes each attempt before waiting.
-      await delay(10);
-    }
+    );
     const stopping = supervisor.stopManagedProcess(stopTestId, process.cwd());
     expect(supervisor.managedPid(stopTestId, process.cwd())).toBe(pid);
     expect(await stopping).toBe(pid);
@@ -167,21 +173,27 @@ describe("managed logs", () => {
       ownerRoot: process.cwd(),
       processId: stubbornStopTestId,
     });
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const match = supervisor
-        .readManagedLog(stubbornStopTestId)
-        .join("\n")
-        .match(DESCENDANT_PID_PATTERN);
-      const descendantPid = match?.groups?.pid;
-      if (descendantPid !== undefined) {
+    await pollUntil(
+      () => {
+        const match = supervisor
+          .readManagedLog(stubbornStopTestId)
+          .join("\n")
+          .match(DESCENDANT_PID_PATTERN);
+        const descendantPid = match?.groups?.pid;
+        if (descendantPid === undefined) {
+          return false;
+        }
         stubbornDescendantPid = Number(descendantPid);
-        break;
+        return true;
+      },
+      {
+        intervalMs: 10,
+        maxAttempts: 20,
+        message: "Stubborn descendant did not start",
       }
-      // oxlint-disable-next-line no-await-in-loop -- Descendant discovery polling observes each attempt before waiting.
-      await delay(10);
-    }
+    );
     const descendantPid = stubbornDescendantPid;
-    if (!descendantPid) {
+    if (descendantPid === null) {
       throw new Error("Stubborn descendant did not start");
     }
     expect(
@@ -202,21 +214,27 @@ describe("managed logs", () => {
       ownerRoot: process.cwd(),
       processId: orphanCleanupTestId,
     });
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      const match = supervisor
-        .readManagedLog(orphanCleanupTestId)
-        .join("\n")
-        .match(DESCENDANT_PID_PATTERN);
-      const descendantPid = match?.groups?.pid;
-      if (descendantPid !== undefined) {
+    await pollUntil(
+      () => {
+        const match = supervisor
+          .readManagedLog(orphanCleanupTestId)
+          .join("\n")
+          .match(DESCENDANT_PID_PATTERN);
+        const descendantPid = match?.groups?.pid;
+        if (descendantPid === undefined) {
+          return false;
+        }
         orphanDescendantPid = Number(descendantPid);
-        break;
+        return true;
+      },
+      {
+        intervalMs: 10,
+        maxAttempts: 50,
+        message: "Orphaned descendant did not start",
       }
-      // oxlint-disable-next-line no-await-in-loop -- Descendant discovery polling observes each attempt before waiting.
-      await delay(10);
-    }
+    );
     const descendantPid = orphanDescendantPid;
-    if (!descendantPid) {
+    if (descendantPid === null) {
       throw new Error("Orphaned descendant did not start");
     }
     await waitForProcessExit(descendantPid);

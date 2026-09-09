@@ -17,7 +17,7 @@ import pathModule from "node:path";
 import { z } from "zod";
 
 import { processStartMarker } from "../host/process-inspection";
-import { delay } from "./async-utils";
+import { pollUntil } from "./async-utils";
 import { pathInside, pidOwnedByWorktree } from "./ports";
 
 const LINE_BREAK = /\r?\n/u;
@@ -95,6 +95,27 @@ const processTargetIsLive = (target: ProcessSignalTarget): boolean => {
     return true;
   } catch {
     return false;
+  }
+};
+
+const waitForProcessTargetToStop = async (
+  target: ProcessSignalTarget,
+  maxAttempts: number
+): Promise<boolean> => {
+  const timeoutError = new Error("Process target did not stop");
+  try {
+    await pollUntil(() => !processTargetIsLive(target), {
+      intervalMs: STOP_POLL_MS,
+      maxAttempts,
+      message: timeoutError.message,
+      timeoutError,
+    });
+    return true;
+  } catch (error) {
+    if (error === timeoutError) {
+      return false;
+    }
+    throw error;
   }
 };
 
@@ -488,12 +509,8 @@ export class ProcessSupervisor {
       }
       throw error;
     }
-    for (let attempt = 0; attempt < GRACEFUL_STOP_ATTEMPTS; attempt += 1) {
-      if (!processTargetIsLive(target)) {
-        return;
-      }
-      // oxlint-disable-next-line no-await-in-loop -- Process stop attempts are serialized to preserve signal escalation.
-      await delay(STOP_POLL_MS);
+    if (await waitForProcessTargetToStop(target, GRACEFUL_STOP_ATTEMPTS)) {
+      return;
     }
     if (logId) {
       this.appendManagedLog(
@@ -509,12 +526,8 @@ export class ProcessSupervisor {
       }
       throw error;
     }
-    for (let attempt = 0; attempt < FORCE_STOP_ATTEMPTS; attempt += 1) {
-      if (!processTargetIsLive(target)) {
-        return;
-      }
-      // oxlint-disable-next-line no-await-in-loop -- Owned listener cleanup is serialized to preserve process shutdown ordering.
-      await delay(STOP_POLL_MS);
+    if (await waitForProcessTargetToStop(target, FORCE_STOP_ATTEMPTS)) {
+      return;
     }
     throw new Error(`Managed ${target.kind} ${target.id} did not stop`);
   }

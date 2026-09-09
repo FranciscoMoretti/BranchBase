@@ -13,7 +13,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
-import { delay } from "../src/runtime/async-utils";
+import { pollUntil } from "../src/runtime/async-utils";
 
 const PROJECT_ROOT = pathModule.resolve(import.meta.filename, "../..");
 
@@ -64,17 +64,21 @@ const unusedPort = async (): Promise<number> => {
 };
 
 const waitUntilStopped = async (url: string): Promise<void> => {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      // oxlint-disable-next-line no-await-in-loop -- Packed daemon shutdown polling observes each attempt before waiting.
-      await fetch(url);
-    } catch {
-      return;
+  await pollUntil(
+    async () => {
+      try {
+        await fetch(url);
+        return false;
+      } catch {
+        return true;
+      }
+    },
+    {
+      intervalMs: 100,
+      maxAttempts: 50,
+      message: "Packed BranchBase daemon did not stop",
     }
-    // oxlint-disable-next-line no-await-in-loop -- Packed daemon shutdown polling observes each attempt before waiting.
-    await delay(100);
-  }
-  throw new Error("Packed BranchBase daemon did not stop");
+  );
 };
 
 const temporaryRoot = mkdtempSync(
