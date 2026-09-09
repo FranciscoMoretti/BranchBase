@@ -81,8 +81,8 @@ export const waitForExit = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
-  // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-  const result = Promise.withResolvers<void>();
+
+  const result: PromiseWithResolvers<void> = Promise.withResolvers();
   const onClose = () => {
     child.off("error", ignoreChildError);
     result.resolve();
@@ -218,8 +218,7 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     child: ChildProcess,
     port: number
   ): Promise<void> {
-    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-    const result = Promise.withResolvers<void>();
+    const result: PromiseWithResolvers<void> = Promise.withResolvers();
     const timeoutState: {
       handle: ReturnType<typeof setTimeout> | null;
     } = { handle: null };
