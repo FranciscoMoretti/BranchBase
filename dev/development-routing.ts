@@ -3,6 +3,7 @@ import type { ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { RouteStore } from "portless";
 
@@ -271,13 +272,22 @@ export class DevelopmentRouting implements LocalRoutingEngine {
     }
     try {
       if (this.child.connected) {
-        // ChildProcess.send exposes its asynchronous error through this callback.
-        // oxlint-disable-next-line promise/prefer-await-to-callbacks -- required by the ChildProcess bridge
-        this.child.send({ type: "shutdown" }, (error) => {
-          if (error && this.isLive()) {
-            this.child.kill("SIGTERM");
+        const send = promisify(
+          this.child.send.bind(this.child) as (
+            message: { type: "shutdown" },
+            callback: (error: Error | null) => void
+          ) => void
+        );
+        const sendShutdown = async (): Promise<void> => {
+          try {
+            await send({ type: "shutdown" });
+          } catch {
+            if (this.isLive()) {
+              this.child.kill("SIGTERM");
+            }
           }
-        });
+        };
+        void sendShutdown();
       } else {
         this.child.kill("SIGTERM");
       }
