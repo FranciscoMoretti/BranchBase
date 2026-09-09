@@ -16,7 +16,7 @@ import pathModule from "node:path";
 
 import { spawn } from "bun";
 
-import { delay } from "../runtime/async-utils";
+import { pollUntil } from "../runtime/async-utils";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
 import { ObservationSchema } from "./discovery-contract";
@@ -379,34 +379,40 @@ test("version one metadata loads with no discovery fields", () => {
         ?.services.find((item) => item.pid === child.pid);
       expect(service?.port).toBe(port);
       expect(service?.managed).toBe(false);
-      const resourceDeadline = Date.now() + 1500;
-      while (
-        (service?.resources?.processCount ?? 0) === 0 &&
-        Date.now() < resourceDeadline
-      ) {
-        // oxlint-disable-next-line no-await-in-loop -- Service resource polling observes each attempt before waiting.
-        await delay(25);
-        first = workspace.observeRepository(repo);
-        service = first.worktrees
-          .find((item) => item.path === linked)
-          ?.services.find((item) => item.pid === child.pid);
+      if ((service?.resources?.processCount ?? 0) === 0) {
+        await pollUntil(
+          () => {
+            first = workspace.observeRepository(repo);
+            service = first.worktrees
+              .find((item) => item.path === linked)
+              ?.services.find((item) => item.pid === child.pid);
+            return (service?.resources?.processCount ?? 0) > 0;
+          },
+          {
+            intervalMs: 25,
+            message: "Service resources did not become available",
+            timeoutMs: 1500,
+          }
+        );
       }
       expect(service?.resources?.processCount).toBeGreaterThan(0);
       expect(first.worktrees[0]?.services).toEqual([]);
       const expectedUrl = `http://127.0.0.1:${port}`;
-      const deadline = Date.now() + 2000;
       let next = workspace.observeRepository(repo);
-      while (Date.now() < deadline) {
-        const url = next.worktrees
-          .find((item) => item.path === linked)
-          ?.services.find((item) => item.pid === child.pid)?.url;
-        if (url === expectedUrl) {
-          break;
+      await pollUntil(
+        () => {
+          next = workspace.observeRepository(repo);
+          const url = next.worktrees
+            .find((item) => item.path === linked)
+            ?.services.find((item) => item.pid === child.pid)?.url;
+          return url === expectedUrl;
+        },
+        {
+          intervalMs: 25,
+          message: "Service URL did not become available",
+          timeoutMs: 2000,
         }
-        // oxlint-disable-next-line no-await-in-loop -- Repository observation polling observes each attempt before waiting.
-        await delay(25);
-        next = workspace.observeRepository(repo);
-      }
+      );
       expect(
         next.worktrees
           .find((item) => item.path === linked)

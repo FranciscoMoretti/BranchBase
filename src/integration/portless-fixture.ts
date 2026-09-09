@@ -9,7 +9,7 @@ import { UnavailableCodexIntegrationAdapter } from "../codex/codex-integration";
 import type { BranchBaseConfig } from "../config/branchbase-schema";
 import { WorkspaceController } from "../controller/workspace-controller";
 import type { AppEndpointSnapshot } from "../controller/workspace-snapshot";
-import { delay } from "../runtime/async-utils";
+import { pollUntil } from "../runtime/async-utils";
 import { PortlessRoutingEngine } from "../runtime/local-routing";
 import { FileBranchBaseStateStore } from "../runtime/local-state";
 import { ProcessSupervisor } from "../runtime/process-supervisor";
@@ -86,21 +86,16 @@ export const processIsLive = (pid: number): boolean => {
   }
 };
 
-export const waitUntil = async (
+export const waitUntil = (
   condition: () => boolean,
   message: string,
   timeout = 10_000
-): Promise<void> => {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (condition()) {
-      return;
-    }
-    // oxlint-disable-next-line no-await-in-loop -- Fixture polling observes each attempt before waiting.
-    await delay(50);
-  }
-  throw new Error(message);
-};
+): Promise<void> =>
+  pollUntil(condition, {
+    intervalMs: 50,
+    message,
+    timeoutMs: timeout,
+  });
 
 export const endpoint = (
   worktree: ReturnType<WorkspaceController["inspect"]>["worktrees"][number],

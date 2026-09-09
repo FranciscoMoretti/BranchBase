@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 
 import type { BranchBaseApp } from "../config/branchbase-schema";
 import { inspectHttpStatus } from "../host/http-inspection";
-import { delay } from "./async-utils";
+import { pollUntil } from "./async-utils";
 import type { RunEndpoint } from "./local-state";
 
 const POLL_INTERVAL_MS = 50;
@@ -129,16 +129,9 @@ export const waitForAppReadiness = async (
 ): Promise<void> => {
   const timeoutSeconds =
     app.readiness === "tcp" ? 60 : app.readiness.timeoutSeconds;
-  const deadline = Date.now() + timeoutSeconds * 1000;
-  while (Date.now() < deadline) {
-    // oxlint-disable-next-line no-await-in-loop -- Readiness polling observes each attempt before waiting.
-    if (await appIsReady(app, endpoint)) {
-      return;
-    }
-    // oxlint-disable-next-line no-await-in-loop -- Readiness polling observes each attempt before waiting.
-    await delay(POLL_INTERVAL_MS);
-  }
-  throw new Error(
-    `${app.name ?? endpoint.appId} did not become ready within ${timeoutSeconds} seconds`
-  );
+  await pollUntil(() => appIsReady(app, endpoint), {
+    intervalMs: POLL_INTERVAL_MS,
+    message: `${app.name ?? endpoint.appId} did not become ready within ${timeoutSeconds} seconds`,
+    timeoutMs: timeoutSeconds * 1000,
+  });
 };
