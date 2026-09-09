@@ -14,7 +14,7 @@ import {
   repositoryCommandFingerprint,
   repositoryFingerprintIsTrusted,
 } from "../config/repository-trust";
-import { delay } from "../runtime/async-utils";
+import { pollUntil } from "../runtime/async-utils";
 import type {
   LocalRoute,
   LocalRouteState,
@@ -206,19 +206,31 @@ const observeRunListeners = (run: AppGroupRun): void => {
 };
 
 const waitForPortsStopped = async (run: AppGroupRun): Promise<boolean> => {
-  const deadline = Date.now() + PORT_STOP_TIMEOUT_MS;
   const ports = new Set(Object.values(run.apps).map((app) => app.port));
-  while (Date.now() < deadline) {
-    const snapshot = inspectListeningPorts();
-    if (
-      [...ports].every((port) => portOwnership(snapshot, port, "/") === "none")
-    ) {
-      return true;
+  const timeoutMessage = "App listeners did not stop";
+  const timeoutError = new Error(timeoutMessage);
+  try {
+    await pollUntil(
+      () => {
+        const snapshot = inspectListeningPorts();
+        return [...ports].every(
+          (port) => portOwnership(snapshot, port, "/") === "none"
+        );
+      },
+      {
+        intervalMs: 100,
+        message: timeoutMessage,
+        timeoutError,
+        timeoutMs: PORT_STOP_TIMEOUT_MS,
+      }
+    );
+    return true;
+  } catch (error) {
+    if (error === timeoutError) {
+      return false;
     }
-    // oxlint-disable-next-line no-await-in-loop -- Port shutdown polling observes each attempt before waiting.
-    await delay(100);
+    throw error;
   }
-  return false;
 };
 
 const endpointRoute = (endpoint: RunEndpoint): LocalRoute => {

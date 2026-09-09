@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { delay } from "../src/runtime/async-utils";
+import { delay, pollUntil } from "../src/runtime/async-utils";
 import { reserveBackingPort } from "../src/runtime/readiness";
 import {
   DevelopmentProxyPortConflictError,
@@ -160,21 +160,22 @@ const waitForProxyStatus = async (
   hostname: string,
   expected: number
 ): Promise<void> => {
-  const deadline = Date.now() + 5000;
-  do {
-    try {
-      // oxlint-disable-next-line no-await-in-loop -- Proxy status polling observes each attempt before waiting.
-      const response = await proxyResponse(port, hostname);
-      if (response.status === expected) {
-        return;
+  await pollUntil(
+    async () => {
+      try {
+        const response = await proxyResponse(port, hostname);
+        return response.status === expected;
+      } catch {
+        // Timed-out or refused requests keep polling until the deadline.
+        return false;
       }
-    } catch {
-      // Timed-out or refused requests keep polling until the deadline.
+    },
+    {
+      intervalMs: 25,
+      message: `Proxy did not return status ${expected}`,
+      timeoutMs: 5000,
     }
-    // oxlint-disable-next-line no-await-in-loop -- Proxy status polling observes each attempt before waiting.
-    await delay(25);
-  } while (Date.now() < deadline);
-  throw new Error(`Proxy did not return status ${expected}`);
+  );
 };
 
 const reopenAfterParentExit = async (
