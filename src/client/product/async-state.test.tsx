@@ -199,7 +199,9 @@ test("DOM feedback exposes loading and mutation failure states", async () => {
       </>
     );
   });
-  expect(container.querySelector('[role="status"]')).not.toBeNull();
+  expect(container.querySelector("output")?.textContent).toContain(
+    "Loading projects"
+  );
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
     "Could not save"
   );

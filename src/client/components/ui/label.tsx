@@ -2,14 +2,18 @@ import type * as React from "react";
 
 import { cn } from "@/client/lib/utils";
 
-const Label = ({ className, ...props }: React.ComponentProps<"label">) => (
-  // oxlint-disable-next-line jsx-a11y/label-has-associated-control -- Consumers provide htmlFor or nest the associated control.
+type LabelProps = Omit<React.ComponentProps<"label">, "htmlFor"> & {
+  htmlFor: string;
+};
+
+const Label = ({ className, htmlFor, ...props }: LabelProps) => (
   <label
     className={cn(
       "flex items-center gap-2 text-xs leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
       className
     )}
     data-slot="label"
+    htmlFor={htmlFor}
     {...props}
   />
 );

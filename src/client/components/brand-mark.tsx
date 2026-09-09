@@ -11,11 +11,10 @@ export const BrandMark = ({
     aria-label={title}
     className={cn("brand-mark", className)}
     fill="none"
-    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The brand mark is an inline SVG with a caller-provided accessible name.
-    role="img"
     viewBox="0 0 32 32"
     xmlns="http://www.w3.org/2000/svg"
   >
+    <title>{title}</title>
     <path d="M7 5v22" stroke="currentColor" strokeWidth="2" />
     <path
       d="M7 10h7c5 0 8-2 8-5M7 21h8c6 0 10 2 10 6"

@@ -76,7 +76,7 @@ const Field = ({
     className={cn(fieldVariants({ orientation }), className)}
     data-orientation={orientation}
     data-slot="field"
-    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Fields can contain non-form controls, so this layout primitive intentionally remains a neutral group.
+    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Fields group a label with arbitrary content; fieldset would impose form semantics on non-form layouts.
     role="group"
     {...props}
   />

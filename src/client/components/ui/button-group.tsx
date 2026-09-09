@@ -32,7 +32,7 @@ const ButtonGroup = ({
     className={cn(buttonGroupVariants({ orientation }), className)}
     data-orientation={orientation}
     data-slot="button-group"
-    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- This composable primitive groups arbitrary controls, so a fieldset would impose the wrong form semantics.
+    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- This composable primitive groups arbitrary controls; fieldset would impose form semantics without a legend.
     role="group"
     {...props}
   />

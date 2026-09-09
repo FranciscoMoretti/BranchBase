@@ -9,9 +9,9 @@ export const useRepositoryPicker = (onPick?: PickHandler) => {
   const [pending, setPending] = useState(false);
 
   const handleBrowse = async (handler = onPick) => {
+    setPending(true);
+    setPickerError(null);
     try {
-      setPending(true);
-      setPickerError(null);
       const path = await pickRepository();
       if (path && handler) {
         await handler(path);
@@ -20,10 +20,8 @@ export const useRepositoryPicker = (onPick?: PickHandler) => {
       setPickerError(
         error instanceof Error ? error.message : "Could not open picker"
       );
-      // oxlint-disable-next-line react/todo -- React Compiler currently cannot lower try/finally in this hook.
-    } finally {
-      setPending(false);
     }
+    setPending(false);
   };
 
   return {

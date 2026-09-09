@@ -11,19 +11,17 @@ export const useRepositoryOpen = (
   const [pending, setPending] = useState(false);
 
   const open = async (path: string) => {
+    setPending(true);
+    setRequestError(null);
     try {
-      setPending(true);
-      setRequestError(null);
       const snapshot = await fetchWorkspace(path);
       await onOpened(path, snapshot);
     } catch (error) {
       setRequestError(
         error instanceof Error ? error : new Error("Could not open repository")
       );
-      // oxlint-disable-next-line react/todo -- React Compiler currently cannot lower try/finally in this hook.
-    } finally {
-      setPending(false);
     }
+    setPending(false);
   };
 
   return {

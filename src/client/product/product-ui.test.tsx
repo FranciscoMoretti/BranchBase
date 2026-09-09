@@ -5,6 +5,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type { AppGroupSnapshot } from "../../controller/workspace-snapshot";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "../components/ui/input-group";
+import {
   CodexTasksSection,
   WorktreeConfigurationSource,
 } from "../components/worktree-details";
@@ -130,4 +135,15 @@ test("configuration fallback and unavailable task discovery retain recovery path
   );
   expect(tasks).toContain("Task discovery is temporarily unavailable");
   expect(tasks).toContain("New task");
+});
+
+test("input group addons use native labels to focus their associated control", () => {
+  const markup = renderToStaticMarkup(
+    <InputGroup>
+      <InputGroupAddon htmlFor="repository-path">Browse</InputGroupAddon>
+      <InputGroupInput aria-label="Repository path" id="repository-path" />
+    </InputGroup>
+  );
+  expect(markup).toMatch(/<label[^>]*for="repository-path"/u);
+  expect(markup).toContain('data-slot="input-group-control"');
 });
