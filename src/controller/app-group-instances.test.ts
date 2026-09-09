@@ -82,8 +82,8 @@ const blockingPrepareRoutingEngine = (): BlockingPrepareRoutingEngine => {
       routing.prepared = true;
       return Promise.resolve();
     }
-    // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-    const result = Promise.withResolvers<void>();
+
+    const result: PromiseWithResolvers<void> = Promise.withResolvers();
     releasePrepare = () => result.resolve();
     return result.promise;
   };

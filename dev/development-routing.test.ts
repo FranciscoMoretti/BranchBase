@@ -118,8 +118,7 @@ const listenOnPort = async (
 };
 
 const waitForChildReady = async (child: ChildProcess): Promise<void> => {
-  // oxlint-disable-next-line typescript/no-invalid-void-type -- A completion-only deferred should resolve without a sentinel value.
-  const result = Promise.withResolvers<void>();
+  const result: PromiseWithResolvers<void> = Promise.withResolvers();
   const handlers = {
     cleanup() {
       child.off("error", handlers.onError);
