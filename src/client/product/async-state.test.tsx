@@ -7,13 +7,14 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { RecoveryBoundary } from "../components/recovery-boundary";
+import { Button } from "../components/ui/button";
+import { useRepositoryOpen } from "../use-repository-open";
+import { useRepositoryPicker } from "../use-repository-picker";
 import { ActivityPage } from "./activity-page";
 import { ActionFeedback, FormFeedback, QueryContent } from "./async-state";
 import type { QueryState } from "./async-state";
 import { ProjectsPage } from "./projects-page";
-import { Button } from "../components/ui/button";
-import { useRepositoryOpen } from "../use-repository-open";
-import { useRepositoryPicker } from "../use-repository-picker";
 
 const base: QueryState = {
   data: undefined,
@@ -33,13 +34,14 @@ const globalNames = [
   "Node",
   "window",
 ] as const;
-const previousGlobals = new Map(
-  globalNames.map((name) => [
-    name,
-    Object.getOwnPropertyDescriptor(globalThis, name),
-  ])
-);
+let activePreviousGlobals = new Map<string, PropertyDescriptor | undefined>();
 const mountDom = () => {
+  activePreviousGlobals = new Map(
+    globalNames.map((name) => [
+      name,
+      Object.getOwnPropertyDescriptor(globalThis, name),
+    ])
+  );
   activeDom = new Window({ url: "http://localhost/" });
   Object.assign(globalThis, {
     Element: activeDom.Element,
@@ -86,7 +88,7 @@ afterEach(async () => {
   activeRoot = null;
   activeDom = null;
   for (const name of globalNames) {
-    const descriptor = previousGlobals.get(name);
+    const descriptor = activePreviousGlobals.get(name);
     if (descriptor) {
       Object.defineProperty(globalThis, name, descriptor);
     } else {
@@ -305,4 +307,32 @@ test("repository picker clears pending state after a rejected request", async ()
   expect(container.textContent).toContain(
     "Connection to BranchBase is unavailable"
   );
+});
+test("recovery boundary remounts children after a render failure", async () => {
+  const container = mountDom();
+  let shouldThrow = true;
+  const FlakyContent = () => {
+    if (shouldThrow) {
+      throw new Error("Transient render failure");
+    }
+    return <p>Recovered content</p>;
+  };
+  await act(() => {
+    activeRoot?.render(
+      <RecoveryBoundary
+        description="Try again to restore the interface."
+        title="The interface stopped"
+      >
+        <FlakyContent />
+      </RecoveryBoundary>
+    );
+  });
+  expect(container.textContent).toContain("Try again");
+  shouldThrow = false;
+  const retry = [...container.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Try again")
+  );
+  expect(retry).not.toBeNull();
+  await act(() => retry?.click());
+  expect(container.textContent).toContain("Recovered content");
 });
