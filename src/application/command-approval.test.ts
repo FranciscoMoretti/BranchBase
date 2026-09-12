@@ -79,6 +79,12 @@ const observedFixture = () => {
   );
   const controller = new WorkspaceController(undefined, {
     processes: new ProcessSupervisor(runtime),
+    routing: {
+      activate: () => Promise.resolve(),
+      deactivate: () => Promise.resolve(),
+      observe: () => "inactive",
+      url: (hostname) => `http://${hostname}:1355`,
+    },
     state,
   });
   return {

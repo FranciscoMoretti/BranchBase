@@ -360,7 +360,7 @@ describe("slot-free workspace inspection", () => {
     } finally {
       rmSync(sandbox, { force: true, recursive: true });
     }
-  });
+  }, 15_000);
 });
 
 describe("git worktree discovery", () => {

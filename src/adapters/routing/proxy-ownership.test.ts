@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import {
   existsSync,
@@ -21,11 +21,9 @@ const packageFile = (name: string, ...parts: string[]) =>
   path.join(path.dirname(require.resolve(`${name}/package.json`)), ...parts);
 
 const controlledProcess = (): number => {
-  const background = spawnSync("sh", ["-c", "sleep 30 & echo $!"], {
-    encoding: "utf-8",
-  });
-  const pid = Number(background.stdout.trim());
-  if (!Number.isSafeInteger(pid) || pid <= 0) {
+  const background = spawn("sleep", ["30"], { stdio: "ignore" });
+  const { pid } = background;
+  if (!pid) {
     throw new Error("Could not identify controlled process");
   }
   return pid;
@@ -62,6 +60,27 @@ it("fails closed when a live proxy has missing or mismatched ownership metadata"
       "ownership could not be verified"
     );
     expect(() => process.kill(pid, 0)).not.toThrow();
+    for (const mismatch of [
+      { processStartMarker: "a stale start marker" },
+      { port: routing.port + 1 },
+      { version: 2 },
+    ]) {
+      writeFileSync(
+        path.join(directory, "branchbase-runtime.json"),
+        JSON.stringify({
+          pid,
+          port: routing.port,
+          processStartMarker: processMarker(pid),
+          version: 1,
+          ...mismatch,
+        })
+      );
+      // oxlint-disable-next-line no-await-in-loop -- Each corrupt marker is checked before trying the next ownership mismatch.
+      await expect(routing.prepare()).rejects.toThrow(
+        "ownership could not be verified"
+      );
+      expect(() => process.kill(pid, 0)).not.toThrow();
+    }
     writeFileSync(
       path.join(directory, "branchbase-runtime.json"),
       JSON.stringify({
