@@ -6,14 +6,14 @@ import {
   SquareIcon,
 } from "lucide-react";
 
+import { appGroupStatus } from "../../app-group/status";
 import type { CodexIntegrationSnapshot } from "../../codex/codex-integration";
-import { appGroupIsRunning } from "../../controller/workspace-snapshot";
+import { appGroupIsRunning } from "../../project/worktree-status-contract";
 import type {
   AppGroupSnapshot,
   WorktreeSnapshot,
-} from "../../controller/workspace-snapshot";
+} from "../../project/worktree-status-contract";
 import { AppGroupActionsMenu } from "../components/app-group-actions-menu";
-import { appGroupDisplayStatus } from "../components/app-group-status";
 import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
@@ -137,7 +137,7 @@ export const GroupSummary = ({
   controls: GroupControls;
   expanded?: boolean;
 }) => {
-  const status = appGroupDisplayStatus(group);
+  const status = appGroupStatus(group);
   return (
     <div
       className={expanded ? "product-group-expanded" : "product-group-compact"}
@@ -331,10 +331,7 @@ const EnvironmentRow = ({
                     key={group.id}
                     onClick={() => controls.inspect(worktree, group)}
                   >
-                    <Status
-                      label={group.name}
-                      value={appGroupDisplayStatus(group)}
-                    />
+                    <Status label={group.name} value={appGroupStatus(group)} />
                     <span className="product-muted">Details & controls</span>
                   </DropdownMenuItem>
                 ))}
@@ -348,7 +345,7 @@ const EnvironmentRow = ({
         {!expanded &&
         worktree.appGroups
           .slice(2)
-          .some((group) => appGroupDisplayStatus(group) === "partial") ? (
+          .some((group) => appGroupStatus(group) === "partial") ? (
           <Button onClick={() => setExpanded(true)} variant="link">
             Additional groups need attention
           </Button>

@@ -6,9 +6,9 @@ import { createServer } from "node:net";
 import type { Server } from "node:net";
 import pathModule from "node:path";
 
-import { repositoryCommandFingerprint } from "../config/repository-trust";
-import type { WorkspaceSnapshot } from "../controller/workspace-snapshot";
-import { FileBranchBaseStateStore } from "../runtime/local-state";
+import { FileBranchBaseStateStore } from "../app-group/assignments";
+import { repositoryCommandFingerprint } from "../configuration/repository-trust";
+import type { WorkspaceSnapshot } from "../project/worktree-status-contract";
 import {
   assert,
   endpoint,
@@ -271,10 +271,10 @@ test("re-adopts a surviving process and recovers routes after a proxy crash", as
       harnessPath,
       `const { CodexHookActivityStore } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/codex/codex-hook-activity.ts"))});
 const { createUnavailableCodexIntegrationAdapter } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/codex/codex-integration.ts"))});
-const { WorkspaceController } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/controller/workspace-controller.ts"))});
-const { PortlessRoutingEngine } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/local-routing.ts"))});
-const { FileBranchBaseStateStore } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/local-state.ts"))});
-const { ProcessSupervisor } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/runtime/process-supervisor.ts"))});
+const { WorkspaceController } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/application/workspace-controller.ts"))});
+const { PortlessRoutingEngine } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/adapters/routing/portless.ts"))});
+const { FileBranchBaseStateStore } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/app-group/assignments.ts"))});
+const { ProcessSupervisor } = await import(${JSON.stringify(pathModule.join(branchbaseRoot, "src/adapters/host/process-supervisor.ts"))});
 const { writeFileSync } = await import("node:fs");
 const controller = new WorkspaceController(createUnavailableCodexIntegrationAdapter(), {
   codexHooks: new CodexHookActivityStore({ persist: false }),

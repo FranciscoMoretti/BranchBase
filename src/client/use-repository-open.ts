@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { WorkspaceSnapshot } from "../controller/workspace-snapshot";
+import type { WorkspaceSnapshot } from "../project/worktree-status-contract";
 import { fetchWorkspace } from "./api";
 
 export const useRepositoryOpen = (

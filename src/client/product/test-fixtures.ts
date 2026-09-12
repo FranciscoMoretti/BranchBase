@@ -1,4 +1,4 @@
-import type { WorktreeSnapshot } from "../../controller/workspace-snapshot";
+import type { WorktreeSnapshot } from "../../project/worktree-status-contract";
 
 export const worktree: WorktreeSnapshot = {
   appGroups: [],

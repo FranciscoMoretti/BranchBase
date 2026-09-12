@@ -2,7 +2,7 @@ import pathModule from "node:path";
 
 import { z } from "zod";
 
-import { codexExecutableCandidates } from "../host/codex-executable";
+import { codexExecutableCandidates } from "../adapters/host/codex-executable";
 import {
   CodexAppServerClient,
   resolveCodexCommand,

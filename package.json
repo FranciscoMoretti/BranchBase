@@ -33,7 +33,7 @@
   ],
   "type": "module",
   "exports": {
-    "./config": "./src/config/public.ts"
+    "./config": "./src/configuration/public.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -47,7 +47,7 @@
     "lint": "ultracite check",
     "prepack": "bun run build",
     "schema:generate": "bun scripts/generate-config-schema.ts && oxfmt --write schema/branchbase.schema.json",
-    "test": "bun test ./dev ./src/client ./src/codex ./src/commands ./src/config ./src/controller ./src/host ./src/runtime ./src/server",
+    "test": "bun test ./dev ./src",
     "test:integration": "bun test --path-ignore-patterns=__branchbase_no_ignored_tests__ ./src/integration/portless-routing.test.ts",
     "test:pack": "bun scripts/test-packed-artifact.ts",
     "test:types": "tsc --noEmit",

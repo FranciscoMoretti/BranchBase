@@ -10,8 +10,9 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 
-import type { Observation } from "../../controller/discovery-contract";
-import type { ProjectOverview } from "../../controller/product-contract";
+import type { ProjectOverview } from "../../project/catalog-contract";
+import type { Observation } from "../../project/discovery-contract";
+import type { ProjectStatus } from "../../project/status-contract";
 import { runCommand } from "../api";
 import { Button } from "../components/ui/button";
 import {
@@ -22,10 +23,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { useWorkspace } from "../queries";
+import { useProjectStatus } from "../queries";
 import { ActivityPage } from "./activity-page";
 import { QueryContent } from "./async-state";
-import { hrefFor, readLocation, useObservation, useProjects } from "./data";
+import { CleanupAppGroups } from "./cleanup-app-groups";
+import { hrefFor, readLocation, useProjects } from "./data";
 import type { ProductLocation } from "./data";
 import { ObservedProjectPage } from "./observed-project-page";
 import { Blank, Shell } from "./primitives";
@@ -85,13 +87,29 @@ const pageContent = ({
   return null;
 };
 
+const statusObservation = (
+  status: ProjectStatus | undefined
+): Observation | undefined =>
+  status
+    ? {
+        ...(status.observation ?? {
+          repoPath: status.repoPath,
+          updatedAt: status.updatedAt,
+          worktrees: status.worktrees.map((worktree) => ({
+            ...worktree,
+            services: [],
+          })),
+        }),
+        configured: Boolean(status.workspace),
+        warning: status.issues.map((issue) => issue.message).join("; ") || null,
+      }
+    : undefined;
+
 export const ProductApp = () => {
   const [location, setLocation] = useState(readLocation);
-  const observation = useObservation(location.repo);
-  const workspace = useWorkspace(
-    location.repo,
-    observation.data?.configured === true
-  );
+  const status = useProjectStatus(location.repo);
+  const workspace = { ...status, data: status.data?.workspace ?? undefined };
+  const observation = { ...status, data: statusObservation(status.data) };
   const projects = useProjects();
   const client = useQueryClient();
   const dirty = useRef(false);
@@ -140,7 +158,7 @@ export const ProductApp = () => {
         go(href);
       }
     },
-    [go]
+    [go, setPendingHref]
   );
   const navigate = useCallback(
     (value: Partial<ProductLocation>) => {
@@ -353,6 +371,7 @@ export const ProductApp = () => {
             query={projectQuery}
             resetKey={`${location.repo}:${observation.data?.configured ? "workspace" : "observation"}`}
           >
+            {status.data ? <CleanupAppGroups status={status.data} /> : null}
             {content}
           </QueryContent>
         ) : (

@@ -6,6 +6,8 @@ BranchBase coordinates development worktrees and the app groups they expose.
 
 **Project**: A locally tracked Git repository together with the worktrees BranchBase discovers from it.
 
+**Project status**: The complete live projection of a Project, its worktrees, configuration availability, Effective configuration, App group status, and observed resource use. It is computed from current observations and is never persisted as intent. _Avoid_: Workspace snapshot, Project health
+
 **Primary worktree**: The first worktree reported by Git for a Project. Its checked-in configuration is the Project default. _Avoid_: Base repository, Non-worktree
 
 **Project default configuration**: The `.branchbase.json` loaded from a Project's Primary worktree and inherited by worktrees unless they explicitly select their own configuration. _Avoid_: Base configuration

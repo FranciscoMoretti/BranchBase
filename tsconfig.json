@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": false,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -17,5 +18,5 @@
     "target": "ESNext",
     "types": ["bun", "node", "vite/client"]
   },
-  "include": ["dev/**/*.ts", "src/**/*.ts", "src/**/*.tsx"]
+  "include": ["dev/**/*.ts", "scripts/**/*.ts", "src/**/*.ts", "src/**/*.tsx"]
 }

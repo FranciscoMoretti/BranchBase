@@ -4,16 +4,16 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
+import { pollUntil } from "../adapters/host/polling";
+import { ProcessSupervisor } from "../adapters/host/process-supervisor";
+import { PortlessRoutingEngine } from "../adapters/routing/portless";
+import { FileBranchBaseStateStore } from "../app-group/assignments";
+import { reserveBackingPort } from "../app-group/readiness";
+import { WorkspaceController } from "../application/workspace-controller";
 import { CodexHookActivityStore } from "../codex/codex-hook-activity";
 import { createUnavailableCodexIntegrationAdapter } from "../codex/codex-integration";
-import type { BranchBaseConfig } from "../config/branchbase-schema";
-import { WorkspaceController } from "../controller/workspace-controller";
-import type { AppEndpointSnapshot } from "../controller/workspace-snapshot";
-import { pollUntil } from "../runtime/async-utils";
-import { PortlessRoutingEngine } from "../runtime/local-routing";
-import { FileBranchBaseStateStore } from "../runtime/local-state";
-import { ProcessSupervisor } from "../runtime/process-supervisor";
-import { reserveBackingPort } from "../runtime/readiness";
+import type { BranchBaseConfig } from "../configuration/branchbase-schema";
+import type { AppEndpointSnapshot } from "../project/worktree-status-contract";
 
 const require = createRequire(import.meta.url);
 

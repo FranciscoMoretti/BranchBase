@@ -13,7 +13,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
-import { pollUntil } from "../src/runtime/async-utils";
+import { pollUntil } from "../src/adapters/host/polling";
 
 const PROJECT_ROOT = pathModule.resolve(import.meta.filename, "../..");
 
@@ -108,7 +108,7 @@ try {
     "package/plugins/branchbase/hooks/branchbase-hook",
     "package/plugins/branchbase/hooks/branchbase-hook.ts",
     "package/schema/branchbase.schema.json",
-    "package/src/config/public.ts",
+    "package/src/configuration/public.ts",
   ]) {
     assert(
       packedFiles.split("\n").includes(requiredPath),
@@ -137,6 +137,11 @@ try {
   assert(
     existsSync(cliPath),
     "Packed install did not expose the branchbase CLI"
+  );
+  const helpOutput = run(cliPath, ["help"], { cwd: installDirectory });
+  assert(
+    helpOutput.includes("branchbase project status"),
+    "Packed CLI help did not run without a daemon"
   );
   run(
     "bun",
@@ -217,6 +222,27 @@ try {
   assert(
     workspace.ok && workspaceBody.repoPath === realpathSync(fixtureDirectory),
     "Packed daemon did not inspect the disposable Git fixture"
+  );
+  const projectStatus = JSON.parse(
+    run(cliPath, ["project", "status", "--repo", fixtureDirectory, "--json"], {
+      cwd: installDirectory,
+      env: daemonEnvironment,
+    })
+  ) as { configuration?: { state?: string }; repoPath?: string };
+  assert(
+    projectStatus.repoPath === realpathSync(fixtureDirectory) &&
+      projectStatus.configuration?.state === "ready",
+    "Packed CLI project status did not report the configured fixture"
+  );
+  const projectList = JSON.parse(
+    run(cliPath, ["project", "list", "--json"], {
+      cwd: installDirectory,
+      env: daemonEnvironment,
+    })
+  ) as { projects?: unknown[] };
+  assert(
+    Array.isArray(projectList.projects),
+    "Packed CLI project list did not return a projects array"
   );
   const ui = await fetch(`${baseUrl}/`);
   const uiHtml = await ui.text();

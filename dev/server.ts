@@ -1,7 +1,7 @@
 import pathModule from "node:path";
 
-import { WorkspaceController } from "../src/controller/workspace-controller";
-import { createBranchBaseServer } from "../src/server/branchbase-server";
+import { createBranchBaseServer } from "../src/adapters/http/branchbase-server";
+import { WorkspaceController } from "../src/application/workspace-controller";
 import { openDevelopmentSession } from "./development-session";
 
 const appRoot = pathModule.dirname(import.meta.dirname);

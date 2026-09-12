@@ -1,15 +1,15 @@
 import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
-import type { Observation } from "../../controller/discovery-contract";
-import type { ProjectOverview } from "../../controller/product-contract";
-import { appGroupIsRunning } from "../../controller/workspace-snapshot";
+import { appGroupStatus } from "../../app-group/status";
+import type { ProjectOverview } from "../../project/catalog-contract";
+import type { Observation } from "../../project/discovery-contract";
+import { appGroupIsRunning } from "../../project/worktree-status-contract";
 import type {
   AppGroupSnapshot,
   WorkspaceSnapshot,
   WorktreeSnapshot,
-} from "../../controller/workspace-snapshot";
-import { appGroupDisplayStatus } from "../components/app-group-status";
+} from "../../project/worktree-status-contract";
 import { CreateWorktreeDialog } from "../components/create-worktree-dialog";
 import { DeleteWorktreeDialog } from "../components/delete-worktree-dialog";
 import { RepositoryTrustDialog } from "../components/repository-trust-dialog";
@@ -48,9 +48,7 @@ const needsAttention = (worktree: WorktreeSnapshot): boolean =>
     worktree.configuration.error ||
     !worktree.configuration.trusted ||
     worktree.setupState === "failed" ||
-    worktree.appGroups.some(
-      (group) => appGroupDisplayStatus(group) === "partial"
-    )
+    worktree.appGroups.some((group) => appGroupStatus(group) === "partial")
   );
 
 const isMissingEnvironment = (

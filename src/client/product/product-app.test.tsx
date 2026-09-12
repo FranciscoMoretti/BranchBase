@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 
-import { delay } from "../../runtime/async-utils";
+import { delay } from "../../adapters/host/polling";
 import { ThemeProvider } from "../components/theme-provider";
 
 let dom: Window | null = null;

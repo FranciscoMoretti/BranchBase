@@ -1,8 +1,8 @@
 import { DatabaseIcon } from "lucide-react";
 import { useState } from "react";
 
-import type { WorkspaceSnapshot } from "../../controller/workspace-snapshot";
-import { appGroupDisplayStatus } from "../components/app-group-status";
+import { appGroupStatus } from "../../app-group/status";
+import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
 import { Button } from "../components/ui/button";
 import { GroupToggle } from "./environment-list";
 import type { GroupControls } from "./environment-list";
@@ -103,7 +103,7 @@ export const InfrastructurePage = ({
                 <h2>{group.instance.name}</h2>
                 <p className="product-muted">{group.name}</p>
               </div>
-              <Status value={appGroupDisplayStatus(group)} />
+              <Status value={appGroupStatus(group)} />
               <span className="product-muted">
                 Selected by {consumers.length} worktrees
               </span>

@@ -58,6 +58,23 @@ bun scripts/daemon.ts stop
 
 BranchBase has not yet been published to npm. Use the source installation above until the first package release is available.
 
+### CLI-only use
+
+Starting the daemon does not open a browser. The CLI and dashboard share the same daemon, command validation, and command-fingerprint approval rules.
+
+```sh
+bun scripts/daemon.ts daemon start
+bun scripts/daemon.ts project list --json
+bun scripts/daemon.ts project status --repo /path/to/repository --json
+bun scripts/daemon.ts execute start-apps --input '{"repoPath":"/path/to/repository","worktreeId":"WORKTREE_ID","appGroupName":"APP_GROUP_ID"}'
+bun scripts/daemon.ts logs --repo /path/to/repository --worktree WORKTREE_ID --group APP_GROUP_ID
+bun scripts/daemon.ts dashboard --repo /path/to/repository
+```
+
+`execute` exposes the same commands as the dashboard, including configuration and trust approval. Review the configuration and fingerprints in Project status before approving commands. Failed requests are not automatically retried, avoiding accidental duplicate mutations. The daemon must be running for queries and commands; `help` lists the interface.
+
+See [Architecture](docs/architecture.md) for module ownership and dependency rules.
+
 ## Codex integration
 
 BranchBase matches Codex tasks to worktrees using the task's exact canonical working directory. It exposes every matching non-archived top-level task; the UI may emphasize the newest one, but the backend does not discard the others.

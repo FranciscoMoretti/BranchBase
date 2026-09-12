@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { RepositoryTrustApproval } from "../config/repository-trust-approval";
+import type { RepositoryTrustApproval } from "../configuration/repository-trust-approval";
 
 export type RepositoryTrustAction = () => void | Promise<void>;
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import type { ProjectOverview } from "../../controller/product-contract";
-import type { WorkspaceSnapshot } from "../../controller/workspace-snapshot";
+import type { ProjectOverview } from "../../project/catalog-contract";
+import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
 import { RepositoryConfigPage } from "../components/repository-config-page";
 import { ThemeToggle } from "../components/theme-toggle";
 import { Button } from "../components/ui/button";

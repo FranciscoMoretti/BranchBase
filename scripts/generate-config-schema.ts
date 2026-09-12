@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import pathModule from "node:path";
 
-import { branchbaseJsonSchema } from "../src/config/branchbase-json-schema";
+import { branchbaseJsonSchema } from "../src/configuration/branchbase-json-schema";
 
 const path = pathModule.join(
   import.meta.dirname,

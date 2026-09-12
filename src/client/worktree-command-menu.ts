@@ -5,12 +5,12 @@ import {
   SquareIcon,
 } from "lucide-react";
 
-import type { WorktreeSnapshot } from "../controller/workspace-snapshot";
+import type { WorktreeSnapshot } from "../project/worktree-status-contract";
 import {
   appsAreRunning,
   appsAreStopped,
   appsCanRestart,
-} from "../controller/workspace-snapshot";
+} from "../project/worktree-status-contract";
 import type { CommandMenuItem } from "./components/command-menu-items";
 
 export interface WorktreeCommandActions {

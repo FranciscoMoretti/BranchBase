@@ -7,17 +7,17 @@ import { promisify } from "node:util";
 
 import { RouteStore } from "portless";
 
-import { pollUntil } from "../src/runtime/async-utils";
-import type {
-  LocalRoute,
-  LocalRouteState,
-  LocalRoutingEngine,
-} from "../src/runtime/local-routing";
+import { pollUntil } from "../src/adapters/host/polling";
 import {
   isPublishedPortlessRoute,
   observePortlessRoute,
   PORTLESS_PROXY_PROBE_HOSTNAME,
-} from "../src/runtime/portless-observation";
+} from "../src/adapters/routing/observation";
+import type {
+  LocalRoute,
+  LocalRouteState,
+  LocalRoutingEngine,
+} from "../src/adapters/routing/portless";
 import { DevelopmentProxyPortConflictError } from "./development-proxy-port-conflict-error";
 
 export { DevelopmentProxyPortConflictError } from "./development-proxy-port-conflict-error";

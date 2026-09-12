@@ -1,9 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchCodexIntegration, fetchLogs, fetchWorkspace } from "./api";
+import {
+  fetchCodexIntegration,
+  fetchLogs,
+  fetchWorkspace,
+  fetchProjectStatus,
+} from "./api";
 
 export const REFRESH_INTERVAL = 5000;
 const CODEX_REFRESH_INTERVAL = 2500;
+
+export const useProjectStatus = (repoPath: string) =>
+  useQuery({
+    enabled: repoPath !== "",
+    queryFn: () => fetchProjectStatus(repoPath),
+    queryKey: ["project-status", repoPath],
+    refetchInterval: REFRESH_INTERVAL,
+    retry: false,
+    staleTime: REFRESH_INTERVAL,
+  });
 
 export const useWorkspace = (repoPath: string, enabled = true) =>
   useQuery({

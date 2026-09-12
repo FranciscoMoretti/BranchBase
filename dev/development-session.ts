@@ -3,11 +3,11 @@ import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import pathModule from "node:path";
 
+import { ProcessSupervisor } from "../src/adapters/host/process-supervisor";
+import { FileBranchBaseStateStore } from "../src/app-group/assignments";
+import { reserveBackingPort } from "../src/app-group/readiness";
+import type { WorkspaceControllerRuntimeOptions } from "../src/application/workspace-controller";
 import { CodexHookActivityStore } from "../src/codex/codex-hook-activity";
-import type { WorkspaceControllerRuntimeOptions } from "../src/controller/workspace-controller";
-import { FileBranchBaseStateStore } from "../src/runtime/local-state";
-import { ProcessSupervisor } from "../src/runtime/process-supervisor";
-import { reserveBackingPort } from "../src/runtime/readiness";
 import {
   DevelopmentProxyPortConflictError,
   DevelopmentRouting,

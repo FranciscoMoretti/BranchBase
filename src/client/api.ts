@@ -1,18 +1,20 @@
 import type { ZodType } from "zod";
 
-import { CodexIntegrationSnapshotSchema } from "../codex/codex-integration";
-import type { CodexIntegrationSnapshot } from "../codex/codex-integration";
+import {
+  LogsResponseSchema,
+  SessionResponseSchema,
+} from "../adapters/http/schemas";
 import {
   CommandReceiptSchema,
   PickRepositoryResultSchema,
   RepositoryInitializationPlanSchema,
-} from "../controller/command-contract";
-import type {
-  CommandReceipt,
-  WorkspaceSnapshot,
-} from "../controller/workspace-snapshot";
-import { WorkspaceSnapshotSchema } from "../controller/workspace-snapshot";
-import { LogsResponseSchema, SessionResponseSchema } from "../server/schemas";
+} from "../application/command-contract";
+import type { CommandReceipt } from "../application/command-contract";
+import { CodexIntegrationSnapshotSchema } from "../codex/codex-integration";
+import type { CodexIntegrationSnapshot } from "../codex/codex-integration";
+import { ProjectStatusSchema } from "../project/status-contract";
+import type { WorkspaceSnapshot } from "../project/worktree-status-contract";
+import { WorkspaceSnapshotSchema } from "../project/worktree-status-contract";
 
 let sessionToken: Promise<string> | null = null;
 
@@ -90,6 +92,11 @@ export const request = async (
 };
 export const getJson = async (path: string): Promise<unknown> =>
   responseJson(await request(path));
+
+export const fetchProjectStatus = async (repoPath: string) =>
+  ProjectStatusSchema.parse(
+    await getJson(`/api/project-status?${new URLSearchParams({ repoPath })}`)
+  );
 const token = (): Promise<string> => {
   if (!sessionToken) {
     sessionToken = (async () => {
