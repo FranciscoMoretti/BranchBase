@@ -4,11 +4,11 @@ import { useCallback, useMemo } from "react";
 import type {
   AppGroupSnapshot,
   WorktreeSnapshot,
-} from "../controller/workspace-snapshot";
+} from "../project/worktree-status-contract";
 import {
   appGroupIsStopped,
   appsAreStopped,
-} from "../controller/workspace-snapshot";
+} from "../project/worktree-status-contract";
 import { useCommands } from "./mutations";
 import type { RequestRepositoryTrust } from "./use-repository-trust";
 import type { WorktreeCommandActions } from "./worktree-command-menu";

@@ -7,9 +7,9 @@ import {
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-import type { ProjectOverview } from "../../controller/product-contract";
-import { appGroupIsRunning } from "../../controller/workspace-snapshot";
-import { appGroupDisplayStatus } from "../components/app-group-status";
+import { appGroupStatus } from "../../app-group/status";
+import type { ProjectOverview } from "../../project/catalog-contract";
+import { appGroupIsRunning } from "../../project/worktree-status-contract";
 import { Button } from "../components/ui/button";
 import {
   Dialog,
@@ -57,9 +57,7 @@ const projectNeedsAttention = (project: ProjectOverview): boolean =>
         worktree.configuration.error ||
         !worktree.configuration.trusted ||
         worktree.setupState === "failed" ||
-        worktree.appGroups.some(
-          (group) => appGroupDisplayStatus(group) === "partial"
-        )
+        worktree.appGroups.some((group) => appGroupStatus(group) === "partial")
     )
   );
 const attentionHref = (
@@ -151,9 +149,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
     (worktree) =>
       worktree.configuration.error ||
       !worktree.configuration.trusted ||
-      worktree.appGroups.some(
-        (group) => appGroupDisplayStatus(group) === "partial"
-      )
+      worktree.appGroups.some((group) => appGroupStatus(group) === "partial")
   );
   const attention = attentionNotice(project, warning);
   return (

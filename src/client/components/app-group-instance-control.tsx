@@ -2,7 +2,7 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
-import type { AppGroupSnapshot } from "../../controller/workspace-snapshot";
+import type { AppGroupSnapshot } from "../../project/worktree-status-contract";
 import { Button } from "./ui/button";
 import {
   Dialog,

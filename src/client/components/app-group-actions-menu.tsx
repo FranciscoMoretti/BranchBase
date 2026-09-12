@@ -9,11 +9,11 @@ import {
 import type {
   AppGroupSnapshot,
   WorktreeSnapshot,
-} from "../../controller/workspace-snapshot";
+} from "../../project/worktree-status-contract";
 import {
   appGroupCanRestart,
   appGroupIsRunning,
-} from "../../controller/workspace-snapshot";
+} from "../../project/worktree-status-contract";
 import { CommandMenuItems } from "./command-menu-items";
 import type { CommandMenuItem } from "./command-menu-items";
 import { Button } from "./ui/button";

@@ -8,7 +8,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import type { AppEndpointSnapshot } from "../../controller/workspace-snapshot";
+import type { AppEndpointSnapshot } from "../../project/worktree-status-contract";
 import { Button } from "../components/ui/button";
 import {
   Empty,

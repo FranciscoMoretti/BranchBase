@@ -12,7 +12,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
-import { reserveBackingPort } from "../src/runtime/readiness";
+import { reserveBackingPort } from "../src/app-group/readiness";
 import type { DevelopmentRouting } from "./development-routing";
 import { openDevelopmentSession } from "./development-session";
 import { acquireExclusiveFileLock } from "./exclusive-file-lock";

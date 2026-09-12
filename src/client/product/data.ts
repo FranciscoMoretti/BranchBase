@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  FoldersResponseSchema,
-  ObservationSchema,
-} from "../../controller/discovery-contract";
-import {
   ActivityResponseSchema,
   ProjectsResponseSchema,
-} from "../../controller/product-contract";
+} from "../../project/catalog-contract";
+import {
+  FoldersResponseSchema,
+  ObservationSchema,
+} from "../../project/discovery-contract";
 import { getJson, runCommand } from "../api";
 
 export const useObservation = (repoPath: string) =>
@@ -64,6 +64,7 @@ export const useProductCommand = () => {
     }) => runCommand(command, input),
     onSuccess: () =>
       Promise.all([
+        client.invalidateQueries({ queryKey: ["project-status"] }),
         client.invalidateQueries({ queryKey: ["projects"] }),
         client.invalidateQueries({ queryKey: ["observation"] }),
         client.invalidateQueries({ queryKey: ["development-folders"] }),

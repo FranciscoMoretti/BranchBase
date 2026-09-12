@@ -13,20 +13,24 @@ import {
 import { homedir } from "node:os";
 import pathModule from "node:path";
 
-import { currentHost } from "../src/host/host-adapter";
+import { DaemonClient } from "../src/adapters/cli/client";
+import { runCli } from "../src/adapters/cli/run";
+import { currentHost } from "../src/adapters/host/host-adapter";
+import { pollUntil } from "../src/adapters/host/polling";
 import {
   repositoryPathFromArgs,
   repositoryUrl,
 } from "../src/repository-context";
-import { pollUntil } from "../src/runtime/async-utils";
 
 const APP_ROOT = pathModule.dirname(import.meta.dirname);
 const CONTROL_DIR = pathModule.join(homedir(), ".branchbase");
 const PID_FILE = pathModule.join(CONTROL_DIR, "server.pid");
 const LOG_FILE = pathModule.join(CONTROL_DIR, "server.log");
-const [command] = process.argv.slice(2);
+const cliArgs = process.argv.slice(2);
+const daemonArgs = cliArgs[0] === "daemon" ? cliArgs.slice(1) : cliArgs;
+const [command] = daemonArgs;
 const selectedRepoPath = repositoryPathFromArgs(
-  process.argv.slice(3),
+  daemonArgs.slice(1),
   process.env.INIT_CWD
 );
 const repoPath = selectedRepoPath ? pathModule.resolve(selectedRepoPath) : null;
@@ -114,13 +118,12 @@ const start = async (): Promise<void> => {
   mkdirSync(CONTROL_DIR, { recursive: true });
   const existing = readPid();
   if (existing && alive(existing)) {
-    openApp();
     console.log(`BranchBase is already running (pid ${existing}): ${appUrl()}`);
     return;
   }
   rmSync(PID_FILE, { force: true });
   const log = openSync(LOG_FILE, "a");
-  const child = spawn(process.execPath, ["run", "src/server/server.ts"], {
+  const child = spawn(process.execPath, ["run", "src/daemon/main.ts"], {
     cwd: APP_ROOT,
     detached: true,
     env: { ...process.env, NODE_ENV: "production" },
@@ -136,7 +139,6 @@ const start = async (): Promise<void> => {
     `${JSON.stringify({ pid: child.pid, startMarker: startMarker(child.pid) })}\n`
   );
   await waitForHealth(child.pid);
-  openApp();
   console.log(`BranchBase started: ${appUrl()}`);
 };
 
@@ -172,6 +174,22 @@ if (command === "start") {
   status();
 } else if (command === "stop") {
   stop();
+} else if (command === "dashboard") {
+  openApp();
+  console.log(appUrl());
 } else {
-  throw new Error("Usage: daemon <start|status|stop> [--repo PATH]");
+  try {
+    console.log(
+      await runCli(
+        cliArgs,
+        new DaemonClient(
+          `http://127.0.0.1:${process.env.BRANCHBASE_PORT ?? 3999}`
+        ),
+        process.cwd()
+      )
+    );
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
 }

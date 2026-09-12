@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import type { WorktreeSnapshot } from "../controller/workspace-snapshot";
+import type { WorktreeSnapshot } from "../project/worktree-status-contract";
 import { worktreeCommandMenuItems } from "./worktree-command-menu";
 import type { WorktreeCommandActions } from "./worktree-command-menu";
 

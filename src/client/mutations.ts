@@ -14,6 +14,7 @@ const useCommand = (command: string, repoPath: string) => {
     mutationKey: ["command", command],
     onSuccess: async (_result, input) => {
       await Promise.all([
+        client.invalidateQueries({ queryKey: ["project-status", repoPath] }),
         client.invalidateQueries({ queryKey: ["workspace", repoPath] }),
         input.worktreeId
           ? client.invalidateQueries({

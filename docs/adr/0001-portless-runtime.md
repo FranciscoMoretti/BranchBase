@@ -10,14 +10,16 @@ Portless is an always-available implementation dependency, but it remains behind
 
 The implementation uses a BranchBase-exclusive Portless state directory. This keeps route ownership unambiguous. Routes are explicit aliases rather than names inferred from commands or paths.
 
-BranchBase pins a minimal Portless fork commit that watches the state directory instead of the `routes.json` inode. Portless atomically replaces that file, and macOS otherwise stops delivering route updates after the first replacement. The fork changes no naming or lifecycle behavior and can be dropped when the equivalent fix is available upstream.
+BranchBase uses Portless's public proxy API in a detached worker, launched with the packaged Node.js runtime. The worker reads the route store for each request, and BranchBase serializes route mutations within its exclusive state directory. Alias changes do not restart the shared proxy or disconnect existing applications.
+
+This replaces the CLI proxy's filesystem-watcher cache. Browser testing and real routing tests exposed aliases remaining indefinitely stale despite successful route-file updates; relying on watcher delivery or retrying mutations did not provide a reliable publication guarantee. Portless still owns HTTP and WebSocket proxying, while BranchBase owns the worker's lifecycle and verifies publication independently. The dependency remains pinned to the existing fork commit, but production route freshness no longer depends on its watcher.
 
 ## Runtime constraints
 
 - HTTP and WebSocket traffic, including Vite HMR, work through exact aliases.
 - Route activation and deactivation are asynchronous and must be observed.
 - A configured alias must be removed before its backing port can be released; otherwise a later foreign listener could receive traffic for the stale name.
-- BranchBase uses the packaged Node.js runtime for the Portless CLI. Running the built CLI directly under Bun is not part of the supported contract.
+- BranchBase uses the packaged Node.js runtime for the proxy worker and legacy Portless CLI compatibility. Running the proxy under Bun is not part of the supported contract.
 - BranchBase does not depend on Portless's human-readable CLI output as a stable status protocol. It owns the state directory and verifies observable routes.
 - HTTPS, an owned development domain, reserved literal localhost origins, and richer structured diagnostics remain follow-up capabilities.
 
@@ -98,6 +100,10 @@ Restart completes Stop before performing Start. It reconstructs the environment 
 A process crash changes the next live observation; BranchBase does not retain a Desired-running flag and does not auto-restart repository commands. Durable logs and BranchBase-created ownership records may explain the failure, but they are not a persisted Running or Failed status.
 
 After BranchBase itself restarts, it may re-adopt a surviving managed process after verifying its identity, ownership, listeners, and routes. After a machine reboot, BranchBase does not automatically execute repository commands. Absent processes and listeners are simply observed as Stopped, and stale BranchBase-owned allocations are reconciled safely.
+
+The routing worker also survives a daemon restart. Adoption verifies its persisted PID, process-start identity, runtime version, and proxy port; mismatched ownership fails closed. Startup failures clean up only the newly launched worker's resources.
+
+A legacy CLI proxy without verifiable worker metadata must be stopped before the new runtime can start. BranchBase reports this condition instead of terminating an unverified PID automatically.
 
 ## Readiness and route verification
 

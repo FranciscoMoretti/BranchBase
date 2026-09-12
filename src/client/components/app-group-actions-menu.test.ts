@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import type { AppGroupSnapshot } from "../../controller/workspace-snapshot";
+import type { AppGroupSnapshot } from "../../project/worktree-status-contract";
 import { appGroupCommandMenuItems } from "./app-group-actions-menu";
 
 const group = (health: AppGroupSnapshot["health"]): AppGroupSnapshot => ({

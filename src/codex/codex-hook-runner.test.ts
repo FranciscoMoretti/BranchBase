@@ -8,7 +8,7 @@ import pathModule from "node:path";
 
 import { spawn } from "bun";
 
-import { processStartMarker } from "../host/process-inspection";
+import { processStartMarker } from "../adapters/host/process-inspection";
 import { createCodexHookCapability } from "./codex-hook-capability";
 
 const PLUGIN_ROOT = pathModule.join(

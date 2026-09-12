@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import type { AppEndpointSnapshot } from "../../controller/workspace-snapshot";
-import {
-  appGroupDisplayStatus,
-  worktreeDisplayStatus,
-} from "./app-group-status";
+import { appGroupStatus, worktreeStatus } from "../../app-group/status";
+import type { AppEndpointSnapshot } from "../../project/worktree-status-contract";
 
 const readyHttpApp: AppEndpointSnapshot = {
   directUrl: "http://127.0.0.1:3000",
@@ -23,28 +20,28 @@ const readyHttpApp: AppEndpointSnapshot = {
 describe("App-group display status", () => {
   it("keeps process, readiness, and routing evidence in canonical summaries", () => {
     expect(
-      appGroupDisplayStatus({
+      appGroupStatus({
         apps: [readyHttpApp],
         health: "running",
         processRunning: true,
       })
     ).toBe("running");
     expect(
-      appGroupDisplayStatus({
+      appGroupStatus({
         apps: [{ ...readyHttpApp, readiness: "unready" }],
         health: "partially-running",
         processRunning: true,
       })
     ).toBe("partial");
     expect(
-      appGroupDisplayStatus({
+      appGroupStatus({
         apps: [{ ...readyHttpApp, open: false, routeState: "unavailable" }],
         health: "running",
         processRunning: true,
       })
     ).toBe("partial");
     expect(
-      appGroupDisplayStatus({
+      appGroupStatus({
         apps: [
           {
             ...readyHttpApp,
@@ -63,7 +60,7 @@ describe("App-group display status", () => {
 
   it("keeps Setup state separate from App-group status", () => {
     expect(
-      worktreeDisplayStatus({
+      worktreeStatus({
         appGroups: [],
         health: "not-running",
         processRunning: false,
@@ -71,7 +68,7 @@ describe("App-group display status", () => {
       })
     ).toBe("setup-failed");
     expect(
-      worktreeDisplayStatus({
+      worktreeStatus({
         appGroups: [],
         health: "not-running",
         processRunning: false,
@@ -82,7 +79,7 @@ describe("App-group display status", () => {
 
   it("projects route errors and partial readiness as partial status", () => {
     expect(
-      worktreeDisplayStatus({
+      worktreeStatus({
         appGroups: [
           {
             apps: [{ ...readyHttpApp, open: false, routeState: "unavailable" }],
@@ -96,7 +93,7 @@ describe("App-group display status", () => {
       })
     ).toBe("partial");
     expect(
-      worktreeDisplayStatus({
+      worktreeStatus({
         appGroups: [
           {
             apps: [{ ...readyHttpApp, readiness: "unready" }],

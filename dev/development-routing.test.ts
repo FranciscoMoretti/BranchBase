@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 import pathModule from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { delay, pollUntil } from "../src/runtime/async-utils";
-import { reserveBackingPort } from "../src/runtime/readiness";
+import { delay, pollUntil } from "../src/adapters/host/polling";
+import { reserveBackingPort } from "../src/app-group/readiness";
 import {
   DevelopmentProxyPortConflictError,
   DevelopmentRouting,

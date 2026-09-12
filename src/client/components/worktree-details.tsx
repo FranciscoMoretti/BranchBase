@@ -1,11 +1,11 @@
 import { ArrowUpRightIcon, BotIcon, Clock3Icon } from "lucide-react";
 
 import type { CodexTaskSnapshot } from "../../codex/codex-integration";
-import { WorktreeConfigSourceSchema } from "../../config/worktree-config-source";
+import { WorktreeConfigSourceSchema } from "../../configuration/worktree-config-source";
 import type {
   WorktreeConfigSource,
   WorktreeSnapshot,
-} from "../../controller/workspace-snapshot";
+} from "../../project/worktree-status-contract";
 import { codexNewTaskUrl, codexOpenTaskUrl } from "../codex-links";
 import { Badge } from "./ui/badge";
 import { buttonVariants } from "./ui/button";

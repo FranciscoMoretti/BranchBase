@@ -1,14 +1,14 @@
 import { ArrowLeftIcon, DownloadIcon, PinIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { appGroupStatus } from "../../app-group/status";
 import type { CodexIntegrationSnapshot } from "../../codex/codex-integration";
-import type { ProjectOverview } from "../../controller/product-contract";
+import type { ProjectOverview } from "../../project/catalog-contract";
 import type {
   AppGroupSnapshot,
   WorktreeSnapshot,
-} from "../../controller/workspace-snapshot";
+} from "../../project/worktree-status-contract";
 import { AppGroupInstanceControl } from "../components/app-group-instance-control";
-import { appGroupDisplayStatus } from "../components/app-group-status";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { ScrollArea } from "../components/ui/scroll-area";
@@ -132,7 +132,7 @@ export const GroupDetails = ({
         description={`${worktree.branch} · ${countLabel(group.apps.length, "app")}`}
         title={group.name}
       >
-        <Status value={appGroupDisplayStatus(group)} />
+        <Status value={appGroupStatus(group)} />
         <GroupToggle controls={controls} group={group} worktree={worktree} />
         <Button
           disabled={
@@ -148,7 +148,7 @@ export const GroupDetails = ({
       </PageHeading>
       <RunContext group={group} onTasks={() => onTabChange("tasks")} />
       <ErrorNotice error={save.error} />
-      {appGroupDisplayStatus(group) === "partial" ? (
+      {appGroupStatus(group) === "partial" ? (
         <div className="product-row-notice">
           Some apps or routes are not ready. Available apps remain accessible.
           <Button
@@ -369,7 +369,7 @@ export const GroupDetails = ({
                 </span>
                 {selected ? (
                   <>
-                    <Status value={appGroupDisplayStatus(selected)} />
+                    <Status value={appGroupStatus(selected)} />
                     <Button
                       onClick={() => controls.inspect(worktree, selected)}
                       variant="link"

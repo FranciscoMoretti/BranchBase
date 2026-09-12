@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import pathModule from "node:path";
 
-import { findVerifiedWorktreeRun } from "../src/controller/recorded-worktree-run-inspection";
+import { findVerifiedWorktreeRun } from "../src/application/recorded-worktree-run-inspection";
 
 export const assertProductionWorktreeAvailable = (
   worktreePath: string,

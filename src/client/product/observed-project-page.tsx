@@ -3,11 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRightIcon, GitBranchIcon } from "lucide-react";
 import { useState } from "react";
 
+import type { ProjectOverview } from "../../project/catalog-contract";
 import type {
   DetectedService,
   Observation,
-} from "../../controller/discovery-contract";
-import type { ProjectOverview } from "../../controller/product-contract";
+} from "../../project/discovery-contract";
 import { RepositoryInitializeDialog } from "../components/repository-initialize-dialog";
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";

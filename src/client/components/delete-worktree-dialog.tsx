@@ -1,10 +1,8 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
 
-import type {
-  CommandReceipt,
-  WorktreeSnapshot,
-} from "../../controller/workspace-snapshot";
+import type { CommandReceipt } from "../../application/command-contract";
+import type { WorktreeSnapshot } from "../../project/worktree-status-contract";
 import { FormFeedback } from "../product/async-state";
 import {
   AlertDialog,

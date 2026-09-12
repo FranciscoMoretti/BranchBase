@@ -14,15 +14,15 @@ import {
 import { tmpdir } from "node:os";
 import pathModule from "node:path";
 
-import { FileBranchBaseStateStore } from "../src/runtime/local-state";
 import {
   appGroupInstanceProcessId,
   ProcessSupervisor,
-} from "../src/runtime/process-supervisor";
+} from "../src/adapters/host/process-supervisor";
+import { FileBranchBaseStateStore } from "../src/app-group/assignments";
 import {
   reserveBackingPort,
   waitForAppReadiness,
-} from "../src/runtime/readiness";
+} from "../src/app-group/readiness";
 import { assertProductionWorktreeAvailable } from "./production-run-preflight";
 
 const recordProductionRun = (

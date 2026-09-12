@@ -4,11 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import type { ProjectOverview } from "../../project/catalog-contract";
 import type {
   DetectedService,
   Observation,
-} from "../../controller/discovery-contract";
-import type { ProjectOverview } from "../../controller/product-contract";
+} from "../../project/discovery-contract";
 import type { ProductLocation } from "./data";
 import { ObservedProjectPage, ServiceLink } from "./observed-project-page";
 import { ProjectsPage, projectIsActive } from "./projects-page";
