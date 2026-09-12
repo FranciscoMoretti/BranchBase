@@ -1,3 +1,5 @@
+import pathModule from "node:path";
+
 import type { DaemonClient } from "./client";
 
 export const CLI_HELP = `BranchBase
@@ -35,6 +37,9 @@ export const runCli = async (
   }
   // oxlint-disable-next-line no-use-before-define -- Keep the public entrypoint first.
   const result = await runCommand(command, action, args, client, cwd);
+  if (!args.includes("--json") && typeof result === "string") {
+    return result;
+  }
   if (
     !args.includes("--json") &&
     result &&
@@ -60,7 +65,7 @@ const runCommand = (
     }
     if (action === "status" || action === "inspect") {
       return client.query("/api/project-status", {
-        repoPath: option(args, "--repo") ?? cwd,
+        repoPath: pathModule.resolve(cwd, option(args, "--repo") ?? "."),
       });
     }
   }
@@ -86,7 +91,7 @@ const runLogs = async (
   }
   const result = await client.query("/api/logs", {
     appGroupName,
-    repoPath: option(args, "--repo") ?? cwd,
+    repoPath: pathModule.resolve(cwd, option(args, "--repo") ?? "."),
     worktreeId,
   });
   if (

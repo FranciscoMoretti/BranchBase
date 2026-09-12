@@ -76,6 +76,47 @@ test("CLI never replays a command after an ambiguous connection failure", async 
   expect(posts).toBe(1);
 });
 
+test.each([
+  [".", "/code/project"],
+  ["../other", "/code/other"],
+  ["/different/project", "/different/project"],
+])(
+  "CLI resolves repository path %s for status and logs",
+  async (repo, expected) => {
+    const paths: string[] = [];
+    const client = new DaemonClient("http://localhost:3999", (url) => {
+      expect(url.searchParams.get("repoPath")).toBe(expected);
+      paths.push(url.pathname);
+      return Promise.resolve(Response.json({ lines: [] }));
+    });
+    await runCli(
+      ["project", "status", "--repo", repo],
+      client,
+      "/code/project"
+    );
+    await runCli(
+      ["logs", "--repo", repo, "--worktree", "main", "--group", "app"],
+      client,
+      "/code/project"
+    );
+    expect(paths).toEqual(["/api/project-status", "/api/logs"]);
+  }
+);
+
+test("CLI preserves multiline plain-text logs and structured JSON logs", async () => {
+  const lines = ["first", "second"];
+  const client = new DaemonClient("http://localhost:3999", () =>
+    Promise.resolve(Response.json({ lines }))
+  );
+  const args = ["logs", "--worktree", "main", "--group", "app"];
+  expect(await runCli(args, client, "/repo")).toBe("first\nsecond");
+  expect(
+    JSON.parse(await runCli([...args, "--json"], client, "/repo"))
+  ).toEqual({
+    lines,
+  });
+});
+
 test("CLI reports a daemon that is unavailable without rewriting the transport error", async () => {
   const client = new DaemonClient("http://127.0.0.1:3999", () =>
     Promise.reject(new Error("Failed to connect to daemon"))
