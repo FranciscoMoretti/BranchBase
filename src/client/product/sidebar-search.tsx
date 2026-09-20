@@ -87,6 +87,14 @@ export const SidebarSearch = ({ projects }: { projects: SearchCatalog }) => {
   const [query, setQuery] = useState("");
   const { setOpenMobile } = useSidebar();
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasCatalog = projects.data !== undefined;
+  useEffect(() => {
+    // Initial focus runs before a loading/retrying catalog mounts the input.
+    // Focus only when search opens or data first arrives, never on refresh.
+    if (open && hasCatalog) {
+      inputRef.current?.focus();
+    }
+  }, [open, hasCatalog]);
   const groups = navigationResults(projects.data ?? [], query);
   const resultCount = groups.reduce(
     (count, group) => count + group.results.length,

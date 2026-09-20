@@ -207,3 +207,54 @@ test("Command keyboard selection follows the same guarded link exactly once", as
   expect(guardedNavigations).toBe(1);
   expect(dom.location.href).toBe("http://localhost/");
 });
+
+test("search focuses the input when an initially loading catalog arrives", async () => {
+  await mount();
+  expect(dom.document.querySelector("input")).toBeNull();
+  await render({
+    ...catalog,
+    data: [project],
+    isFetching: false,
+    isPending: false,
+  });
+  const input = dom.document.querySelector("input");
+  expect(input).not.toBeNull();
+  expect(dom.document.activeElement === input).toBe(true);
+});
+
+test("search restores input focus after retry succeeds without stealing it on refresh", async () => {
+  await mount();
+  await render({
+    ...catalog,
+    error: new Error("Unavailable"),
+    isFetching: false,
+    isPending: false,
+  });
+  const retry = [...dom.document.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Try again"
+  );
+  retry?.focus();
+  await click("Try again");
+  await render(catalog);
+  await render({
+    ...catalog,
+    data: [project],
+    isFetching: false,
+    isPending: false,
+  });
+  expect(
+    dom.document.activeElement === dom.document.querySelector("input")
+  ).toBe(true);
+  const result = dom.document.querySelector('[role="option"]');
+  if (!(result instanceof dom.HTMLElement)) {
+    throw new Error("Expected a focusable search result");
+  }
+  result.focus();
+  await render({
+    ...catalog,
+    data: [{ ...project }],
+    isFetching: false,
+    isPending: false,
+  });
+  expect(dom.document.activeElement === result).toBe(true);
+});
