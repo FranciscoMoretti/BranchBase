@@ -6,6 +6,7 @@ import {
   GitBranchIcon,
   SquareIcon,
 } from "lucide-react";
+import { useState } from "react";
 
 import { appGroupStatus } from "../../app-group/status";
 import type { CodexIntegrationSnapshot } from "../../codex/codex-integration";
@@ -425,8 +426,8 @@ export const EnvironmentList = ({
   onDelete,
   codex,
   expandedIds,
-  runningOnly = false,
   onExpand,
+  runningOnly = false,
   codexError,
 }: {
   worktrees: WorktreeSnapshot[];
@@ -435,10 +436,19 @@ export const EnvironmentList = ({
   onDelete: (worktree: WorktreeSnapshot) => void;
   codex?: CodexIntegrationSnapshot;
   codexError: boolean;
-  expandedIds: string[];
+  expandedIds?: string[];
+  onExpand?: (id: string, expanded: boolean) => void;
   runningOnly?: boolean;
-  onExpand: (id: string, expanded: boolean) => void;
 }) => {
+  const [localExpandedIds, setLocalExpandedIds] = useState<string[]>([]);
+  const expand =
+    onExpand ??
+    ((id: string, expanded: boolean) =>
+      setLocalExpandedIds((current) =>
+        expanded
+          ? [...new Set([...current, id])]
+          : current.filter((value) => value !== id)
+      ));
   const seen = new Set<string>();
   return (
     <div className="product-environments">
@@ -461,10 +471,10 @@ export const EnvironmentList = ({
             codexError={codexError}
             commandActions={commandActions}
             controls={controls}
-            expanded={expandedIds.includes(worktree.id)}
+            expanded={(expandedIds ?? localExpandedIds).includes(worktree.id)}
             key={worktree.id}
             onDelete={onDelete}
-            setExpanded={(value) => onExpand(worktree.id, value)}
+            setExpanded={(value) => expand(worktree.id, value)}
             tasks={
               codex ? (codex.worktrees[worktree.id]?.tasks ?? []) : undefined
             }

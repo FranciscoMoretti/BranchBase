@@ -115,6 +115,20 @@ test("group details keep readiness separate from routing and use a managed log v
   expect(markup).toContain('aria-label="Pin Chat on Projects"');
   const { document } = new Window();
   document.body.innerHTML = markup;
+  const table = document.querySelector('table[aria-label="Product endpoints"]');
+  expect(table).not.toBeNull();
+  if (!table) {
+    throw new Error("Missing endpoint table");
+  }
+  expect(
+    [...table.querySelectorAll('thead th[scope="col"]')].map(
+      (cell) => cell.textContent
+    )
+  ).toEqual(["App", "Readiness", "Access", "Actions"]);
+  expect(table.querySelector('tbody th[scope="row"]')?.textContent).toBe(
+    "Chat"
+  );
+  expect(table.querySelectorAll("tbody td")).toHaveLength(3);
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   expect(tabs.map((item) => item.textContent)).toEqual([
     "Logs",
@@ -188,4 +202,47 @@ test("Running hides stopped controls while retaining the complete worktree readi
   expect(markup).toContain("1/3 ready");
   expect(markup).toContain("Site: Stopped");
   expect(markup).toContain("Site: Process running · not listening");
+});
+
+test("Running renders a shared instance once without discarding either worktree snapshot", () => {
+  const shared = group("Shared");
+  const markup = renderToStaticMarkup(
+    <EnvironmentList
+      codexError={false}
+      commandActions={{
+        onRestart: noop,
+        onSetup: noop,
+        onStart: noop,
+        onStop: noop,
+      }}
+      controls={controls}
+      onDelete={noop}
+      runningOnly
+      worktrees={[
+        { ...worktree, appGroups: [shared] },
+        {
+          ...worktree,
+          appGroups: [shared, group("Unique")],
+          branch: "feature",
+          id: "second",
+        },
+      ]}
+    />
+  );
+  const { document } = new Window();
+  document.body.innerHTML = markup;
+  expect(
+    document.querySelectorAll('button[aria-label="Stop Shared in main"]')
+  ).toHaveLength(1);
+  expect(
+    document.querySelector('button[aria-label="Stop Shared in feature"]')
+  ).toBeNull();
+  expect(
+    document.querySelector('button[aria-label="Stop Unique in feature"]')
+  ).not.toBeNull();
+  expect(
+    [...document.querySelectorAll(".product-readiness-count")].map(
+      (item) => item.textContent
+    )
+  ).toEqual(["1/2 ready", "2/4 ready"]);
 });

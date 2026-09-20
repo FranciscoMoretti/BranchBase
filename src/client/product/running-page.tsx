@@ -1,11 +1,49 @@
 import { appGroupIsRunning } from "../../project/worktree-status-contract";
+import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
+import { useCodexIntegration } from "../queries";
 import { QueryContent } from "./async-state";
 import { hrefFor, useProjects } from "./data";
 import type { ProductLocation } from "./data";
+import { EnvironmentList } from "./environment-list";
 import { DetectedServicesSection } from "./observed-project-page";
 import { Blank, PageHeading } from "./primitives";
 import { runtimeCounts } from "./runtime-counts";
-import { WorkspacePage } from "./workspace-page";
+import { useWorktreeControls } from "./use-worktree-controls";
+
+const RunningWorktrees = ({
+  data,
+  navigate,
+}: {
+  data: WorkspaceSnapshot;
+  navigate: (location: Partial<ProductLocation>) => void;
+}) => {
+  const codex = useCodexIntegration(data.repoPath);
+  const { actions, controls, onDelete, feedback } = useWorktreeControls({
+    data,
+    onInspect: (worktree, group, panel = "logs") =>
+      navigate({
+        group: group.id,
+        panel,
+        repo: data.repoPath,
+        view: "workspace",
+        worktree: worktree.id,
+      }),
+  });
+  return (
+    <>
+      {feedback}
+      <EnvironmentList
+        worktrees={data.worktrees}
+        runningOnly
+        controls={controls}
+        commandActions={actions.commandActions}
+        onDelete={onDelete}
+        codex={codex.data}
+        codexError={codex.isError}
+      />
+    </>
+  );
+};
 
 export const RunningPage = ({
   navigate,
@@ -65,19 +103,9 @@ export const RunningPage = ({
               ) ? (
                 <section aria-label={`Managed app groups in ${project.name}`}>
                   <h2 className="product-section-title">Managed app groups</h2>
-                  <WorkspacePage
+                  <RunningWorktrees
                     data={project.workspace}
-                    location={{
-                      group: "",
-                      panel: "logs",
-                      repo: project.path,
-                      section: "general",
-                      view: "running",
-                      worktree: "",
-                    }}
                     navigate={navigate}
-                    project={project}
-                    refresh={projects.refetch}
                   />
                 </section>
               ) : null}

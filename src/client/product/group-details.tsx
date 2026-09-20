@@ -14,6 +14,14 @@ import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { ScrollArea } from "../components/ui/scroll-area";
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "../components/ui/table";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -157,87 +165,101 @@ export const GroupDetails = ({
           </AlertDescription>
         </Alert>
       ) : null}
-      <div className="product-endpoints">
-        <div className="product-endpoint-head">
-          <span>App</span>
-          <span>Readiness</span>
-          <span>Access</span>
-          <span>Actions</span>
-        </div>
-        {group.apps.map((app) => {
-          const state = endpointRuntime(app, group);
-          const pin = {
-            appId: app.id,
-            groupId: group.id,
-            worktreeId: worktree.id,
-          };
-          const pinned = project?.pins.some(
-            (item) =>
-              item.appId === pin.appId &&
-              item.groupId === pin.groupId &&
-              item.worktreeId === pin.worktreeId
-          );
-          return (
-            <div className="product-endpoint" key={app.id}>
-              <strong>{app.label}</strong>
-              <Status
-                label={
-                  app.readiness === "ready" && app.ownership !== "foreign"
-                    ? "Ready"
-                    : state.label
-                }
-                value={state.value}
-              />
-              <div className="product-endpoint-address">
-                <code>
-                  {app.url ??
-                    app.directUrl ??
-                    (app.port ? `127.0.0.1:${app.port}` : "Not allocated")}
-                </code>
-                {app.protocol === "http" &&
-                app.readiness === "ready" &&
-                !app.open ? (
-                  <span className="product-warning">
-                    Route {app.routeState}
-                  </span>
-                ) : null}
-              </div>
-              <div className="product-actions">
-                <AppLink app={app} name={false} />
-                <CopyButton
-                  label={`Copy ${app.label} endpoint`}
-                  value={app.url ?? app.directUrl ?? String(app.port ?? "")}
-                />
-                <Button
-                  aria-label={`${pinned ? "Unpin" : "Pin"} ${app.label} on Projects`}
-                  disabled={save.isPending || !project}
-                  onClick={() =>
-                    save.mutate({
-                      command: "save-project",
-                      pins: pinned
-                        ? project?.pins.filter(
-                            (item) =>
-                              !(
-                                item.appId === pin.appId &&
-                                item.groupId === pin.groupId &&
-                                item.worktreeId === pin.worktreeId
+      <Table
+        aria-label={`${group.name} endpoints`}
+        containerClassName="product-endpoints"
+        className="min-w-[640px]"
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">App</TableHead>
+            <TableHead scope="col">Readiness</TableHead>
+            <TableHead scope="col">Access</TableHead>
+            <TableHead scope="col">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {group.apps.map((app) => {
+            const state = endpointRuntime(app, group);
+            const pin = {
+              appId: app.id,
+              groupId: group.id,
+              worktreeId: worktree.id,
+            };
+            const pinned = project?.pins.some(
+              (item) =>
+                item.appId === pin.appId &&
+                item.groupId === pin.groupId &&
+                item.worktreeId === pin.worktreeId
+            );
+            return (
+              <TableRow key={app.id}>
+                <TableHead scope="row">{app.label}</TableHead>
+                <TableCell>
+                  <Status
+                    label={
+                      app.readiness === "ready" && app.ownership !== "foreign"
+                        ? "Ready"
+                        : state.label
+                    }
+                    value={state.value}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="product-endpoint-address">
+                    <code>
+                      {app.url ??
+                        app.directUrl ??
+                        (app.port ? `127.0.0.1:${app.port}` : "Not allocated")}
+                    </code>
+                    {app.protocol === "http" &&
+                    app.readiness === "ready" &&
+                    !app.open ? (
+                      <span className="product-warning">
+                        Route {app.routeState}
+                      </span>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="product-actions">
+                    <AppLink app={app} name={false} />
+                    <CopyButton
+                      label={`Copy ${app.label} endpoint`}
+                      value={app.url ?? app.directUrl ?? String(app.port ?? "")}
+                    />
+                    <Button
+                      aria-label={`${pinned ? "Unpin" : "Pin"} ${app.label} on Projects`}
+                      disabled={save.isPending || !project}
+                      onClick={() =>
+                        save.mutate({
+                          command: "save-project",
+                          pins: pinned
+                            ? project?.pins.filter(
+                                (item) =>
+                                  !(
+                                    item.appId === pin.appId &&
+                                    item.groupId === pin.groupId &&
+                                    item.worktreeId === pin.worktreeId
+                                  )
                               )
-                          )
-                        : [...(project?.pins ?? []), pin],
-                      repoPath,
-                    })
-                  }
-                  size="icon-sm"
-                  title={`${pinned ? "Unpin" : "Pin"} ${app.label} on Projects`}
-                  variant={pinned ? "secondary" : "ghost"}
-                >
-                  <PinIcon />
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                            : [...(project?.pins ?? []), pin],
+                          repoPath,
+                        })
+                      }
+                      size="icon-sm"
+                      title={`${pinned ? "Unpin" : "Pin"} ${app.label} on Projects`}
+                      variant={pinned ? "secondary" : "ghost"}
+                    >
+                      <PinIcon />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
       <Tabs onValueChange={onTabChange} value={tab}>
         <TabsList aria-label="Group details" variant="line">
           {["logs", "activity", "configuration", "tasks"].map((value) => (
