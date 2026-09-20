@@ -30,7 +30,11 @@ import { Spinner } from "../components/ui/spinner";
 import { WorktreeActionsMenu } from "../components/worktree-actions-menu";
 import type { WorktreeCommandActions } from "../worktree-command-menu";
 import { AppLink, Blank, Status } from "./primitives";
-import { runtimeSummary } from "./runtime-summary";
+import {
+  endpointRuntime,
+  runtimeSummary,
+  worktreeRuntimeReasons,
+} from "./runtime-summary";
 
 export interface GroupControls {
   blocked: (worktree: WorktreeSnapshot, group: AppGroupSnapshot) => boolean;
@@ -103,7 +107,7 @@ const AppOverflow = ({
                   target="_blank"
                 >
                   <span className="flex-1">{app.label}</span>
-                  <Status label="Ready" value="running" />
+                  <Status {...endpointRuntime(app, group)} />
                   Open
                 </a>
               }
@@ -114,12 +118,7 @@ const AppOverflow = ({
               onClick={() => controls.inspect(worktree, group)}
             >
               <span className="flex-1">{app.label}</span>
-              <Status
-                label={
-                  app.readiness === "ready" ? "Connection details" : "Not ready"
-                }
-                value="stopped"
-              />
+              <Status {...endpointRuntime(app, group)} />
             </DropdownMenuItem>
           )
         )}
@@ -137,15 +136,9 @@ const ServiceEndpoint = ({
   app: AppEndpointSnapshot;
   group: AppGroupSnapshot;
 }) => {
-  let label = "Stopped";
-  if (app.readiness === "waiting" && appGroupIsRunning(group)) {
-    label = "Waiting";
-  } else if (group.processRunning || app.listening) {
-    label = "Not ready";
-  }
-  if (app.readiness === "ready" && app.port) {
-    label = `:${app.port}`;
-  }
+  const state = endpointRuntime(app, group);
+  const label =
+    state.value === "running" && app.port ? `:${app.port}` : state.label;
   const showLink =
     app.open || app.readiness === "ready" || app.label !== group.name;
   return (
@@ -275,6 +268,14 @@ const hasTaskSummary = (
   tasks: CodexIntegrationSnapshot["worktrees"][string]["tasks"] | undefined,
   unavailable: boolean
 ) => Boolean(tasks?.length || unavailable);
+const RuntimeReasons = ({ reasons }: { reasons: string[] }) =>
+  reasons.length ? (
+    <p className="product-runtime-reasons" title={reasons.join(" · ")}>
+      {reasons.slice(0, 2).join(" · ")}
+      {reasons.length > 2 ? ` · +${reasons.length - 2} more` : null}
+    </p>
+  ) : null;
+
 const EnvironmentRow = ({
   worktree,
   groups,
@@ -299,6 +300,8 @@ const EnvironmentRow = ({
   const primary =
     worktree.appGroups.find((group) => group.id === worktree.primaryAppGroup) ??
     worktree.appGroups[0];
+  const summary = runtimeSummary(worktree);
+  const reasons = worktreeRuntimeReasons(worktree);
   return (
     <article className="product-environment">
       <div className="product-environment-heading">
@@ -326,13 +329,9 @@ const EnvironmentRow = ({
             {tasks?.[0]?.title ?? worktree.name}
           </span>
         </div>
-        <Status
-          value={runtimeSummary(worktree).value}
-          label={runtimeSummary(worktree).label}
-        />
+        <Status value={summary.value} label={summary.label} />
         <span className="product-readiness-count">
-          {runtimeSummary(worktree).ready}/{runtimeSummary(worktree).total}{" "}
-          ready
+          {summary.ready}/{summary.total} ready
         </span>
         {hasTaskSummary(tasks, codexError) ? (
           <TaskSummary
@@ -350,6 +349,7 @@ const EnvironmentRow = ({
           worktree={worktree}
         />
       </div>
+      <RuntimeReasons reasons={reasons} />
       {worktree.configuration.trusted ? null : (
         <div className="product-trust-notice">
           <span>Commands need approval</span>

@@ -40,6 +40,7 @@ import {
   Search,
   Status,
 } from "./primitives";
+import { runtimeCounts } from "./runtime-counts";
 import { runtimeSummary } from "./runtime-summary";
 
 export const projectIsActive = (project: ProjectOverview): boolean =>
@@ -344,19 +345,8 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
   );
 };
 const projectsSummary = (projects: ProjectOverview[]) => {
-  const groups = projects.reduce(
-    (total, project) => total + (project.workspace?.globalRunningCount ?? 0),
-    0
-  );
-  const detected = projects.reduce(
-    (total, project) =>
-      total +
-      (project.observation?.worktrees.flatMap((worktree) =>
-        worktree.services.filter((service) => !service.managed)
-      ).length ?? 0),
-    0
-  );
-  return `${countLabel(projects.length, "repository")} · ${countLabel(groups, "group")} running · ${countLabel(detected, "service")} detected`;
+  const { managedGroups, detectedServices } = runtimeCounts(projects);
+  return `${countLabel(projects.length, "repository")} · ${countLabel(managedGroups, "managed group")} running · ${countLabel(detectedServices, "detected service")}`;
 };
 export const ProjectsPage = () => {
   const projects = useProjects();

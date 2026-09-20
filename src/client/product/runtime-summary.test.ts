@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
 
 import type { AppGroupSnapshot } from "../../project/worktree-status-contract";
-import { runtimeSummary } from "./runtime-summary";
+import {
+  endpointRuntime,
+  runtimeSummary,
+  worktreeRuntimeReasons,
+} from "./runtime-summary";
 import { worktree } from "./test-fixtures";
 
 const group = (health: AppGroupSnapshot["health"]): AppGroupSnapshot => ({
@@ -49,4 +53,72 @@ test("endpoint readiness does not claim a conflicting route is healthy", () => {
     total: 1,
     value: "partial",
   });
+});
+
+test("partial worktrees name a stopped sibling even when its controls are hidden", () => {
+  const stopped = {
+    ...group("not-running"),
+    apps: [
+      {
+        ...worktree.apps[0],
+        label: "API",
+        listening: false,
+        ownership: "none" as const,
+        readiness: "unready" as const,
+      },
+    ],
+    name: "api",
+  };
+  expect(
+    worktreeRuntimeReasons({
+      ...worktree,
+      appGroups: [group("running"), stopped],
+      health: "running",
+    })
+  ).toEqual(["API: Stopped"]);
+});
+
+test("endpoint reasons distinguish startup, missing listeners, and foreign ownership", () => {
+  const app = {
+    ...worktree.apps[0],
+    listening: false,
+    ownership: "none" as const,
+    readiness: "waiting" as const,
+  };
+  expect(endpointRuntime(app, group("running")).label).toBe(
+    "Starting · waiting for readiness"
+  );
+  expect(endpointRuntime(app, group("not-running")).label).toBe("Stopped");
+  expect(
+    endpointRuntime({ ...app, readiness: "unready" }, group("running")).label
+  ).toBe("Process running · not listening");
+  expect(
+    endpointRuntime(
+      { ...app, listening: true, readiness: "unready" },
+      group("running")
+    ).label
+  ).toBe("Listening · not ready");
+  expect(
+    endpointRuntime(
+      { ...app, ownership: "foreign", readiness: "ready" },
+      group("running")
+    )
+  ).toEqual({ label: "Port in use by another process", value: "partial" });
+});
+
+test("a ready endpoint with a broken friendly route explains the route issue", () => {
+  for (const routeState of ["conflict", "unavailable"] as const) {
+    expect(
+      endpointRuntime(
+        {
+          ...worktree.apps[0],
+          ownership: "owned",
+          protocol: "http",
+          readiness: "ready",
+          routeState,
+        },
+        group("running")
+      )
+    ).toEqual({ label: `Route ${routeState}`, value: "partial" });
+  }
 });

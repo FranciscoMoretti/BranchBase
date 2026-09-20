@@ -40,20 +40,7 @@ import {
   Search,
   Status,
 } from "./primitives";
-
-const endpointLabel = (app: {
-  ownership: string;
-  readiness: string;
-  listening: boolean;
-}): string => {
-  if (app.ownership === "foreign") {
-    return "Foreign listener";
-  }
-  if (app.readiness === "ready") {
-    return "Ready";
-  }
-  return app.listening ? "Not ready" : "Stopped";
-};
+import { endpointRuntime, groupRuntimeReasons } from "./runtime-summary";
 
 const RunContext = ({
   group,
@@ -159,7 +146,7 @@ export const GroupDetails = ({
       {appGroupStatus(group) === "partial" ? (
         <Alert>
           <AlertDescription>
-            Some apps or routes are not ready. Available apps remain accessible.
+            {groupRuntimeReasons(group).join(" · ")}
             <Button
               disabled={controls.blocked(worktree, group)}
               onClick={() => controls.retry(worktree, group)}
@@ -178,6 +165,7 @@ export const GroupDetails = ({
           <span>Actions</span>
         </div>
         {group.apps.map((app) => {
+          const state = endpointRuntime(app, group);
           const pin = {
             appId: app.id,
             groupId: group.id,
@@ -193,8 +181,12 @@ export const GroupDetails = ({
             <div className="product-endpoint" key={app.id}>
               <strong>{app.label}</strong>
               <Status
-                label={endpointLabel(app)}
-                value={app.readiness === "ready" ? "running" : "stopped"}
+                label={
+                  app.readiness === "ready" && app.ownership !== "foreign"
+                    ? "Ready"
+                    : state.label
+                }
+                value={state.value}
               />
               <div className="product-endpoint-address">
                 <code>

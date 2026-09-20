@@ -8,7 +8,6 @@ import {
   LayoutGridIcon,
   ListIcon,
   LogsIcon,
-  MonitorIcon,
   SettingsIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -34,7 +33,6 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
@@ -45,7 +43,9 @@ import {
 } from "../components/ui/sidebar";
 import { hrefFor } from "./data";
 import type { ProductLocation } from "./data";
-import { runningGroupCount, runtimeSummary } from "./runtime-summary";
+import { runtimeCounts } from "./runtime-counts";
+import { runtimeSummary } from "./runtime-summary";
+import { SidebarSearch } from "./sidebar-search";
 
 const EMPTY_PROJECTS: ProjectOverview[] = [];
 
@@ -62,23 +62,23 @@ const NavigationLink = ({
   label,
   icon: Icon,
   active,
-  count,
+  detail,
 }: {
   href: string;
   label: string;
   icon: typeof LayoutGridIcon;
   active?: boolean;
-  count?: number;
+  detail?: string;
 }) => {
   const { setOpenMobile } = useSidebar();
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={active}
-        tooltip={label}
+        tooltip={detail ? `${label} · ${detail}` : label}
         render={
           <a
-            aria-label={label}
+            aria-label={detail ? `${label} · ${detail}` : label}
             aria-current={active ? "page" : undefined}
             href={href}
             onClick={() => setOpenMobile(false)}
@@ -86,11 +86,11 @@ const NavigationLink = ({
         }
       >
         <Icon />
-        <span>{label}</span>
+        <span className={detail ? "product-sidebar-runtime" : undefined}>
+          {label}
+          {detail ? <small>{detail}</small> : null}
+        </span>
       </SidebarMenuButton>
-      {count === undefined ? null : (
-        <SidebarMenuBadge>{count}</SidebarMenuBadge>
-      )}
     </SidebarMenuItem>
   );
 };
@@ -106,6 +106,7 @@ const Navigation = ({
     Boolean(location.repo) &&
     location.view !== "machine" &&
     location.view !== "running";
+  const counts = projects.length ? runtimeCounts(projects) : undefined;
   const worktrees =
     workspace?.worktrees.map((worktree) => ({
       ...worktree,
@@ -185,6 +186,9 @@ const Navigation = ({
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
+        </SidebarMenu>
+        <SidebarMenu>
+          <SidebarSearch projects={projects} />
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
@@ -304,7 +308,11 @@ const Navigation = ({
         <SidebarMenu>
           <NavigationLink
             active={location.view === "running"}
-            count={runningGroupCount(projects)}
+            detail={
+              counts
+                ? `${counts.managedGroups} managed · ${counts.detectedServices} detected`
+                : undefined
+            }
             href={hrefFor({ view: "running" })}
             icon={ActivityIcon}
             label="Running"
@@ -382,10 +390,6 @@ export const Shell = (props: ShellProps) => {
               </span>
             )}
           </nav>
-          <span className="product-local-label">
-            <MonitorIcon />
-            Local workspace
-          </span>
         </header>
         <div className="product-content" id="main-content">
           {children}

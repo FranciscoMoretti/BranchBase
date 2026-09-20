@@ -42,16 +42,13 @@ import {
   ResourceUsage,
   Search,
 } from "./primitives";
+import {
+  OverviewWorktrees,
+  overviewWorktrees,
+  worktreeNeedsAttention as needsAttention,
+} from "./repository-overview";
 import { runtimeSummary } from "./runtime-summary";
 import { SettingsPage } from "./settings-page";
-
-const needsAttention = (worktree: WorktreeSnapshot): boolean =>
-  Boolean(
-    worktree.configuration.error ||
-    !worktree.configuration.trusted ||
-    worktree.setupState === "failed" ||
-    runtimeSummary(worktree).value === "partial"
-  );
 
 const isMissingEnvironment = (
   location: ProductLocation,
@@ -101,23 +98,20 @@ const WorkspaceHeading = ({
       </PageHeading>
     )}
     {view === "workspace" ? (
-      <>
-        <dl className="product-overview-summary">
-          <div>
-            <dt>Worktrees</dt>
-            <dd>{data.worktrees.length}</dd>
-          </div>
-          <div>
-            <dt>App groups running</dt>
-            <dd>{data.globalRunningCount}</dd>
-          </div>
-          <div>
-            <dt>Needs attention</dt>
-            <dd>{data.worktrees.filter(needsAttention).length}</dd>
-          </div>
-        </dl>
-        <h2 className="product-section-title">Worktrees</h2>
-      </>
+      <dl className="product-overview-summary">
+        <div>
+          <dt>Worktrees</dt>
+          <dd>{data.worktrees.length}</dd>
+        </div>
+        <div>
+          <dt>App groups running</dt>
+          <dd>{data.globalRunningCount}</dd>
+        </div>
+        <div>
+          <dt>Needs attention</dt>
+          <dd>{data.worktrees.filter(needsAttention).length}</dd>
+        </div>
+      </dl>
     ) : null}
   </>
 );
@@ -310,7 +304,7 @@ export const WorkspacePage = ({
             controls={controls}
             group={selectedGroup}
             key={`${selected.id}:${selectedGroup.id}`}
-            onBack={() => navigate({ repo: data.repoPath, view: "workspace" })}
+            onBack={() => navigate({ repo: data.repoPath, view: "worktrees" })}
             onClearLogs={() =>
               actions.commands.clearLogs.mutate({
                 appGroupName: selectedGroup.id,
@@ -389,7 +383,7 @@ export const WorkspacePage = ({
               codex.refetch();
             }}
           />
-          {location.view === "running" ? null : (
+          {location.view === "worktrees" ? (
             <div className="product-filterbar">
               <Search
                 onChange={setSearch}
@@ -421,24 +415,34 @@ export const WorkspacePage = ({
                 ))}
               </ToggleGroup>
             </div>
-          )}
-          <EnvironmentList
-            codex={codex.data}
-            codexError={codex.isError}
-            commandActions={actions.commandActions}
-            controls={controls}
-            expandedIds={expandedIds}
-            onDelete={setDeleting}
-            onExpand={(id, expanded) =>
-              setExpandedIds((current) =>
-                expanded
-                  ? [...new Set([...current, id])]
-                  : current.filter((value) => value !== id)
-              )
-            }
-            worktrees={visible}
-            runningOnly={location.view === "running"}
-          />
+          ) : null}
+          <OverviewWorktrees
+            worktrees={data.worktrees}
+            repoPath={data.repoPath}
+            overview={location.view === "workspace"}
+          >
+            <EnvironmentList
+              codex={codex.data}
+              codexError={codex.isError}
+              commandActions={actions.commandActions}
+              controls={controls}
+              expandedIds={expandedIds}
+              onDelete={setDeleting}
+              onExpand={(id, expanded) =>
+                setExpandedIds((current) =>
+                  expanded
+                    ? [...new Set([...current, id])]
+                    : current.filter((value) => value !== id)
+                )
+              }
+              worktrees={
+                location.view === "workspace"
+                  ? overviewWorktrees(data.worktrees)
+                  : visible
+              }
+              runningOnly={location.view === "running"}
+            />
+          </OverviewWorktrees>
           {location.view === "running" ? null : (
             <DetectedServicesSection data={observation} />
           )}
