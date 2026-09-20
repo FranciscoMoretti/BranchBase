@@ -2492,21 +2492,17 @@
   max-width: 620px;
   gap: 16px;
   padding: 24px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.product-navigation-search .product-query-body,
+.product-navigation-search .product-loading,
+.product-navigation-search .product-unavailable {
+  min-height: 0;
 }
 .product-search-results {
   max-height: min(420px, 50dvh);
   overflow-y: auto;
-}
-.product-search-results h3 {
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-weight: 500;
-  margin: 12px 8px 6px;
-}
-.product-search-results ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
 }
 .product-search-results a {
   display: flex;

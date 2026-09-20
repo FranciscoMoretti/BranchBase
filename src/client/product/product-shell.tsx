@@ -13,7 +13,6 @@ import {
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-import type { ProjectOverview } from "../../project/catalog-contract";
 import type { Observation } from "../../project/discovery-contract";
 import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
 import {
@@ -46,14 +45,13 @@ import type { ProductLocation } from "./data";
 import { runtimeCounts } from "./runtime-counts";
 import { runtimeSummary } from "./runtime-summary";
 import { SidebarSearch } from "./sidebar-search";
-
-const EMPTY_PROJECTS: ProjectOverview[] = [];
+import type { SearchCatalog } from "./sidebar-search";
 
 interface ShellProps {
   children: ReactNode;
   location: ProductLocation;
   name?: string;
-  projects?: ProjectOverview[];
+  projects: SearchCatalog;
   workspace?: WorkspaceSnapshot;
   observation?: Observation;
 }
@@ -97,7 +95,7 @@ const NavigationLink = ({
 const Navigation = ({
   location,
   name,
-  projects = EMPTY_PROJECTS,
+  projects,
   workspace,
   observation,
 }: Omit<ShellProps, "children">) => {
@@ -106,7 +104,10 @@ const Navigation = ({
     Boolean(location.repo) &&
     location.view !== "machine" &&
     location.view !== "running";
-  const counts = projects.length ? runtimeCounts(projects) : undefined;
+  const counts = projects.data ? runtimeCounts(projects.data) : undefined;
+  const unavailableCounts = projects.error
+    ? "Counts unavailable"
+    : "Loading counts…";
   const worktrees =
     workspace?.worktrees.map((worktree) => ({
       ...worktree,
@@ -167,7 +168,7 @@ const Navigation = ({
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  {projects.map((project) => (
+                  {projects.data?.map((project) => (
                     <DropdownMenuItem
                       key={project.path}
                       render={
@@ -292,7 +293,7 @@ const Navigation = ({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))
-              : projects.map((project) => (
+              : projects.data?.map((project) => (
                   <NavigationLink
                     href={hrefFor({ repo: project.path })}
                     icon={FolderGit2Icon}
@@ -310,8 +311,8 @@ const Navigation = ({
             active={location.view === "running"}
             detail={
               counts
-                ? `${counts.managedGroups} managed · ${counts.detectedServices} detected`
-                : undefined
+                ? `${counts.managedGroups} managed · ${counts.detectedServices} detected${projects.error ? " · Last known" : ""}`
+                : unavailableCounts
             }
             href={hrefFor({ view: "running" })}
             icon={ActivityIcon}
