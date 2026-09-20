@@ -3,7 +3,7 @@ import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
 import { useCodexIntegration } from "../queries";
 import { QueryContent } from "./async-state";
 import { hrefFor, useProjects } from "./data";
-import type { ProductLocation } from "./data";
+import type { ProductRoute } from "./data";
 import { EnvironmentList } from "./environment-list";
 import { DetectedServicesSection } from "./observed-project-page";
 import { Blank, PageHeading } from "./primitives";
@@ -15,7 +15,7 @@ const RunningWorktrees = ({
   navigate,
 }: {
   data: WorkspaceSnapshot;
-  navigate: (location: Partial<ProductLocation>) => void;
+  navigate: (location: ProductRoute) => void;
 }) => {
   const codex = useCodexIntegration(data.repoPath);
   const { actions, controls, onDelete, feedback } = useWorktreeControls({
@@ -48,7 +48,7 @@ const RunningWorktrees = ({
 export const RunningPage = ({
   navigate,
 }: {
-  navigate: (location: Partial<ProductLocation>) => void;
+  navigate: (location: ProductRoute) => void;
 }) => {
   const projects = useProjects();
   const counts = runtimeCounts(projects.data ?? []);

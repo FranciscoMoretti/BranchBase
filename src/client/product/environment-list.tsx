@@ -30,6 +30,7 @@ import {
 import { Spinner } from "../components/ui/spinner";
 import { WorktreeActionsMenu } from "../components/worktree-actions-menu";
 import type { WorktreeCommandActions } from "../worktree-command-menu";
+import type { ProductPanel } from "./location";
 import { AppLink, Blank, Status } from "./primitives";
 import {
   endpointRuntime,
@@ -42,7 +43,7 @@ export interface GroupControls {
   inspect: (
     worktree: WorktreeSnapshot,
     group: AppGroupSnapshot,
-    panel?: string
+    panel?: ProductPanel
   ) => void;
   restart: (worktree: WorktreeSnapshot, group: AppGroupSnapshot) => void;
   retry: (worktree: WorktreeSnapshot, group: AppGroupSnapshot) => void;

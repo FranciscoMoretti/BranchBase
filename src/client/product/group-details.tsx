@@ -37,6 +37,8 @@ import { QueryContent } from "./async-state";
 import { useProductCommand } from "./data";
 import { GroupToggle } from "./environment-list";
 import type { GroupControls } from "./environment-list";
+import { isProductPanel } from "./location";
+import type { ProductPanel } from "./location";
 import {
   AppLink,
   Blank,
@@ -96,8 +98,8 @@ export const GroupDetails = ({
   onConfigSource,
   onClearLogs,
 }: {
-  tab: string;
-  onTabChange: (value: string) => void;
+  tab: ProductPanel;
+  onTabChange: (value: ProductPanel) => void;
   repoPath: string;
   worktree: WorktreeSnapshot;
   group: AppGroupSnapshot;
@@ -260,7 +262,14 @@ export const GroupDetails = ({
           })}
         </TableBody>
       </Table>
-      <Tabs onValueChange={onTabChange} value={tab}>
+      <Tabs
+        onValueChange={(value) => {
+          if (isProductPanel(value)) {
+            onTabChange(value);
+          }
+        }}
+        value={tab}
+      >
         <TabsList aria-label="Group details" variant="line">
           {["logs", "activity", "configuration", "tasks"].map((value) => (
             <TabsTrigger key={value} value={value}>

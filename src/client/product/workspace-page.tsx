@@ -16,7 +16,7 @@ import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { useCodexIntegration } from "../queries";
 import { ActivityPage } from "./activity-page";
 import { hrefFor } from "./data";
-import type { ProductLocation } from "./data";
+import type { ProductLocation, ProductRoute } from "./data";
 import { EnvironmentList } from "./environment-list";
 import type { GroupControls } from "./environment-list";
 import { GroupDetails } from "./group-details";
@@ -158,7 +158,7 @@ export const WorkspacePage = ({
   data: WorkspaceSnapshot;
   project?: ProjectOverview;
   location: ProductLocation;
-  navigate: (value: Partial<ProductLocation>) => void;
+  navigate: (value: ProductRoute) => void;
   refresh: () => void;
 }) => {
   const [search, setSearch] = useState("");
@@ -169,9 +169,9 @@ export const WorkspacePage = ({
     data,
     onInspect: (worktree, group, panel = "logs") =>
       navigate({
-        ...location,
         group: group.id,
         panel,
+        repo: data.repoPath,
         view: "workspace",
         worktree: worktree.id,
       }),
@@ -200,7 +200,9 @@ export const WorkspacePage = ({
       {location.view === "settings" ? (
         <SettingsPage
           data={data}
-          onSectionChange={(section) => navigate({ ...location, section })}
+          onSectionChange={(section) =>
+            navigate({ repo: data.repoPath, section, view: "settings" })
+          }
           project={project}
           review={() =>
             trust.requestTrust(
@@ -258,7 +260,14 @@ export const WorkspacePage = ({
             onSelectInstance={(id) =>
               actions.selectAppGroupInstance(selected, selectedGroup, id)
             }
-            onTabChange={(panel) => navigate({ ...location, panel })}
+            onTabChange={(panel) =>
+              navigate({
+                group: selectedGroup.id,
+                panel,
+                repo: data.repoPath,
+                worktree: selected.id,
+              })
+            }
             project={project}
             repoPath={data.repoPath}
             tab={location.panel}
