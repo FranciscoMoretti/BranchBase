@@ -11,21 +11,9 @@ import type {
   WorktreeSnapshot,
 } from "../../project/worktree-status-contract";
 import { CreateWorktreeDialog } from "../components/create-worktree-dialog";
-import { DeleteWorktreeDialog } from "../components/delete-worktree-dialog";
-import { RepositoryTrustDialog } from "../components/repository-trust-dialog";
 import { Button } from "../components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../components/ui/dialog";
 import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { useCodexIntegration } from "../queries";
-import { useRepositoryTrust } from "../use-repository-trust";
-import { useWorktreeCommandActions } from "../use-worktree-command-actions";
 import { ActivityPage } from "./activity-page";
 import { hrefFor } from "./data";
 import type { ProductLocation, ProductRoute } from "./data";
@@ -37,7 +25,6 @@ import { DetectedServicesSection } from "./observed-project-page";
 import {
   Status,
   Blank,
-  ErrorNotice,
   PageHeading,
   ResourceUsage,
   Search,
@@ -49,6 +36,7 @@ import {
 } from "./repository-overview";
 import { runtimeSummary } from "./runtime-summary";
 import { SettingsPage } from "./settings-page";
+import { useWorktreeControls } from "./use-worktree-controls";
 
 const isMissingEnvironment = (
   location: ProductLocation,
@@ -173,41 +161,13 @@ export const WorkspacePage = ({
   navigate: (value: ProductRoute) => void;
   refresh: () => void;
 }) => {
-  const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [create, setCreate] = useState(false);
-  const [deleting, setDeleting] = useState<WorktreeSnapshot | null>(null);
-  const [shared, setShared] = useState<{
-    group: AppGroupSnapshot;
-    worktree: WorktreeSnapshot;
-    restart: boolean;
-  } | null>(null);
   const codex = useCodexIntegration(data.repoPath);
-  const trust = useRepositoryTrust({
-    approval: { fingerprint: data.trustFingerprint },
-    commands: data.trustCommands,
-    repoPath: data.repoPath,
-    required: data.trustRequired,
-    trusted: data.trusted,
-  });
-  const actions = useWorktreeCommandActions({
-    repoPath: data.repoPath,
-    requestRepositoryTrust: trust.requestTrust,
-    worktrees: data.worktrees,
-  });
-  const consumers = (group: AppGroupSnapshot) =>
-    data.worktrees.filter((worktree) =>
-      worktree.appGroups.some((item) => item.instance.id === group.instance.id)
-    );
-  const controls: GroupControls = {
-    blocked: (worktree, group) =>
-      Boolean(group.pending) ||
-      consumers(group).some((consumer) =>
-        actions.appGroupActionBlocked(consumer.id, group.id)
-      ) ||
-      actions.appGroupActionBlocked(worktree.id, group.id),
-    inspect: (worktree, group, panel = "logs") =>
+  const { actions, controls, trust, onDelete, feedback } = useWorktreeControls({
+    data,
+    onInspect: (worktree, group, panel = "logs") =>
       navigate({
         group: group.id,
         panel,
@@ -215,34 +175,7 @@ export const WorkspacePage = ({
         view: "workspace",
         worktree: worktree.id,
       }),
-    restart: (worktree, group) => {
-      if (consumers(group).length > 1) {
-        setShared({ group, restart: true, worktree });
-      } else {
-        actions.restartAppGroup(worktree, group);
-      }
-    },
-    retry: actions.retryAppGroup,
-    review: (worktree) =>
-      trust.requestTrust(
-        "Review worktree commands",
-        () => {
-          // Trust approval does not need a follow-up action.
-        },
-        {
-          approvals: [{ fingerprint: worktree.configuration.trustFingerprint }],
-          commands: worktree.configuration.trustCommands,
-          trusted: false,
-        }
-      ),
-    toggle: (worktree, group) => {
-      if (appGroupIsRunning(group) && consumers(group).length > 1) {
-        setShared({ group, restart: false, worktree });
-      } else {
-        actions.toggleAppGroup(worktree, group);
-      }
-    },
-  };
+  });
   const selected = data.worktrees.find(
     (worktree) => worktree.id === location.worktree
   );
@@ -263,7 +196,7 @@ export const WorkspacePage = ({
   );
   return (
     <>
-      <ErrorNotice error={actions.commands.error} />
+      {feedback}
       {location.view === "settings" ? (
         <SettingsPage
           data={data}
@@ -435,15 +368,7 @@ export const WorkspacePage = ({
               codexError={codex.isError}
               commandActions={actions.commandActions}
               controls={controls}
-              expandedIds={expandedIds}
-              onDelete={setDeleting}
-              onExpand={(id, expanded) =>
-                setExpandedIds((current) =>
-                  expanded
-                    ? [...new Set([...current, id])]
-                    : current.filter((value) => value !== id)
-                )
-              }
+              onDelete={onDelete}
               worktrees={
                 location.view === "workspace"
                   ? overviewWorktrees(data.worktrees)
@@ -472,82 +397,6 @@ export const WorkspacePage = ({
           repoPath={data.repoPath}
           requestRepositoryTrust={trust.requestTrust}
         />
-      ) : null}
-      {deleting ? (
-        <DeleteWorktreeDialog
-          mutation={actions.commands.deleteWorktree}
-          onClose={() => setDeleting(null)}
-          repoPath={data.repoPath}
-          worktree={deleting}
-        />
-      ) : null}
-      {trust.open ? (
-        <RepositoryTrustDialog
-          actionLabel={trust.actionLabel}
-          commands={trust.commands}
-          error={actions.commands.trustRepository.error}
-          onClose={trust.handleDismiss}
-          onTrust={() =>
-            trust.approve(() =>
-              actions.commands.trustRepository.mutateAsync({
-                approvals: trust.approvals,
-                repoPath: data.repoPath,
-              })
-            )
-          }
-          open
-          pending={actions.commands.trustRepository.isPending}
-          repoPath={data.repoPath}
-        />
-      ) : null}
-      {shared ? (
-        <Dialog
-          onOpenChange={(open) => {
-            if (!open) {
-              setShared(null);
-            }
-          }}
-          open
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {shared.restart ? "Restart" : "Stop"}{" "}
-                {shared.group.instance.name}?
-              </DialogTitle>
-              <DialogDescription>
-                {consumers(shared.group).length} worktrees select this instance.
-                Their connections may be interrupted.{" "}
-                {shared.group.stop === "command"
-                  ? "The configured Stop command will run."
-                  : "The managed process will be stopped."}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="product-consumers">
-              {consumers(shared.group).map((consumer) => (
-                <span key={consumer.id}>{consumer.branch}</span>
-              ))}
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setShared(null)} variant="outline">
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (shared.restart) {
-                    actions.restartAppGroup(shared.worktree, shared.group);
-                  } else {
-                    actions.toggleAppGroup(shared.worktree, shared.group);
-                  }
-                  setShared(null);
-                }}
-              >
-                {shared.restart ? "Restart" : "Stop"}{" "}
-                {shared.group.instance.name}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       ) : null}
     </>
   );
