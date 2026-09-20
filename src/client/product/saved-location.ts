@@ -1,5 +1,10 @@
-import { hrefFor, readLocation } from "./data";
-import type { ProductLocation } from "./data";
+import {
+  hrefFor,
+  parseLocation,
+  readLocation,
+  routeForLocation,
+} from "./location";
+import type { ProductLocation } from "./location";
 
 const KEY = "branchbase:last-location:v1";
 export const initialLocation = (): ProductLocation => {
@@ -11,12 +16,12 @@ export const initialLocation = (): ProductLocation => {
         if (
           url.origin === window.location.origin &&
           url.pathname === "/" &&
-          url.searchParams.has("repo")
+          parseLocation(url.search).repo
         ) {
           window.history.replaceState(
             window.history.state,
             "",
-            `${url.pathname}${url.search}`
+            hrefFor(routeForLocation(parseLocation(url.search)))
           );
         }
       }
@@ -35,7 +40,7 @@ export const rememberLocation = (location: ProductLocation) => {
     return;
   }
   try {
-    window.localStorage.setItem(KEY, hrefFor(location));
+    window.localStorage.setItem(KEY, hrefFor(routeForLocation(location)));
   } catch {
     /* Keep navigating without persistence. */
   }

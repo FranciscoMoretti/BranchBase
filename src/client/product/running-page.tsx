@@ -1,7 +1,7 @@
 import { appGroupIsRunning } from "../../project/worktree-status-contract";
 import { QueryContent } from "./async-state";
 import { hrefFor, useProjects } from "./data";
-import type { ProductLocation } from "./data";
+import type { ProductRoute } from "./data";
 import { DetectedServicesSection } from "./observed-project-page";
 import { Blank, PageHeading } from "./primitives";
 import { runtimeCounts } from "./runtime-counts";
@@ -10,7 +10,7 @@ import { WorkspacePage } from "./workspace-page";
 export const RunningPage = ({
   navigate,
 }: {
-  navigate: (location: Partial<ProductLocation>) => void;
+  navigate: (location: ProductRoute) => void;
 }) => {
   const projects = useProjects();
   const counts = runtimeCounts(projects.data ?? []);
