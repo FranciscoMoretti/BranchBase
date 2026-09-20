@@ -2,7 +2,10 @@ import type { UseMutationResult } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
-import type { CommandReceipt } from "../../application/command-contract";
+import type {
+  BranchBaseCommandInput,
+  BranchBaseCommandResult,
+} from "../../application/command-contract";
 import { FormFeedback } from "../product/async-state";
 import type { RequestRepositoryTrust } from "../use-repository-trust";
 import { Button } from "./ui/button";
@@ -18,7 +21,7 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "./ui/field";
 import { Input } from "./ui/input";
 
-type CreateWorktreeInput = Record<string, unknown> & { repoPath: string };
+type CreateWorktreeInput = BranchBaseCommandInput<"create-worktree">;
 
 export const CreateWorktreeDialog = ({
   mutation,
@@ -26,7 +29,11 @@ export const CreateWorktreeDialog = ({
   repoPath,
   requestRepositoryTrust,
 }: {
-  mutation: UseMutationResult<CommandReceipt, Error, CreateWorktreeInput>;
+  mutation: UseMutationResult<
+    BranchBaseCommandResult<"create-worktree">,
+    Error,
+    CreateWorktreeInput
+  >;
   onClose: () => void;
   repoPath: string;
   requestRepositoryTrust: RequestRepositoryTrust;

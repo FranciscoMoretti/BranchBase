@@ -26,11 +26,12 @@ export const CleanupAppGroups = ({ status }: { status: ProjectStatus }) => {
             <Button
               disabled={command.isPending || !worktree}
               onClick={() =>
+                worktree &&
                 command.mutate({
                   appGroupName: `cleanup:${group.instanceId}`,
                   command: "stop-apps",
                   repoPath: status.repoPath,
-                  worktreeId: worktree?.id,
+                  worktreeId: worktree.id,
                 })
               }
               variant="outline"

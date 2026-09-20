@@ -1,15 +1,16 @@
-import type { ZodType } from "zod";
-
 import {
   LogsResponseSchema,
   SessionResponseSchema,
 } from "../adapters/http/schemas";
 import {
-  CommandReceiptSchema,
-  PickRepositoryResultSchema,
-  RepositoryInitializationPlanSchema,
+  parseCommandInput,
+  parseCommandResult,
 } from "../application/command-contract";
-import type { CommandReceipt } from "../application/command-contract";
+import type {
+  BranchBaseCommandName,
+  BranchBaseCommandInput,
+  BranchBaseCommandResult,
+} from "../application/command-contract";
 import { CodexIntegrationSnapshotSchema } from "../codex/codex-integration";
 import type { CodexIntegrationSnapshot } from "../codex/codex-integration";
 import { ProjectStatusSchema } from "../project/status-contract";
@@ -142,14 +143,14 @@ export const fetchLogs = async (
   return body.lines;
 };
 
-const postCommand = async <T>(
-  command: string,
-  input: Record<string, unknown>,
-  schema: ZodType<T>
-): Promise<T> => {
+export const runCommand = async <Name extends BranchBaseCommandName>(
+  command: Name,
+  input: BranchBaseCommandInput<NoInfer<Name>>
+): Promise<BranchBaseCommandResult<Name>> => {
+  const validated = parseCommandInput(command, input);
   const send = async (): Promise<Response> =>
     request(`/api/commands/${command}`, {
-      body: JSON.stringify(input),
+      body: JSON.stringify(validated),
       headers: {
         "content-type": "application/json",
         "x-branchbase-token": await token(),
@@ -161,33 +162,16 @@ const postCommand = async <T>(
     sessionToken = null;
     response = await send();
   }
-  return schema.parse(await responseJson(response));
+  return parseCommandResult(command, await responseJson(response));
 };
 
-export const runCommand = (
-  command: string,
-  input: Record<string, unknown>
-): Promise<CommandReceipt> => postCommand(command, input, CommandReceiptSchema);
-
 export const pickRepository = async (): Promise<string | null> => {
-  const result = await postCommand(
-    "pick-repository",
-    {},
-    PickRepositoryResultSchema
-  );
+  const result = await runCommand("pick-repository", {});
   return result.path;
 };
 
 export const previewRepositoryConfig = (repoPath: string) =>
-  postCommand(
-    "preview-repository-config",
-    { repoPath },
-    RepositoryInitializationPlanSchema
-  );
+  runCommand("preview-repository-config", { repoPath });
 
 export const initializeRepository = (repoPath: string) =>
-  postCommand(
-    "initialize-repository",
-    { repoPath },
-    RepositoryInitializationPlanSchema
-  );
+  runCommand("initialize-repository", { repoPath });

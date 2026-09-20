@@ -1,28 +1,23 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import type {
+  BranchBaseCommandName,
+  BranchBaseCommandInput,
+} from "../application/command-contract";
 import { runCommand } from "./api";
+import { invalidateCommandQueries } from "./command-invalidation";
 
-type CommandInput = Record<string, unknown> & {
-  repoPath: string;
-  worktreeId?: string;
-};
-
-const useCommand = (command: string, repoPath: string) => {
+export const useCommand = <Name extends BranchBaseCommandName>(
+  command: Name,
+  repoPath?: string
+) => {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (input: CommandInput) => runCommand(command, input),
-    mutationKey: ["command", command],
-    onSuccess: async (_result, input) => {
-      await Promise.all([
-        client.invalidateQueries({ queryKey: ["project-status", repoPath] }),
-        client.invalidateQueries({ queryKey: ["workspace", repoPath] }),
-        input.worktreeId
-          ? client.invalidateQueries({
-              queryKey: ["logs", repoPath, input.worktreeId],
-            })
-          : Promise.resolve(),
-      ]);
-    },
+    mutationFn: (input: BranchBaseCommandInput<Name>) =>
+      runCommand(command, input),
+    mutationKey: ["command", command, repoPath],
+    onSettled: (_result, _error, input) =>
+      invalidateCommandQueries(client, command, input),
   });
 };
 
