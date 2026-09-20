@@ -8,6 +8,7 @@ import type { Root } from "react-dom/client";
 
 import { delay } from "../../adapters/host/polling";
 import { WorkspaceSnapshotSchema } from "../../project/worktree-status-contract";
+import type { ProductSection } from "./location";
 import { SettingsPage } from "./settings-page";
 
 const snapshot = WorkspaceSnapshotSchema.parse({
@@ -87,7 +88,7 @@ test("save, removal and trust keep independent pending and inline feedback", asy
   const container = dom.document.createElement("div");
   dom.document.body.append(container);
   root = createRoot(container as unknown as HTMLElement);
-  const render = (section: string) =>
+  const render = (section: ProductSection) =>
     act(() =>
       root?.render(
         <QueryClientProvider client={queryClient}>

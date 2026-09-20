@@ -25,6 +25,31 @@ test("launch restores the last repository while explicit links and All repositor
     expect(initialLocation().view).toBe("running");
     dom.history.replaceState(null, "", "/?");
     expect(initialLocation().repo).toBe("");
+    dom.history.replaceState(null, "", "/?view=machine");
+    expect(initialLocation().view).toBe("machine");
+    rememberLocation(initialLocation());
+    dom.history.replaceState(null, "", "/");
+    expect(initialLocation().worktree).toBe("feature");
+    dom.localStorage.setItem(
+      "branchbase:last-location:v1",
+      "/?repo=/project&page=settings&section=command%20trust&group=orphan"
+    );
+    dom.history.replaceState(null, "", "/");
+    expect(initialLocation()).toMatchObject({
+      group: "",
+      section: "command trust",
+      view: "settings",
+    });
+    for (const saved of [
+      "/?repo=/project&view=running",
+      "/other?repo=/project",
+      "http://[",
+      "/?repo=",
+    ]) {
+      dom.localStorage.setItem("branchbase:last-location:v1", saved);
+      dom.history.replaceState(null, "", "/");
+      expect(initialLocation().repo).toBe("");
+    }
     dom.localStorage.setItem(
       "branchbase:last-location:v1",
       "https://example.com/?repo=external"

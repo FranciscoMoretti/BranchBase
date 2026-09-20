@@ -28,6 +28,8 @@ import {
   DevelopmentFoldersControls,
   DiscoveryDialog,
 } from "./discovery-dialog";
+import { isProductSection } from "./location";
+import type { ProductSection } from "./location";
 import { CopyButton, PageHeading, Status } from "./primitives";
 
 const connectionLabel = (error: boolean, loading: boolean): string => {
@@ -95,8 +97,8 @@ export const SettingsPage = ({
   data: WorkspaceSnapshot;
   project?: ProjectOverview;
   review: () => void;
-  section: string;
-  onSectionChange: (value: string) => void;
+  section: ProductSection;
+  onSectionChange: (value: ProductSection) => void;
 }) => {
   const [name, setName] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -142,7 +144,11 @@ export const SettingsPage = ({
         className="product-settings"
         orientation="vertical"
         value={section}
-        onValueChange={onSectionChange}
+        onValueChange={(value) => {
+          if (isProductSection(value)) {
+            onSectionChange(value);
+          }
+        }}
       >
         <TabsList
           aria-label="Settings sections"
