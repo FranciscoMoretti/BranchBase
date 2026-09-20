@@ -8,7 +8,6 @@ import {
   LayoutGridIcon,
   ListIcon,
   LogsIcon,
-  MonitorIcon,
   SettingsIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -391,10 +390,6 @@ export const Shell = (props: ShellProps) => {
               </span>
             )}
           </nav>
-          <span className="product-local-label">
-            <MonitorIcon />
-            Local workspace
-          </span>
         </header>
         <div className="product-content" id="main-content">
           {children}

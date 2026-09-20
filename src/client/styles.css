@@ -1263,19 +1263,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.product-local-label {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-left: auto;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-  font-size: 12px;
-}
-.product-local-label svg {
-  width: 16px;
-  height: 16px;
-}
 .product-content {
   width: 100%;
   max-width: 1600px;
@@ -2366,9 +2353,6 @@
   .product-breadcrumb {
     gap: 8px;
     font-size: 12px;
-  }
-  .product-local-label {
-    display: none;
   }
   .product-content {
     padding: 24px 16px;
