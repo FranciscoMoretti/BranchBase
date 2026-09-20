@@ -38,7 +38,11 @@ const group = (id: string): AppGroupSnapshot => ({
   processRunning: true,
   stop: "process",
 });
-const list = (groups: AppGroupSnapshot[], expanded = false) =>
+const list = (
+  groups: AppGroupSnapshot[],
+  expanded = false,
+  runningOnly = false
+) =>
   renderToStaticMarkup(
     <EnvironmentList
       codexError={false}
@@ -50,6 +54,7 @@ const list = (groups: AppGroupSnapshot[], expanded = false) =>
       }}
       controls={controls}
       expandedIds={expanded ? [worktree.id] : []}
+      runningOnly={runningOnly}
       onDelete={noop}
       onExpand={noop}
       worktrees={[{ ...worktree, appGroups: groups }]}
@@ -167,4 +172,18 @@ test("input group addons use native labels to focus their associated control", (
   );
   expect(markup).toMatch(/<label[^>]*for="repository-path"/u);
   expect(markup).toContain('data-slot="input-group-control"');
+});
+
+test("Running hides stopped controls while retaining the complete worktree readiness summary", () => {
+  const stopped = {
+    ...group("Stopped"),
+    apps: [{ ...worktree.apps[1] }],
+    health: "not-running" as const,
+    processRunning: false,
+  };
+  const markup = list([group("Product"), stopped], false, true);
+  expect(markup).toContain('aria-label="Stop Product in main"');
+  expect(markup).not.toContain('aria-label="Start Stopped in main"');
+  expect(markup).toContain("Partially running");
+  expect(markup).toContain("1/3 ready");
 });

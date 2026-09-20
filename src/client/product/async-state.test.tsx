@@ -337,10 +337,10 @@ const page = (
 test("Projects never turns loading or failed requests into zero projects or an empty state", () => {
   for (const status of ["pending", "error"] as const) {
     const html = page("projects", status);
-    expect(html).not.toContain("0 projects");
-    expect(html).not.toContain("No projects");
+    expect(html).not.toContain("0 repositories");
+    expect(html).not.toContain("No repositories");
   }
-  expect(page("projects", "success")).toContain("No projects yet");
+  expect(page("projects", "success")).toContain("No repositories yet");
 });
 test("Activity separates unavailable history from successfully empty history", () => {
   expect(page("activity", "error")).not.toContain("No matching activity");

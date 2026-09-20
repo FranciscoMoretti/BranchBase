@@ -222,6 +222,22 @@ const ObservedSettings = ({
     </>
   );
 };
+const observationTitle = (
+  data: Observation,
+  location: ProductLocation,
+  project?: ProjectOverview
+) => {
+  if (location.worktree) {
+    return (
+      data.worktrees.find((item) => item.id === location.worktree)?.branch ??
+      "Worktree unavailable"
+    );
+  }
+  if (location.view === "workspace") {
+    return project?.name ?? "Repository";
+  }
+  return location.view === "logs" ? "Logs" : "Worktrees";
+};
 export const ObservedProjectPage = ({
   data,
   project,
@@ -239,6 +255,7 @@ export const ObservedProjectPage = ({
   const visible = data.worktrees
     .filter(
       (worktree) =>
+        (!location.worktree || worktree.id === location.worktree) &&
         `${worktree.branch} ${worktree.path}`
           .toLowerCase()
           .includes(search.toLowerCase()) &&
@@ -276,11 +293,13 @@ export const ObservedProjectPage = ({
           </Blank>
         </>
       ) : null}
-      {location.view === "workspace" ? (
+      {location.view === "workspace" ||
+      location.view === "worktrees" ||
+      location.view === "logs" ? (
         <>
           <PageHeading
             description={`${countLabel(data.worktrees.length, "worktree")} · ${countLabel(services.length, "service")} detected`}
-            title="Environments"
+            title={observationTitle(data, location, project)}
           >
             <ResourceUsage usage={data.resources} />
             <Button onClick={() => setConfigure(true)} variant="outline">

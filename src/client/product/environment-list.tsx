@@ -3,6 +3,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   PlayIcon,
+  GitBranchIcon,
   SquareIcon,
 } from "lucide-react";
 
@@ -11,9 +12,11 @@ import type { CodexIntegrationSnapshot } from "../../codex/codex-integration";
 import { appGroupIsRunning } from "../../project/worktree-status-contract";
 import type {
   AppGroupSnapshot,
+  AppEndpointSnapshot,
   WorktreeSnapshot,
 } from "../../project/worktree-status-contract";
 import { AppGroupActionsMenu } from "../components/app-group-actions-menu";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
@@ -27,6 +30,7 @@ import { Spinner } from "../components/ui/spinner";
 import { WorktreeActionsMenu } from "../components/worktree-actions-menu";
 import type { WorktreeCommandActions } from "../worktree-command-menu";
 import { AppLink, Blank, Status } from "./primitives";
+import { runtimeSummary } from "./runtime-summary";
 
 export interface GroupControls {
   blocked: (worktree: WorktreeSnapshot, group: AppGroupSnapshot) => boolean;
@@ -126,6 +130,31 @@ const AppOverflow = ({
     </DropdownMenuContent>
   </DropdownMenu>
 );
+const ServiceEndpoint = ({
+  app,
+  group,
+}: {
+  app: AppEndpointSnapshot;
+  group: AppGroupSnapshot;
+}) => {
+  let label = "Stopped";
+  if (app.readiness === "waiting" && appGroupIsRunning(group)) {
+    label = "Waiting";
+  } else if (group.processRunning || app.listening) {
+    label = "Not ready";
+  }
+  if (app.readiness === "ready" && app.port) {
+    label = `:${app.port}`;
+  }
+  const showLink =
+    app.open || app.readiness === "ready" || app.label !== group.name;
+  return (
+    <span className="product-service-endpoint">
+      {showLink ? <AppLink app={app} name={app.label !== group.name} /> : null}
+      <code>{label}</code>
+    </span>
+  );
+};
 export const GroupSummary = ({
   group,
   worktree,
@@ -154,18 +183,10 @@ export const GroupSummary = ({
         {group.instance.mode === "selectable" ? (
           <span className="product-instance-name">{group.instance.name}</span>
         ) : null}
-        {expanded ? null : (
-          <GroupToggle
-            compact
-            controls={controls}
-            group={group}
-            worktree={worktree}
-          />
-        )}
       </div>
       <div className="product-group-links">
         {group.apps.slice(0, expanded ? undefined : 2).map((app) => (
-          <AppLink app={app} key={app.id} />
+          <ServiceEndpoint app={app} group={group} key={app.id} />
         ))}
         {!expanded && group.apps.length > 2 ? (
           <AppOverflow controls={controls} group={group} worktree={worktree} />
@@ -180,6 +201,14 @@ export const GroupSummary = ({
           </Button>
         ) : null}
       </div>
+      {expanded ? null : (
+        <GroupToggle
+          compact
+          controls={controls}
+          group={group}
+          worktree={worktree}
+        />
+      )}
       {expanded ? (
         <>
           <Status value={status} />
@@ -242,8 +271,13 @@ const TaskSummary = ({
     </Button>
   );
 };
+const hasTaskSummary = (
+  tasks: CodexIntegrationSnapshot["worktrees"][string]["tasks"] | undefined,
+  unavailable: boolean
+) => Boolean(tasks?.length || unavailable);
 const EnvironmentRow = ({
   worktree,
+  groups,
   controls,
   commandActions,
   onDelete,
@@ -253,6 +287,7 @@ const EnvironmentRow = ({
   codexError,
 }: {
   worktree: WorktreeSnapshot;
+  groups: AppGroupSnapshot[];
   controls: GroupControls;
   commandActions: WorktreeCommandActions;
   onDelete: (worktree: WorktreeSnapshot) => void;
@@ -277,16 +312,35 @@ const EnvironmentRow = ({
           {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
         </Button>
         <div className="product-environment-title">
-          <strong title={worktree.path}>{worktree.branch}</strong>
+          <Button
+            className="product-branch-button"
+            disabled={!primary}
+            onClick={() => controls.inspect(worktree, primary)}
+            variant="ghost"
+          >
+            <GitBranchIcon />
+            {worktree.branch}
+          </Button>
+          {worktree.isMain ? <Badge variant="secondary">Main</Badge> : null}
           <span className="product-muted">
             {tasks?.[0]?.title ?? worktree.name}
           </span>
         </div>
-        <TaskSummary
-          onOpen={() => controls.inspect(worktree, primary, "tasks")}
-          tasks={tasks}
-          unavailable={codexError}
+        <Status
+          value={runtimeSummary(worktree).value}
+          label={runtimeSummary(worktree).label}
         />
+        <span className="product-readiness-count">
+          {runtimeSummary(worktree).ready}/{runtimeSummary(worktree).total}{" "}
+          ready
+        </span>
+        {hasTaskSummary(tasks, codexError) ? (
+          <TaskSummary
+            onOpen={() => controls.inspect(worktree, primary, "tasks")}
+            tasks={tasks}
+            unavailable={codexError}
+          />
+        ) : null}
         <WorktreeActionsMenu
           commandActions={commandActions}
           includeLifecycle={false}
@@ -296,6 +350,18 @@ const EnvironmentRow = ({
           worktree={worktree}
         />
       </div>
+      {worktree.configuration.trusted ? null : (
+        <div className="product-trust-notice">
+          <span>Commands need approval</span>
+          <Button
+            onClick={() => controls.review(worktree)}
+            size="sm"
+            variant="link"
+          >
+            Review commands
+          </Button>
+        </div>
+      )}
       {worktree.configuration.error || worktree.setupState !== "idle" ? (
         <p className="product-row-notice">
           {worktree.configuration.error ??
@@ -309,7 +375,7 @@ const EnvironmentRow = ({
           expanded ? "product-expanded-groups" : "product-compact-groups"
         }
       >
-        {worktree.appGroups.slice(0, expanded ? undefined : 2).map((group) => (
+        {groups.slice(0, expanded ? undefined : 2).map((group) => (
           <GroupSummary
             controls={controls}
             expanded={expanded}
@@ -318,15 +384,15 @@ const EnvironmentRow = ({
             worktree={worktree}
           />
         ))}
-        {!expanded && worktree.appGroups.length > 2 ? (
+        {!expanded && groups.length > 2 ? (
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button size="sm" variant="link" />}>
-              +{worktree.appGroups.length - 2} groups
+              +{groups.length - 2} groups
             </DropdownMenuTrigger>
             <DropdownMenuContent className="min-w-64">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>{worktree.branch}</DropdownMenuLabel>
-                {worktree.appGroups.slice(2).map((group) => (
+                {groups.slice(2).map((group) => (
                   <DropdownMenuItem
                     key={group.id}
                     onClick={() => controls.inspect(worktree, group)}
@@ -343,9 +409,7 @@ const EnvironmentRow = ({
           </DropdownMenu>
         ) : null}
         {!expanded &&
-        worktree.appGroups
-          .slice(2)
-          .some((group) => appGroupStatus(group) === "partial") ? (
+        groups.slice(2).some((group) => appGroupStatus(group) === "partial") ? (
           <Button onClick={() => setExpanded(true)} variant="link">
             Additional groups need attention
           </Button>
@@ -361,6 +425,7 @@ export const EnvironmentList = ({
   onDelete,
   codex,
   expandedIds,
+  runningOnly = false,
   onExpand,
   codexError,
 }: {
@@ -371,27 +436,48 @@ export const EnvironmentList = ({
   codex?: CodexIntegrationSnapshot;
   codexError: boolean;
   expandedIds: string[];
+  runningOnly?: boolean;
   onExpand: (id: string, expanded: boolean) => void;
-}) => (
-  <div className="product-environments">
-    {worktrees.map((worktree) => (
-      <EnvironmentRow
-        codexError={codexError}
-        commandActions={commandActions}
-        controls={controls}
-        expanded={expandedIds.includes(worktree.id)}
-        key={worktree.id}
-        onDelete={onDelete}
-        setExpanded={(value) => onExpand(worktree.id, value)}
-        tasks={codex ? (codex.worktrees[worktree.id]?.tasks ?? []) : undefined}
-        worktree={worktree}
-      />
-    ))}
-    {worktrees.length === 0 ? (
-      <Blank
-        description="Try another search or filter."
-        title="No matching worktrees"
-      />
-    ) : null}
-  </div>
-);
+}) => {
+  const seen = new Set<string>();
+  return (
+    <div className="product-environments">
+      {worktrees.map((worktree) => {
+        const groups = runningOnly
+          ? worktree.appGroups.filter((group) => {
+              if (!appGroupIsRunning(group) || seen.has(group.instance.id)) {
+                return false;
+              }
+              seen.add(group.instance.id);
+              return true;
+            })
+          : worktree.appGroups;
+        if (runningOnly && groups.length === 0) {
+          return null;
+        }
+        return (
+          <EnvironmentRow
+            groups={groups}
+            codexError={codexError}
+            commandActions={commandActions}
+            controls={controls}
+            expanded={expandedIds.includes(worktree.id)}
+            key={worktree.id}
+            onDelete={onDelete}
+            setExpanded={(value) => onExpand(worktree.id, value)}
+            tasks={
+              codex ? (codex.worktrees[worktree.id]?.tasks ?? []) : undefined
+            }
+            worktree={worktree}
+          />
+        );
+      })}
+      {worktrees.length === 0 ? (
+        <Blank
+          description="Try another search or filter."
+          title="No matching worktrees"
+        />
+      ) : null}
+    </div>
+  );
+};
