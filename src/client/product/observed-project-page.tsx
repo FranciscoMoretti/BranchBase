@@ -25,7 +25,7 @@ import { CodexTasksSection } from "../components/worktree-details";
 import { useCodexIntegration } from "../queries";
 import { ActivityPage } from "./activity-page";
 import { FormFeedback } from "./async-state";
-import { useProductCommand } from "./data";
+import { hrefFor, useProductCommand } from "./data";
 import type { ProductLocation } from "./data";
 import {
   Blank,
@@ -36,6 +36,7 @@ import {
   Search,
   Status,
 } from "./primitives";
+import { OverviewSectionHeading, RecentActivity } from "./repository-overview";
 
 const WINDOWS_PATH_SEPARATOR = /[\\/]/u;
 
@@ -252,6 +253,7 @@ export const ObservedProjectPage = ({
   const [configure, setConfigure] = useState(false);
   const client = useQueryClient();
   const codex = useCodexIntegration(data.repoPath);
+  const isOverview = location.view === "workspace" && !location.worktree;
   const visible = data.worktrees
     .filter(
       (worktree) =>
@@ -259,7 +261,7 @@ export const ObservedProjectPage = ({
         `${worktree.branch} ${worktree.path}`
           .toLowerCase()
           .includes(search.toLowerCase()) &&
-        (!running || worktree.services.length)
+        (!(running || isOverview) || worktree.services.length)
     )
     .toSorted(
       (a, b) => Number(b.services.length > 0) - Number(a.services.length > 0)
@@ -313,40 +315,49 @@ export const ObservedProjectPage = ({
               want Start, Stop, and logs here.
             </p>
           </div>
-          <div className="product-filterbar">
-            <Search
-              onChange={setSearch}
-              placeholder="Search worktrees…"
-              value={search}
+          {isOverview ? (
+            <OverviewSectionHeading
+              title="Active worktrees"
+              href={hrefFor({ repo: data.repoPath, view: "worktrees" })}
+              linkLabel={`View all ${data.worktrees.length} worktrees`}
             />
-            <ToggleGroup
-              aria-label="Filter worktrees"
-              onValueChange={(values) => {
-                if (values.length > 0) {
-                  setRunning(values[0] === "running");
-                }
-              }}
-              value={[running ? "running" : "all"]}
-            >
-              <ToggleGroupItem value="all">
-                All {data.worktrees.length}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="running">
-                With services{" "}
-                {
-                  data.worktrees.filter((worktree) => worktree.services.length)
-                    .length
-                }
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
+          ) : (
+            <div className="product-filterbar">
+              <Search
+                onChange={setSearch}
+                placeholder="Search worktrees…"
+                value={search}
+              />
+              <ToggleGroup
+                aria-label="Filter worktrees"
+                onValueChange={(values) => {
+                  if (values.length > 0) {
+                    setRunning(values[0] === "running");
+                  }
+                }}
+                value={[running ? "running" : "all"]}
+              >
+                <ToggleGroupItem value="all">
+                  All {data.worktrees.length}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="running">
+                  With services{" "}
+                  {
+                    data.worktrees.filter(
+                      (worktree) => worktree.services.length
+                    ).length
+                  }
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          )}
           {data.warning ? (
             <Alert aria-atomic="true" aria-live="polite">
               <AlertDescription>{data.warning}</AlertDescription>
             </Alert>
           ) : null}
           <div className="product-observed-worktrees">
-            {visible.map((worktree) => (
+            {(isOverview ? visible.slice(0, 4) : visible).map((worktree) => (
               <article className="product-observed-worktree" key={worktree.id}>
                 <div className="product-observed-worktree-heading">
                   <GitBranchIcon />
@@ -402,10 +413,17 @@ export const ObservedProjectPage = ({
           </div>
           {visible.length === 0 ? (
             <Blank
-              description="Try another search or choose All."
-              title="No matching worktrees"
+              description={
+                isOverview
+                  ? "Open Worktrees to browse your repository or configure app groups to start services here."
+                  : "Try another search or choose All."
+              }
+              title={
+                isOverview ? "No active worktrees" : "No matching worktrees"
+              }
             />
           ) : null}
+          {isOverview ? <RecentActivity repoPath={data.repoPath} /> : null}
           <p className="product-observation-footnote">
             Services are associated by working directory. Open is available
             after an HTTP response. Processes and logs remain with the tool that

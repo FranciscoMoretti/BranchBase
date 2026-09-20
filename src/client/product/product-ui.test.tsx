@@ -186,4 +186,6 @@ test("Running hides stopped controls while retaining the complete worktree readi
   expect(markup).not.toContain('aria-label="Start Stopped in main"');
   expect(markup).toContain("Partially running");
   expect(markup).toContain("1/3 ready");
+  expect(markup).toContain("Site: Stopped");
+  expect(markup).toContain("Site: Process running · not listening");
 });
