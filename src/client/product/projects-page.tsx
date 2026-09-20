@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { QueryContent } from "./async-state";
 import { hrefFor, useProductCommand, useProjects } from "./data";
 import { DiscoveryDialog } from "./discovery-dialog";
@@ -406,25 +407,27 @@ export const ProjectsPage = () => {
           placeholder="Search projects…"
           value={search}
         />
-        <fieldset
+        <ToggleGroup
           aria-label="Filter projects"
-          className="product-filter-options"
+          className="flex-wrap"
+          onValueChange={(values) => {
+            if (values[0]) {
+              setFilter(values[0]);
+            }
+          }}
+          value={[filter]}
+          variant="outline"
         >
           {[
             ["all", "All"],
             ["running", "Running"],
             ["attention", "Needs attention"],
           ].map(([value, label]) => (
-            <Button
-              aria-pressed={filter === value}
-              key={value}
-              onClick={() => setFilter(value)}
-              variant="ghost"
-            >
+            <ToggleGroupItem key={value} value={value}>
               {label}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </fieldset>
+        </ToggleGroup>
         <a className="product-link" href={hrefFor({ view: "activity" })}>
           View activity
           <ArrowRightIcon />

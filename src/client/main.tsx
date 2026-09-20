@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app";
 import { RecoveryBoundary } from "./components/recovery-boundary";
 import { ThemeProvider } from "./components/theme-provider";
+import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { queryClient } from "./query-client";
 
@@ -25,6 +26,7 @@ createRoot(root).render(
             title="This view couldn’t load"
           >
             <App />
+            <Toaster closeButton expand position="bottom-right" />
           </RecoveryBoundary>
         </TooltipProvider>
       </QueryClientProvider>

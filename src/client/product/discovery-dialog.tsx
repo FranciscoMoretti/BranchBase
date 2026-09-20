@@ -1,6 +1,7 @@
 import { FolderOpenIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import {
   Dialog,
@@ -10,7 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "../components/ui/field";
 import { Input } from "../components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { useRepositoryPicker } from "../use-repository-picker";
 import { FormFeedback, QueryContent } from "./async-state";
 import { useDevelopmentFolders, useProductCommand } from "./data";
@@ -48,56 +56,68 @@ export const DiscoveryDialog = ({
             required.
           </DialogDescription>
         </DialogHeader>
-        <fieldset aria-label="Add type" className="product-filter-options">
-          {[
-            ["project", "Single project"],
-            ["folder", "Development folder"],
-          ].map(([value, label]) => (
-            <Button
-              aria-pressed={kind === value}
+        <FieldGroup>
+          <Field data-disabled={pending}>
+            <ToggleGroup
+              aria-label="Add type"
               disabled={pending}
-              key={value}
-              onClick={() => {
-                setKind(value);
-                command.reset();
+              value={[kind]}
+              variant="outline"
+              onValueChange={(values) => {
+                if (values[0]) {
+                  setKind(values[0]);
+                  command.reset();
+                }
               }}
-              variant="ghost"
             >
-              {label}
-            </Button>
-          ))}
-        </fieldset>
-        <p className="product-muted product-discovery-help">
-          {kind === "folder"
-            ? "Choose a folder containing Git repositories. BranchBase scans up to three levels, skips dependencies, and discovers new projects while you use the app."
-            : "Choose an existing Git repository. Its linked worktrees are included, even when they live elsewhere."}
-        </p>
-        <label htmlFor="discovery-path">
-          {kind === "folder" ? "Development folder path" : "Repository path"}
-        </label>
-        <div className="repository-path-control">
-          <Input
-            disabled={pending}
-            id="discovery-path"
-            onChange={(event) => {
-              setPath(event.target.value);
-              command.reset();
-              picker.clearError();
-            }}
-            placeholder={
-              kind === "folder" ? "/Users/you/Code" : "/Users/you/Code/project"
-            }
-            value={path}
-          />
-          <Button
-            disabled={pending}
-            onClick={() => picker.handleBrowse()}
-            variant="outline"
-          >
-            <FolderOpenIcon />
-            Browse
-          </Button>
-        </div>
+              {[
+                ["project", "Single project"],
+                ["folder", "Development folder"],
+              ].map(([value, label]) => (
+                <ToggleGroupItem key={value} value={value}>
+                  {label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <FieldDescription>
+              {kind === "folder"
+                ? "Choose a folder containing Git repositories. BranchBase scans up to three levels, skips dependencies, and discovers new projects while you use the app."
+                : "Choose an existing Git repository. Its linked worktrees are included, even when they live elsewhere."}
+            </FieldDescription>
+          </Field>
+          <Field data-disabled={pending}>
+            <FieldLabel htmlFor="discovery-path">
+              {kind === "folder"
+                ? "Development folder path"
+                : "Repository path"}
+            </FieldLabel>
+            <div className="repository-path-control">
+              <Input
+                disabled={pending}
+                id="discovery-path"
+                onChange={(event) => {
+                  setPath(event.target.value);
+                  command.reset();
+                  picker.clearError();
+                }}
+                placeholder={
+                  kind === "folder"
+                    ? "/Users/you/Code"
+                    : "/Users/you/Code/project"
+                }
+                value={path}
+              />
+              <Button
+                disabled={pending}
+                onClick={() => picker.handleBrowse()}
+                variant="outline"
+              >
+                <FolderOpenIcon data-icon="inline-start" />
+                Browse
+              </Button>
+            </div>
+          </Field>
+        </FieldGroup>
         <FormFeedback
           error={
             command.error ?? (picker.error ? new Error(picker.error) : null)
@@ -155,7 +175,9 @@ export const DevelopmentFoldersControls = ({
                   : "Not yet scanned"}
               </p>
               {folder.warning ? (
-                <p className="product-warning">{folder.warning}</p>
+                <Alert>
+                  <AlertDescription>{folder.warning}</AlertDescription>
+                </Alert>
               ) : null}
             </div>
             <Button

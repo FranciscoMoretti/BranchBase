@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Window } from "happy-dom";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { AppGroupSnapshot } from "../../project/worktree-status-contract";
@@ -107,6 +108,26 @@ test("group details keep readiness separate from routing and use a managed log v
   );
   expect(markup).toContain('data-slot="scroll-area-viewport"');
   expect(markup).toContain('aria-label="Pin Chat on Projects"');
+  const { document } = new Window();
+  document.body.innerHTML = markup;
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  expect(tabs.map((item) => item.textContent)).toEqual([
+    "Logs",
+    "Activity",
+    "Configuration",
+    "Tasks",
+  ]);
+  expect(
+    tabs.filter((item) => item.getAttribute("aria-selected") === "true")
+  ).toHaveLength(1);
+  const selectedTab = tabs.find(
+    (item) => item.getAttribute("aria-selected") === "true"
+  );
+  const panel = document.querySelector('[role="tabpanel"]');
+  expect(selectedTab?.textContent).toBe("Logs");
+  expect(panel?.textContent).toContain("Server ready");
+  expect(panel?.textContent).not.toContain("Review worktree commands");
+  expect(document.querySelectorAll('[role="tabpanel"]')).toHaveLength(1);
 });
 test("configuration fallback and unavailable task discovery retain recovery paths", () => {
   const config = renderToStaticMarkup(

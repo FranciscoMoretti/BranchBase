@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { AppEndpointSnapshot } from "../../project/worktree-status-contract";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
   Empty,
@@ -46,10 +47,10 @@ export const Blank = ({
   </Empty>
 );
 export const Status = ({ value, label }: { value: string; label?: string }) => (
-  <span className="product-status" data-status={value}>
+  <Badge className="product-status" data-status={value} variant="outline">
     <span aria-hidden="true" />
     {label ?? value.charAt(0).toUpperCase() + value.slice(1)}
-  </span>
+  </Badge>
 );
 export const CopyButton = ({
   value,

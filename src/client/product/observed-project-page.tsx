@@ -1,4 +1,3 @@
-import { Popover } from "@base-ui/react/popover";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRightIcon, GitBranchIcon } from "lucide-react";
 import { useState } from "react";
@@ -9,9 +8,19 @@ import type {
   Observation,
 } from "../../project/discovery-contract";
 import { RepositoryInitializeDialog } from "../components/repository-initialize-dialog";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";
+import { Field, FieldGroup, FieldLabel } from "../components/ui/field";
 import { Input } from "../components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "../components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { CodexTasksSection } from "../components/worktree-details";
 import { useCodexIntegration } from "../queries";
 import { ActivityPage } from "./activity-page";
@@ -62,29 +71,27 @@ export const ServiceOverflow = ({
     return null;
   }
   return (
-    <Popover.Root>
-      <Popover.Trigger
+    <Popover>
+      <PopoverTrigger
         aria-label={`${services.length} more services`}
         render={<Button size="sm" variant="outline" />}
       >
         +{services.length}
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Positioner align="end" className="z-50" sideOffset={8}>
-          <Popover.Popup className="product-services-popup">
-            <Popover.Title className="sr-only">
-              More detected services
-            </Popover.Title>
-            {services.map((service) => (
-              <ServiceLink
-                key={`${service.pid}:${service.port}`}
-                service={service}
-              />
-            ))}
-          </Popover.Popup>
-        </Popover.Positioner>
-      </Popover.Portal>
-    </Popover.Root>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="max-h-[min(240px,var(--available-height))] w-auto min-w-45 overflow-auto"
+        sideOffset={8}
+      >
+        <PopoverTitle className="sr-only">More detected services</PopoverTitle>
+        {services.map((service) => (
+          <ServiceLink
+            key={`${service.pid}:${service.port}`}
+            service={service}
+          />
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 };
 const ServiceRow = ({ service }: { service: DetectedService }) => (
@@ -120,9 +127,9 @@ export const DetectedServicesSection = ({ data }: { data?: Observation }) => {
         BranchBase; lifecycle and logs are managed by their launcher.
       </p>
       {data.warning ? (
-        <p aria-atomic="true" aria-live="polite" className="product-warning">
-          {data.warning}
-        </p>
+        <Alert aria-atomic="true" aria-live="polite">
+          <AlertDescription>{data.warning}</AlertDescription>
+        </Alert>
       ) : null}
       {worktrees.map((worktree) => (
         <div key={worktree.id}>
@@ -164,16 +171,22 @@ const ObservedSettings = ({
       />
       <section className="product-settings-panel">
         <h2>General</h2>
-        <label htmlFor="observed-project-name">Project name</label>
-        <Input
-          id="observed-project-name"
-          maxLength={100}
-          onChange={(event) => {
-            setName(event.target.value);
-            command.reset();
-          }}
-          value={resolvedName}
-        />
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="observed-project-name">
+              Project name
+            </FieldLabel>
+            <Input
+              id="observed-project-name"
+              maxLength={100}
+              onChange={(event) => {
+                setName(event.target.value);
+                command.reset();
+              }}
+              value={resolvedName}
+            />
+          </Field>
+        </FieldGroup>
         <div className="product-actions product-path">
           <code>{data.repoPath}</code>
           <CopyButton label="Copy repository path" value={data.repoPath} />
@@ -287,38 +300,31 @@ export const ObservedProjectPage = ({
               placeholder="Search worktrees…"
               value={search}
             />
-            <fieldset
+            <ToggleGroup
               aria-label="Filter worktrees"
-              className="product-filter-options"
+              onValueChange={(values) => {
+                if (values.length > 0) {
+                  setRunning(values[0] === "running");
+                }
+              }}
+              value={[running ? "running" : "all"]}
             >
-              <Button
-                aria-pressed={!running}
-                onClick={() => setRunning(false)}
-                variant="ghost"
-              >
+              <ToggleGroupItem value="all">
                 All {data.worktrees.length}
-              </Button>
-              <Button
-                aria-pressed={running}
-                onClick={() => setRunning(true)}
-                variant="ghost"
-              >
+              </ToggleGroupItem>
+              <ToggleGroupItem value="running">
                 With services{" "}
                 {
                   data.worktrees.filter((worktree) => worktree.services.length)
                     .length
                 }
-              </Button>
-            </fieldset>
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
           {data.warning ? (
-            <div
-              aria-atomic="true"
-              aria-live="polite"
-              className="product-observation-warning"
-            >
-              {data.warning}
-            </div>
+            <Alert aria-atomic="true" aria-live="polite">
+              <AlertDescription>{data.warning}</AlertDescription>
+            </Alert>
           ) : null}
           <div className="product-observed-worktrees">
             {visible.map((worktree) => (
@@ -329,7 +335,7 @@ export const ObservedProjectPage = ({
                     <h2>
                       {worktree.branch}
                       {worktree.isMain ? (
-                        <span className="product-chip">Main worktree</span>
+                        <Badge variant="outline">Main worktree</Badge>
                       ) : null}
                     </h2>
                     <div className="product-path">

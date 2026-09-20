@@ -1,9 +1,12 @@
-import { AlertCircleIcon, RefreshCwIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { AlertCircleIcon, RefreshCwIcon } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";
+import { Skeleton } from "../components/ui/skeleton";
 import { errorDescription, isConnectionError } from "../request-error";
 
 export interface QueryState {
@@ -30,28 +33,35 @@ export const ActionFeedback = ({
   error?: Error | null;
   title?: string;
 }) => {
-  const [dismissed, setDismissed] = useState<Error | null>(null);
-  if (!error || dismissed === error) {
-    return null;
-  }
-  return (
-    <aside className="product-action-feedback" role="alert">
-      <AlertCircleIcon aria-hidden="true" />
-      <div>
-        <strong>{title}</strong>
-        <p>{errorDescription(error, true)}</p>
-        <ErrorDetails error={error} />
-      </div>
-      <Button
-        aria-label="Dismiss error"
-        onClick={() => setDismissed(error)}
-        size="icon-sm"
-        variant="ghost"
-      >
-        <XIcon />
-      </Button>
-    </aside>
-  );
+  const toastId = useId();
+  const dismissed = useRef<Error | null>(null);
+  useEffect(() => {
+    if (!error) {
+      dismissed.current = null;
+      return;
+    }
+    if (dismissed.current === error) {
+      return;
+    }
+    toast.error(title, {
+      closeButton: true,
+      description: (
+        <>
+          <p>{errorDescription(error, true)}</p>
+          <ErrorDetails error={error} />
+        </>
+      ),
+      duration: Number.POSITIVE_INFINITY,
+      id: toastId,
+      onDismiss: () => {
+        dismissed.current = error;
+      },
+    });
+    return () => {
+      toast.dismiss(toastId);
+    };
+  }, [error, title, toastId]);
+  return null;
 };
 
 /** Reserved form feedback space keeps submit/cancel controls in place. */
@@ -64,10 +74,11 @@ export const FormFeedback = ({
 }) => (
   <div aria-live="polite" className="product-form-feedback">
     {error ? (
-      <div role="alert">
-        <strong>{title}</strong>
-        <p>{errorDescription(error, true)}</p>
-      </div>
+      <Alert variant="destructive">
+        <AlertCircleIcon aria-hidden="true" />
+        <AlertTitle>{title}</AlertTitle>
+        <AlertDescription>{errorDescription(error, true)}</AlertDescription>
+      </Alert>
     ) : null}
   </div>
 );
@@ -81,11 +92,11 @@ const QueryProgress = ({
 }) => {
   if (query.data !== undefined && query.error) {
     return (
-      <>
-        <span className="product-query-warning">
-          <AlertCircleIcon aria-hidden="true" />
+      <Alert className="flex items-center gap-2 py-1">
+        <AlertCircleIcon aria-hidden="true" />
+        <AlertDescription className="flex-1">
           Update unavailable · Showing the last successful update
-        </span>
+        </AlertDescription>
         <Button
           disabled={query.isFetching}
           onClick={() => query.refetch()}
@@ -94,7 +105,7 @@ const QueryProgress = ({
         >
           {query.isFetching ? "Reconnecting…" : "Retry"}
         </Button>
-      </>
+      </Alert>
     );
   }
   if (query.data === undefined && query.error) {
@@ -129,24 +140,24 @@ const QueryPlaceholder = ({
 }) => {
   if (query.error) {
     return (
-      <div className="product-unavailable" role="alert">
+      <Alert className="product-unavailable" variant="destructive">
         <AlertCircleIcon aria-hidden="true" />
-        <h2>
+        <AlertTitle>
           {isConnectionError(query.error)
             ? "Can't connect to BranchBase"
             : `Couldn't load ${label.toLowerCase()}`}
-        </h2>
-        <p>{errorDescription(query.error)}</p>
+        </AlertTitle>
+        <AlertDescription>{errorDescription(query.error)}</AlertDescription>
         <Button
           disabled={query.isFetching}
           onClick={() => query.refetch()}
           variant="outline"
         >
-          <RefreshCwIcon />
+          <RefreshCwIcon data-icon="inline-start" />
           {query.isFetching ? "Retrying…" : "Try again"}
         </Button>
         <ErrorDetails error={query.error} />
-      </div>
+      </Alert>
     );
   }
   return (
@@ -154,12 +165,12 @@ const QueryPlaceholder = ({
       <output className="sr-only">Loading {label.toLowerCase()}</output>
       {[0, 1, 2].map((row) => (
         <div aria-hidden="true" className="product-skeleton-row" key={row}>
-          <i />
-          <div>
-            <i />
-            <i />
+          <Skeleton className="size-7 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-2.5 w-1/3 min-w-25" />
+            <Skeleton className="h-2.5 w-1/2 min-w-25" />
           </div>
-          <i />
+          <Skeleton className="h-6 w-18 shrink-0" />
         </div>
       ))}
     </div>

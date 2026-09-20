@@ -4,6 +4,7 @@ import type { ProjectOverview } from "../../project/catalog-contract";
 import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
 import { RepositoryConfigPage } from "../components/repository-config-page";
 import { ThemeToggle } from "../components/theme-toggle";
+import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import { Disclosure } from "../components/ui/disclosure";
 import {
@@ -13,6 +14,12 @@ import {
   FieldTitle,
 } from "../components/ui/field";
 import { Input } from "../components/ui/input";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import { useCommands } from "../mutations";
 import { useCodexIntegration } from "../queries";
 import { hrefFor, useProductCommand } from "./data";
@@ -65,10 +72,12 @@ const IntegrationSettings = ({ repoPath }: { repoPath: string }) => {
         className="product-form-feedback"
       >
         {codex.error ? (
-          <p>
-            Task discovery is unavailable. Refresh the connection to try again.
-            App controls remain available.
-          </p>
+          <Alert aria-live="polite">
+            <AlertDescription>
+              Task discovery is unavailable. Refresh the connection to try
+              again. App controls remain available.
+            </AlertDescription>
+          </Alert>
         ) : null}
       </div>
     </section>
@@ -126,117 +135,116 @@ export const SettingsPage = ({
         </a>
       </PageHeading>
       <ErrorNotice error={mutation.error} />
-      <div className="product-settings">
-        <nav aria-label="Settings sections">
+      <Tabs
+        className="product-settings"
+        orientation="vertical"
+        value={section}
+        onValueChange={onSectionChange}
+      >
+        <TabsList
+          aria-label="Settings sections"
+          className="w-full"
+          variant="line"
+        >
           {["general", "configuration", "command trust", "integrations"].map(
             (value) => (
-              <Button
-                aria-pressed={section === value}
-                key={value}
-                onClick={() => onSectionChange(value)}
-                variant="ghost"
-              >
+              <TabsTrigger key={value} value={value}>
                 {value.charAt(0).toUpperCase() + value.slice(1)}
-              </Button>
+              </TabsTrigger>
             )
           )}
-        </nav>
+        </TabsList>
         <div className="product-settings-body">
-          {section === "general" ? (
-            <>
-              <form
-                className="product-settings-panel"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  mutation.mutate({
-                    command: "save-project",
-                    name: name ?? project?.name ?? data.repoName,
-                    repoPath: data.repoPath,
-                  });
-                }}
-              >
-                <h2>General</h2>
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="project-name">Project name</FieldLabel>
-                    <Input
-                      id="project-name"
-                      maxLength={100}
-                      onChange={(event) => {
-                        setName(event.target.value);
-                        mutation.reset();
-                      }}
-                      required
-                      value={name ?? project?.name ?? data.repoName}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldTitle>Repository path</FieldTitle>
-                    <div className="product-actions">
-                      <code>{data.repoPath}</code>
-                      <CopyButton
-                        label="Copy repository path"
-                        value={data.repoPath}
-                      />
-                    </div>
-                  </Field>
-                </FieldGroup>
-                <Button
-                  disabled={
-                    mutation.isPending ||
-                    !(name ?? project?.name ?? data.repoName).trim()
-                  }
-                  type="submit"
-                >
-                  {mutation.isPending ? "Saving…" : "Save changes"}
-                </Button>
-                {mutation.isSuccess ? (
-                  <p aria-atomic="true" aria-live="polite">
-                    Project saved.
-                  </p>
-                ) : null}
-              </form>
-              <section className="product-settings-panel">
-                <h2>Remove project from BranchBase</h2>
-                <p className="product-muted">
-                  Repository files and worktrees remain on disk. Stop its
-                  running groups before removing it.
-                </p>
-                {removing ? (
+          <TabsContent className="product-settings-body" value="general">
+            <form
+              className="product-settings-panel"
+              onSubmit={(event) => {
+                event.preventDefault();
+                mutation.mutate({
+                  command: "save-project",
+                  name: name ?? project?.name ?? data.repoName,
+                  repoPath: data.repoPath,
+                });
+              }}
+            >
+              <h2>General</h2>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="project-name">Project name</FieldLabel>
+                  <Input
+                    id="project-name"
+                    maxLength={100}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      mutation.reset();
+                    }}
+                    required
+                    value={name ?? project?.name ?? data.repoName}
+                  />
+                </Field>
+                <Field>
+                  <FieldTitle>Repository path</FieldTitle>
                   <div className="product-actions">
-                    <Button
-                      onClick={() => setRemoving(false)}
-                      variant="outline"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      disabled={mutation.isPending}
-                      onClick={async () => {
-                        try {
-                          await mutation.mutateAsync({
-                            command: "remove-project",
-                            repoPath: data.repoPath,
-                          });
-                          window.location.assign("/");
-                        } catch {
-                          /* Display mutation error. */
-                        }
-                      }}
-                      variant="destructive"
-                    >
-                      Remove project
-                    </Button>
+                    <code>{data.repoPath}</code>
+                    <CopyButton
+                      label="Copy repository path"
+                      value={data.repoPath}
+                    />
                   </div>
-                ) : (
-                  <Button onClick={() => setRemoving(true)} variant="outline">
-                    Remove project…
+                </Field>
+              </FieldGroup>
+              <Button
+                disabled={
+                  mutation.isPending ||
+                  !(name ?? project?.name ?? data.repoName).trim()
+                }
+                type="submit"
+              >
+                {mutation.isPending ? "Saving…" : "Save changes"}
+              </Button>
+              {mutation.isSuccess ? (
+                <p aria-atomic="true" aria-live="polite">
+                  Project saved.
+                </p>
+              ) : null}
+            </form>
+            <section className="product-settings-panel">
+              <h2>Remove project from BranchBase</h2>
+              <p className="product-muted">
+                Repository files and worktrees remain on disk. Stop its running
+                groups before removing it.
+              </p>
+              {removing ? (
+                <div className="product-actions">
+                  <Button onClick={() => setRemoving(false)} variant="outline">
+                    Cancel
                   </Button>
-                )}
-              </section>
-            </>
-          ) : null}
-          {section === "configuration" ? (
+                  <Button
+                    disabled={mutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await mutation.mutateAsync({
+                          command: "remove-project",
+                          repoPath: data.repoPath,
+                        });
+                        window.location.assign("/");
+                      } catch {
+                        /* Display mutation error. */
+                      }
+                    }}
+                    variant="destructive"
+                  >
+                    Remove project
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={() => setRemoving(true)} variant="outline">
+                  Remove project…
+                </Button>
+              )}
+            </section>
+          </TabsContent>
+          <TabsContent value="configuration">
             <section className="product-settings-panel">
               <h2>Project default</h2>
               <p className="product-muted">
@@ -282,8 +290,8 @@ export const SettingsPage = ({
                 </div>
               ))}
             </section>
-          ) : null}
-          {section === "command trust" ? (
+          </TabsContent>
+          <TabsContent value="command trust">
             <section className="product-settings-panel">
               <h2>Command trust</h2>
               <Status
@@ -321,12 +329,12 @@ export const SettingsPage = ({
                 Stop running groups before revoking their command approvals.
               </p>
             </section>
-          ) : null}
-          {section === "integrations" ? (
+          </TabsContent>
+          <TabsContent value="integrations">
             <IntegrationSettings repoPath={data.repoPath} />
-          ) : null}
+          </TabsContent>
         </div>
-      </div>
+      </Tabs>
     </>
   );
 };

@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { useCodexIntegration } from "../queries";
 import { useRepositoryTrust } from "../use-repository-trust";
 import { useWorktreeCommandActions } from "../use-worktree-command-actions";
@@ -273,9 +274,16 @@ export const WorkspacePage = ({
               placeholder="Search worktrees…"
               value={search}
             />
-            <fieldset
+            <ToggleGroup
               aria-label="Filter worktrees"
-              className="product-filter-options"
+              className="flex-wrap"
+              onValueChange={(values) => {
+                if (values[0]) {
+                  setFilter(values[0]);
+                }
+              }}
+              value={[filter]}
+              variant="outline"
             >
               {[
                 ["all", `All ${data.worktrees.length}`],
@@ -285,16 +293,11 @@ export const WorkspacePage = ({
                   `Needs attention ${data.worktrees.filter(needsAttention).length}`,
                 ],
               ].map(([value, label]) => (
-                <Button
-                  aria-pressed={filter === value}
-                  key={value}
-                  onClick={() => setFilter(value)}
-                  variant="ghost"
-                >
+                <ToggleGroupItem key={value} value={value}>
                   {label}
-                </Button>
+                </ToggleGroupItem>
               ))}
-            </fieldset>
+            </ToggleGroup>
           </div>
           <EnvironmentList
             codex={codex.data}

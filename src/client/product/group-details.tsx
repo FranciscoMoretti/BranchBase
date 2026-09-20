@@ -9,9 +9,16 @@ import type {
   WorktreeSnapshot,
 } from "../../project/worktree-status-contract";
 import { AppGroupInstanceControl } from "../components/app-group-instance-control";
+import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { ScrollArea } from "../components/ui/scroll-area";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import {
   CodexTasksSection,
   WorktreeConfigurationSource,
@@ -149,16 +156,18 @@ export const GroupDetails = ({
       <RunContext group={group} onTasks={() => onTabChange("tasks")} />
       <ErrorNotice error={save.error} />
       {appGroupStatus(group) === "partial" ? (
-        <div className="product-row-notice">
-          Some apps or routes are not ready. Available apps remain accessible.
-          <Button
-            disabled={controls.blocked(worktree, group)}
-            onClick={() => controls.retry(worktree, group)}
-            variant="link"
-          >
-            Retry readiness and routes
-          </Button>
-        </div>
+        <Alert>
+          <AlertDescription>
+            Some apps or routes are not ready. Available apps remain accessible.
+            <Button
+              disabled={controls.blocked(worktree, group)}
+              onClick={() => controls.retry(worktree, group)}
+              variant="link"
+            >
+              Retry readiness and routes
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
       <div className="product-endpoints">
         <div className="product-endpoint-head">
@@ -236,20 +245,15 @@ export const GroupDetails = ({
           );
         })}
       </div>
-      <nav aria-label="Group details" className="product-tabs product-subtabs">
-        {["logs", "activity", "configuration", "tasks"].map((value) => (
-          <Button
-            aria-pressed={tab === value}
-            key={value}
-            onClick={() => onTabChange(value)}
-            variant="ghost"
-          >
-            {value.charAt(0).toUpperCase() + value.slice(1)}
-          </Button>
-        ))}
-      </nav>
-      {tab === "logs" ? (
-        <>
+      <Tabs onValueChange={onTabChange} value={tab}>
+        <TabsList aria-label="Group details" variant="line">
+          {["logs", "activity", "configuration", "tasks"].map((value) => (
+            <TabsTrigger key={value} value={value}>
+              {value.charAt(0).toUpperCase() + value.slice(1)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="logs">
           <div className="product-filterbar">
             <Search
               onChange={setSearch}
@@ -300,57 +304,57 @@ export const GroupDetails = ({
               <pre>{filtered.join("\n") || "No matching log output."}</pre>
             </ScrollArea>
           </QueryContent>
-        </>
-      ) : null}
-      {tab === "activity" ? (
-        <ActivityPage
-          groupId={group.id}
-          repoPath={repoPath}
-          worktreeId={worktree.id}
-        />
-      ) : null}
-      {tab === "configuration" ? (
-        <div className="product-settings-panel">
-          <WorktreeConfigurationSource
-            disabled={
-              worktree.configuration.changeBlocked ||
-              controls.blocked(worktree, group)
-            }
-            onSelect={onConfigSource}
-            worktree={worktree}
+        </TabsContent>
+        <TabsContent value="activity">
+          <ActivityPage
+            groupId={group.id}
+            repoPath={repoPath}
+            worktreeId={worktree.id}
           />
-          <div className="product-setting-row">
-            <div>
-              <h2>App-group instance</h2>
-              <p className="product-muted">
-                {group.instance.mode === "selectable"
-                  ? "Select an existing instance or create a named alternative."
-                  : "This group has its own instance for this worktree."}
-              </p>
-            </div>
-            <AppGroupInstanceControl
-              disabled={controls.blocked(worktree, group)}
-              group={group}
-              onCreate={onCreateInstance}
-              onSelect={onSelectInstance}
+        </TabsContent>
+        <TabsContent value="configuration">
+          <div className="product-settings-panel">
+            <WorktreeConfigurationSource
+              disabled={
+                worktree.configuration.changeBlocked ||
+                controls.blocked(worktree, group)
+              }
+              onSelect={onConfigSource}
+              worktree={worktree}
             />
+            <div className="product-setting-row">
+              <div>
+                <h2>App-group instance</h2>
+                <p className="product-muted">
+                  {group.instance.mode === "selectable"
+                    ? "Select an existing instance or create a named alternative."
+                    : "This group has its own instance for this worktree."}
+                </p>
+              </div>
+              <AppGroupInstanceControl
+                disabled={controls.blocked(worktree, group)}
+                group={group}
+                onCreate={onCreateInstance}
+                onSelect={onSelectInstance}
+              />
+            </div>
+            <Button onClick={() => controls.review(worktree)} variant="outline">
+              Review worktree commands
+            </Button>
+            <pre className="product-command-preview">
+              {worktree.configuration.trustCommands.join("\n")}
+            </pre>
           </div>
-          <Button onClick={() => controls.review(worktree)} variant="outline">
-            Review worktree commands
-          </Button>
-          <pre className="product-command-preview">
-            {worktree.configuration.trustCommands.join("\n")}
-          </pre>
-        </div>
-      ) : null}
-      {tab === "tasks" ? (
-        <CodexTasksSection
-          discoveryUnavailable={codexError}
-          loading={!(codex || codexError)}
-          tasks={codex?.worktrees[worktree.id]?.tasks ?? []}
-          worktreePath={worktree.path}
-        />
-      ) : null}
+        </TabsContent>
+        <TabsContent value="tasks">
+          <CodexTasksSection
+            discoveryUnavailable={codexError}
+            loading={!(codex || codexError)}
+            tasks={codex?.worktrees[worktree.id]?.tasks ?? []}
+            worktreePath={worktree.path}
+          />
+        </TabsContent>
+      </Tabs>
       {group.dependencies?.length ? (
         <section className="product-settings-panel">
           <h2>Dependencies</h2>

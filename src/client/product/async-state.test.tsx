@@ -1,11 +1,12 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Window } from "happy-dom";
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
+import { toast } from "sonner";
 
 import { RecoveryBoundary } from "../components/recovery-boundary";
 import { Button } from "../components/ui/button";
@@ -239,14 +240,70 @@ test("DOM feedback exposes loading and mutation failure states", async () => {
     "Could not save"
   );
 });
-test("action connection failure explains uncertain outcome and has no automatic replay", () => {
-  const html = renderToStaticMarkup(
-    <ActionFeedback error={new Error("Failed to fetch")} />
-  );
-  expect(html).toContain("The action may have completed");
-  expect(html).toContain("Dismiss error");
-  expect(html).not.toContain("Try again");
-  expect(html).toContain('role="alert"');
+test("action feedback persists, dismisses, and only reappears for a new or reset error", async () => {
+  mountDom();
+  const show = spyOn(toast, "error").mockReturnValue("test-toast");
+  const dismiss = spyOn(toast, "dismiss").mockReturnValue("test-toast");
+  const error = new Error("Failed to fetch");
+  const render = (current: Error | null, title = "Action failed") =>
+    act(() =>
+      activeRoot?.render(<ActionFeedback error={current} title={title} />)
+    );
+  try {
+    await render(error);
+    expect(show).toHaveBeenCalledTimes(1);
+    const options = show.mock.calls[0]?.[1];
+    expect(options?.duration).toBe(Number.POSITIVE_INFINITY);
+    expect(options?.closeButton).toBe(true);
+    const description = options?.description;
+    const html = renderToStaticMarkup(
+      <div>
+        {typeof description === "function" ? description() : description}
+      </div>
+    );
+    expect(html).toContain("The action may have completed");
+    expect(html).toContain("Technical details");
+    expect(html).not.toContain("Try again");
+    options?.onDismiss?.({ id: "test-toast", title: "Action failed" });
+    await render(error, "Updated title");
+    expect(show).toHaveBeenCalledTimes(1);
+    const nextError = new Error("Another failure");
+    await render(nextError);
+    expect(show).toHaveBeenCalledTimes(2);
+    expect(show.mock.calls[1]?.[1]?.id).toBe(options?.id);
+    await render(null);
+    expect(dismiss).toHaveBeenCalledWith(options?.id);
+    await render(error);
+    expect(show).toHaveBeenCalledTimes(3);
+    await act(() => activeRoot?.unmount());
+    activeRoot = null;
+    expect(dismiss).toHaveBeenLastCalledWith(options?.id);
+  } finally {
+    show.mockRestore();
+    dismiss.mockRestore();
+  }
+});
+test("strict mode reuses the same toast id when effects remount", async () => {
+  mountDom();
+  const show = spyOn(toast, "error").mockReturnValue("test-toast");
+  const dismiss = spyOn(toast, "dismiss").mockReturnValue("test-toast");
+  try {
+    await act(() =>
+      activeRoot?.render(
+        <StrictMode>
+          <ActionFeedback error={new Error("Save failed")} />
+        </StrictMode>
+      )
+    );
+    expect(show).toHaveBeenCalledTimes(2);
+    expect(show.mock.calls[0]?.[1]?.id).toBe(show.mock.calls[1]?.[1]?.id);
+    expect(dismiss).toHaveBeenCalledWith(show.mock.calls[0]?.[1]?.id);
+    await act(() => activeRoot?.unmount());
+    activeRoot = null;
+  } finally {
+    show.mockRestore();
+    dismiss.mockRestore();
+  }
 });
 const page = (
   kind: "projects" | "activity",
