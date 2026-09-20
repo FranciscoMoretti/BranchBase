@@ -7,7 +7,6 @@ import {
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-import { appGroupStatus } from "../../app-group/status";
 import type { ProjectOverview } from "../../project/catalog-contract";
 import { appGroupIsRunning } from "../../project/worktree-status-contract";
 import { Button } from "../components/ui/button";
@@ -41,6 +40,7 @@ import {
   Search,
   Status,
 } from "./primitives";
+import { runtimeSummary } from "./runtime-summary";
 
 export const projectIsActive = (project: ProjectOverview): boolean =>
   (project.workspace?.globalRunningCount ?? 0) > 0 ||
@@ -58,7 +58,7 @@ const projectNeedsAttention = (project: ProjectOverview): boolean =>
         worktree.configuration.error ||
         !worktree.configuration.trusted ||
         worktree.setupState === "failed" ||
-        worktree.appGroups.some((group) => appGroupStatus(group) === "partial")
+        runtimeSummary(worktree).value === "partial"
     )
   );
 const attentionHref = (
@@ -150,7 +150,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
     (worktree) =>
       worktree.configuration.error ||
       !worktree.configuration.trusted ||
-      worktree.appGroups.some((group) => appGroupStatus(group) === "partial")
+      runtimeSummary(worktree).value === "partial"
   );
   const attention = attentionNotice(project, warning);
   return (
@@ -219,7 +219,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
       </div>
       <div className="product-actions">
         <a className="product-link" href={hrefFor({ repo: project.path })}>
-          Open project
+          Open repository
           <ArrowRightIcon />
         </a>
         <DropdownMenu>
@@ -356,7 +356,7 @@ const projectsSummary = (projects: ProjectOverview[]) => {
       ).length ?? 0),
     0
   );
-  return `${countLabel(projects.length, "project")} · ${countLabel(groups, "group")} running · ${countLabel(detected, "service")} detected`;
+  return `${countLabel(projects.length, "repository")} · ${countLabel(groups, "group")} running · ${countLabel(detected, "service")} detected`;
 };
 export const ProjectsPage = () => {
   const projects = useProjects();
@@ -385,14 +385,14 @@ export const ProjectsPage = () => {
     <>
       <PageHeading
         description="Local codebases and what they have running"
-        title="Projects"
+        title="Repositories"
       >
         <a className="product-link" href={hrefFor({ view: "machine" })}>
           Development folders
         </a>
         <Button onClick={() => setAdd("project")}>
           <PlusIcon />
-          Add project
+          Add repository
         </Button>
       </PageHeading>
 
@@ -404,11 +404,11 @@ export const ProjectsPage = () => {
       <div className="product-filterbar">
         <Search
           onChange={setSearch}
-          placeholder="Search projects…"
+          placeholder="Search repositories…"
           value={search}
         />
         <ToggleGroup
-          aria-label="Filter projects"
+          aria-label="Filter repositories"
           className="flex-wrap"
           onValueChange={(values) => {
             if (values[0]) {
@@ -448,8 +448,8 @@ export const ProjectsPage = () => {
             }
             title={
               search || filter !== "all"
-                ? "No matching projects"
-                : "No projects yet"
+                ? "No matching repositories"
+                : "No repositories yet"
             }
           />
         ) : null}

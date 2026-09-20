@@ -2,10 +2,9 @@ import {
   ArrowUpRightIcon,
   CheckIcon,
   CopyIcon,
-  GitForkIcon,
-  SettingsIcon,
+  SearchIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { AppEndpointSnapshot } from "../../project/worktree-status-contract";
@@ -17,10 +16,12 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "../components/ui/empty";
-import { Input } from "../components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "../components/ui/input-group";
 import { ActionFeedback } from "./async-state";
-import { hrefFor } from "./data";
-import type { ProductLocation, ProductView } from "./data";
 
 export const ErrorNotice = ({
   error,
@@ -135,14 +136,16 @@ export const PageHeading = ({
   title,
   description,
   children,
+  level = 1,
 }: {
   title: string;
   description?: string;
   children?: ReactNode;
+  level?: 1 | 2;
 }) => (
   <div className="product-page-heading">
     <div>
-      <h1>{title}</h1>
+      {level === 1 ? <h1>{title}</h1> : <h2>{title}</h2>}
       {description ? <p>{description}</p> : null}
     </div>
     <div className="product-actions">{children}</div>
@@ -156,73 +159,24 @@ export const Search = ({
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-}) => (
-  <Input
-    aria-label={placeholder}
-    onChange={(event) => onChange(event.target.value)}
-    placeholder={placeholder}
-    type="search"
-    value={value}
-  />
-);
-export const Shell = ({
-  location,
-  name,
-  children,
-}: {
-  location: ProductLocation;
-  name?: string;
-  children: ReactNode;
 }) => {
-  const tabs: [ProductView, string][] = [
-    ["workspace", "Environments"],
-    ["infrastructure", "Infrastructure"],
-    ["activity", "Activity"],
-    ["settings", "Settings"],
-  ];
+  const id = useId();
   return (
-    <div className="product-shell">
-      <header className="product-header">
-        <a className="product-brand" href="/">
-          <GitForkIcon />
-          BranchBase
-        </a>
-        <span className="product-breadcrumb-divider">/</span>
-        {location.repo && location.view !== "machine" ? (
-          <a className="product-crumb" href={hrefFor({ repo: location.repo })}>
-            {name ?? "Project"}
-          </a>
-        ) : (
-          <span>{location.view === "machine" ? "Settings" : "Projects"}</span>
-        )}
-        <a
-          aria-current={location.view === "machine" ? "page" : undefined}
-          aria-label="BranchBase settings"
-          className="product-global-settings"
-          href={hrefFor({ view: "machine" })}
-        >
-          <SettingsIcon />
-          Settings
-        </a>
-      </header>
-      {location.repo && location.view !== "machine" ? (
-        <nav aria-label="Project" className="product-tabs">
-          {tabs.map(([view, label]) => (
-            <a
-              aria-current={location.view === view ? "page" : undefined}
-              href={hrefFor({ repo: location.repo, view })}
-              key={view}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
-      ) : null}
-      <main className="product-content">{children}</main>
-    </div>
+    <InputGroup className="product-search">
+      <InputGroupAddon htmlFor={id}>
+        <SearchIcon />
+      </InputGroupAddon>
+      <InputGroupInput
+        id={id}
+        aria-label={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        type="search"
+        value={value}
+      />
+    </InputGroup>
   );
 };
-
 export const countLabel = (count: number, singular: string): string =>
   `${count} ${singular}${count === 1 ? "" : "s"}`;
 

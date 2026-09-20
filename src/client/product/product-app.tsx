@@ -30,9 +30,16 @@ import { CleanupAppGroups } from "./cleanup-app-groups";
 import { hrefFor, readLocation, useProjects } from "./data";
 import type { ProductLocation } from "./data";
 import { ObservedProjectPage } from "./observed-project-page";
-import { Blank, Shell } from "./primitives";
+import { Blank } from "./primitives";
+import { Shell } from "./product-shell";
 import { ProjectsPage } from "./projects-page";
+import { initialLocation, rememberLocation } from "./saved-location";
 import { BranchBaseSettings } from "./settings-page";
+
+const RunningPage = lazy(async () => {
+  const module = await import("./running-page");
+  return { default: module.RunningPage };
+});
 
 const WorkspacePage = lazy(async () => {
   const module = await import("./workspace-page");
@@ -105,8 +112,12 @@ const statusObservation = (
       }
     : undefined;
 
+const isRepositoryView = (location: ProductLocation) =>
+  Boolean(location.repo) && !["machine", "running"].includes(location.view);
+
 export const ProductApp = () => {
-  const [location, setLocation] = useState(readLocation);
+  const [location, setLocation] = useState(initialLocation);
+  useEffect(() => rememberLocation(location), [location]);
   const status = useProjectStatus(location.repo);
   const workspace = { ...status, data: status.data?.workspace ?? undefined };
   const observation = { ...status, data: statusObservation(status.data) };
@@ -328,6 +339,9 @@ export const ProductApp = () => {
       item.path === workspace.data?.repoPath || item.path === location.repo
   );
   const content =
+    (location.view === "running" ? (
+      <RunningPage navigate={navigate} />
+    ) : null) ??
     pageContent({
       location,
       observation: observation.data,
@@ -344,7 +358,7 @@ export const ProductApp = () => {
         refresh={workspace.refetch}
       />
     ) : null);
-  const workspaceView = location.repo && location.view !== "machine";
+  const workspaceView = isRepositoryView(location);
 
   const projectQuery = observation.data?.configured
     ? {
@@ -355,7 +369,13 @@ export const ProductApp = () => {
     : observation;
 
   return (
-    <Shell location={location} name={project?.name ?? workspace.data?.repoName}>
+    <Shell
+      location={location}
+      name={project?.name ?? workspace.data?.repoName}
+      projects={projects.data}
+      workspace={workspace.data}
+      observation={observation.data}
+    >
       <Suspense
         fallback={
           <Blank

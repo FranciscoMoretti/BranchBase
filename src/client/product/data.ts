@@ -74,6 +74,9 @@ export const useProductCommand = () => {
   });
 };
 export type ProductView =
+  | "worktrees"
+  | "logs"
+  | "running"
   | "workspace"
   | "infrastructure"
   | "activity"
@@ -107,6 +110,9 @@ export const readLocation = (): ProductLocation => {
       ? (params.get("section") ?? "general")
       : "general",
     view:
+      view === "worktrees" ||
+      view === "logs" ||
+      view === "running" ||
       view === "infrastructure" ||
       view === "activity" ||
       view === "settings" ||

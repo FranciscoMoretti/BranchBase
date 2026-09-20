@@ -133,11 +133,12 @@ export const GroupDetails = ({
     <>
       <Button onClick={onBack} variant="ghost">
         <ArrowLeftIcon />
-        Environments
+        All worktrees
       </Button>
       <PageHeading
+        level={2}
         description={`${worktree.branch} · ${countLabel(group.apps.length, "app")}`}
-        title={group.name}
+        title={`${group.name} services`}
       >
         <Status value={appGroupStatus(group)} />
         <GroupToggle controls={controls} group={group} worktree={worktree} />

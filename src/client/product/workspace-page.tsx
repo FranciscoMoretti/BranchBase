@@ -35,13 +35,14 @@ import { GroupDetails } from "./group-details";
 import { InfrastructurePage } from "./infrastructure-page";
 import { DetectedServicesSection } from "./observed-project-page";
 import {
+  Status,
   Blank,
-  countLabel,
   ErrorNotice,
   PageHeading,
   ResourceUsage,
   Search,
 } from "./primitives";
+import { runtimeSummary } from "./runtime-summary";
 import { SettingsPage } from "./settings-page";
 
 const needsAttention = (worktree: WorktreeSnapshot): boolean =>
@@ -49,7 +50,7 @@ const needsAttention = (worktree: WorktreeSnapshot): boolean =>
     worktree.configuration.error ||
     !worktree.configuration.trusted ||
     worktree.setupState === "failed" ||
-    worktree.appGroups.some((group) => appGroupStatus(group) === "partial")
+    runtimeSummary(worktree).value === "partial"
   );
 
 const isMissingEnvironment = (
@@ -58,7 +59,110 @@ const isMissingEnvironment = (
 ): boolean =>
   location.view === "workspace" && Boolean(location.worktree) && !selectedGroup;
 const isEnvironmentList = (location: ProductLocation): boolean =>
-  location.view === "workspace" && !location.worktree;
+  (location.view === "workspace" ||
+    location.view === "worktrees" ||
+    location.view === "running") &&
+  !location.worktree;
+
+const WorkspaceHeading = ({
+  data,
+  project,
+  view,
+  onRefresh,
+  onCreate,
+}: {
+  data: WorkspaceSnapshot;
+  project?: ProjectOverview;
+  view: ProductLocation["view"];
+  onRefresh: () => void;
+  onCreate: () => void;
+}) => (
+  <>
+    {view === "running" ? null : (
+      <PageHeading
+        description={data.repoPath}
+        title={
+          view === "worktrees" ? "Worktrees" : (project?.name ?? data.repoName)
+        }
+      >
+        <ResourceUsage usage={data.resources} />
+        <Button
+          aria-label="Refresh workspace"
+          onClick={onRefresh}
+          size="icon"
+          variant="outline"
+        >
+          <RefreshCwIcon />
+        </Button>
+        <Button onClick={onCreate} variant="default">
+          <PlusIcon />
+          Create worktree
+        </Button>
+      </PageHeading>
+    )}
+    {view === "workspace" ? (
+      <>
+        <dl className="product-overview-summary">
+          <div>
+            <dt>Worktrees</dt>
+            <dd>{data.worktrees.length}</dd>
+          </div>
+          <div>
+            <dt>App groups running</dt>
+            <dd>{data.globalRunningCount}</dd>
+          </div>
+          <div>
+            <dt>Needs attention</dt>
+            <dd>{data.worktrees.filter(needsAttention).length}</dd>
+          </div>
+        </dl>
+        <h2 className="product-section-title">Worktrees</h2>
+      </>
+    ) : null}
+  </>
+);
+
+const WorktreeHeading = ({
+  worktree,
+  groupId,
+  controls,
+}: {
+  worktree: WorktreeSnapshot;
+  groupId: string;
+  controls: GroupControls;
+}) => (
+  <>
+    <div className="product-worktree-heading">
+      <h1>{worktree.branch}</h1>
+      <Status
+        value={runtimeSummary(worktree).value}
+        label={runtimeSummary(worktree).label}
+      />
+    </div>
+    <p className="product-muted product-detail-path">{worktree.path}</p>
+    <nav aria-label="App groups" className="product-group-navigation">
+      {worktree.appGroups.map((group) => (
+        <Button
+          key={group.id}
+          variant={group.id === groupId ? "secondary" : "ghost"}
+          onClick={() => controls.inspect(worktree, group)}
+          aria-current={group.id === groupId ? "page" : undefined}
+        >
+          {group.name}
+          <Status value={appGroupStatus(group)} />
+        </Button>
+      ))}
+    </nav>
+  </>
+);
+
+const selectedAppGroup = (
+  worktree: WorktreeSnapshot | undefined,
+  groupId: string
+) =>
+  groupId
+    ? worktree?.appGroups.find((group) => group.id === groupId)
+    : worktree?.appGroups[0];
 
 export const WorkspacePage = ({
   observation,
@@ -148,9 +252,7 @@ export const WorkspacePage = ({
   const selected = data.worktrees.find(
     (worktree) => worktree.id === location.worktree
   );
-  const selectedGroup = location.group
-    ? selected?.appGroups.find((group) => group.id === location.group)
-    : selected?.appGroups[0];
+  const selectedGroup = selectedAppGroup(selected, location.group);
   const active = data.worktrees.filter((worktree) =>
     worktree.appGroups.some(appGroupIsRunning)
   );
@@ -159,7 +261,9 @@ export const WorkspacePage = ({
       `${worktree.name} ${worktree.branch} ${codex.data?.worktrees[worktree.id]?.tasks.map((task) => task.title).join(" ") ?? ""}`
         .toLowerCase()
         .includes(search.toLowerCase()) &&
-      (filter === "all" ||
+      ((location.view !== "running" && filter === "all") ||
+        (location.view === "running" &&
+          worktree.appGroups.some(appGroupIsRunning)) ||
         (filter === "running" && worktree.appGroups.some(appGroupIsRunning)) ||
         (filter === "attention" && needsAttention(worktree)))
   );
@@ -194,111 +298,130 @@ export const WorkspacePage = ({
         <InfrastructurePage controls={controls} data={data} />
       ) : null}
       {location.view === "workspace" && selected && selectedGroup ? (
-        <GroupDetails
-          codex={codex.data}
-          codexError={codex.isError}
-          controls={controls}
-          group={selectedGroup}
-          key={`${selected.id}:${selectedGroup.id}`}
-          onBack={() => navigate({ repo: data.repoPath, view: "workspace" })}
-          onClearLogs={() =>
-            actions.commands.clearLogs.mutate({
-              appGroupName: selectedGroup.id,
-              repoPath: data.repoPath,
-              worktreeId: selected.id,
-            })
-          }
-          onConfigSource={(source) =>
-            actions.commands.selectWorktreeConfigSource.mutate({
-              repoPath: data.repoPath,
-              source,
-              worktreeId: selected.id,
-            })
-          }
-          onCreateInstance={(name) =>
-            actions.createAppGroupInstance(selected, selectedGroup, name)
-          }
-          onSelectInstance={(id) =>
-            actions.selectAppGroupInstance(selected, selectedGroup, id)
-          }
-          onTabChange={(panel) => navigate({ ...location, panel })}
-          project={project}
-          repoPath={data.repoPath}
-          tab={location.panel}
-          worktree={selected}
-        />
+        <>
+          <WorktreeHeading
+            worktree={selected}
+            groupId={selectedGroup.id}
+            controls={controls}
+          />
+          <GroupDetails
+            codex={codex.data}
+            codexError={codex.isError}
+            controls={controls}
+            group={selectedGroup}
+            key={`${selected.id}:${selectedGroup.id}`}
+            onBack={() => navigate({ repo: data.repoPath, view: "workspace" })}
+            onClearLogs={() =>
+              actions.commands.clearLogs.mutate({
+                appGroupName: selectedGroup.id,
+                repoPath: data.repoPath,
+                worktreeId: selected.id,
+              })
+            }
+            onConfigSource={(source) =>
+              actions.commands.selectWorktreeConfigSource.mutate({
+                repoPath: data.repoPath,
+                source,
+                worktreeId: selected.id,
+              })
+            }
+            onCreateInstance={(name) =>
+              actions.createAppGroupInstance(selected, selectedGroup, name)
+            }
+            onSelectInstance={(id) =>
+              actions.selectAppGroupInstance(selected, selectedGroup, id)
+            }
+            onTabChange={(panel) => navigate({ ...location, panel })}
+            project={project}
+            repoPath={data.repoPath}
+            tab={location.panel}
+            worktree={selected}
+          />
+        </>
       ) : null}
       {isMissingEnvironment(location, selectedGroup) ? (
         <Blank
           description="This link refers to an environment that is no longer in the current configuration."
-          title={
-            selected
-              ? "App group no longer available"
-              : "Worktree no longer available"
-          }
+          title="Worktree or app group no longer available"
         >
           <Button
             onClick={() => navigate({ repo: data.repoPath })}
             variant="outline"
           >
-            Back to environments
+            Back to worktrees
           </Button>
         </Blank>
       ) : null}
-      {isEnvironmentList(location) ? (
+      {location.view === "logs" ? (
         <>
           <PageHeading
-            description={`${countLabel(data.worktrees.length, "worktree")} · ${active.length} active · ${countLabel(data.globalRunningCount, "group")} running`}
-            title="Environments"
-          >
-            <ResourceUsage usage={data.resources} />
-            <Button
-              aria-label="Refresh workspace"
-              onClick={() => {
-                refresh();
-                codex.refetch();
-              }}
-              size="icon"
-              variant="outline"
-            >
-              <RefreshCwIcon />
-            </Button>
-            <Button onClick={() => setCreate(true)} variant="outline">
-              <PlusIcon />
-              Create worktree
-            </Button>
-          </PageHeading>
-          <div className="product-filterbar">
-            <Search
-              onChange={setSearch}
-              placeholder="Search worktrees…"
-              value={search}
-            />
-            <ToggleGroup
-              aria-label="Filter worktrees"
-              className="flex-wrap"
-              onValueChange={(values) => {
-                if (values[0]) {
-                  setFilter(values[0]);
-                }
-              }}
-              value={[filter]}
-              variant="outline"
-            >
-              {[
-                ["all", `All ${data.worktrees.length}`],
-                ["running", `Running ${active.length}`],
-                [
-                  "attention",
-                  `Needs attention ${data.worktrees.filter(needsAttention).length}`,
-                ],
-              ].map(([value, label]) => (
-                <ToggleGroupItem key={value} value={value}>
-                  {label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+            title="Logs"
+            description="Choose an app group to inspect its managed output."
+          />
+          <div className="product-log-picker">
+            {data.worktrees.map((worktree) => (
+              <section key={worktree.id}>
+                <h2>{worktree.branch}</h2>
+                {worktree.appGroups.map((group) => (
+                  <Button
+                    key={group.id}
+                    variant="outline"
+                    onClick={() => controls.inspect(worktree, group, "logs")}
+                  >
+                    <Status value={appGroupStatus(group)} label={group.name} />
+                    View logs
+                  </Button>
+                ))}
+              </section>
+            ))}
           </div>
+        </>
+      ) : null}
+      {isEnvironmentList(location) ? (
+        <>
+          <WorkspaceHeading
+            data={data}
+            project={project}
+            view={location.view}
+            onCreate={() => setCreate(true)}
+            onRefresh={() => {
+              refresh();
+              codex.refetch();
+            }}
+          />
+          {location.view === "running" ? null : (
+            <div className="product-filterbar">
+              <Search
+                onChange={setSearch}
+                placeholder="Search worktrees…"
+                value={search}
+              />
+              <ToggleGroup
+                aria-label="Filter worktrees"
+                className="flex-wrap"
+                onValueChange={(values) => {
+                  if (values[0]) {
+                    setFilter(values[0]);
+                  }
+                }}
+                value={[filter]}
+                variant="outline"
+              >
+                {[
+                  ["all", `All ${data.worktrees.length}`],
+                  ["running", `Running ${active.length}`],
+                  [
+                    "attention",
+                    `Needs attention ${data.worktrees.filter(needsAttention).length}`,
+                  ],
+                ].map(([value, label]) => (
+                  <ToggleGroupItem key={value} value={value}>
+                    {label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+          )}
           <EnvironmentList
             codex={codex.data}
             codexError={codex.isError}
@@ -314,8 +437,11 @@ export const WorkspacePage = ({
               )
             }
             worktrees={visible}
+            runningOnly={location.view === "running"}
           />
-          <DetectedServicesSection data={observation} />
+          {location.view === "running" ? null : (
+            <DetectedServicesSection data={observation} />
+          )}
           <div className="product-footer-link">
             <a
               className="product-link"
