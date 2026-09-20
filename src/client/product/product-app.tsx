@@ -372,7 +372,7 @@ export const ProductApp = () => {
     <Shell
       location={location}
       name={project?.name ?? workspace.data?.repoName}
-      projects={projects.data}
+      projects={projects}
       workspace={workspace.data}
       observation={observation.data}
     >
