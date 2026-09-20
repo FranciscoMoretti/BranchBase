@@ -28,7 +28,7 @@ import { ActivityPage } from "./activity-page";
 import { QueryContent } from "./async-state";
 import { CleanupAppGroups } from "./cleanup-app-groups";
 import { hrefFor, readLocation, useProjects } from "./data";
-import type { ProductLocation } from "./data";
+import type { ProductLocation, ProductRoute } from "./data";
 import { ObservedProjectPage } from "./observed-project-page";
 import { Blank } from "./primitives";
 import { Shell } from "./product-shell";
@@ -172,7 +172,7 @@ export const ProductApp = () => {
     [go, setPendingHref]
   );
   const navigate = useCallback(
-    (value: Partial<ProductLocation>) => {
+    (value: ProductRoute) => {
       requestNavigation(hrefFor(value));
     },
     [requestNavigation]
