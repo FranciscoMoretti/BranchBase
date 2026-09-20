@@ -178,6 +178,7 @@ const ObservedSettings = ({
               Project name
             </FieldLabel>
             <Input
+              disabled={command.isPending}
               id="observed-project-name"
               maxLength={100}
               onChange={(event) => {

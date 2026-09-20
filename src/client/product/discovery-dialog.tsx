@@ -19,10 +19,10 @@ import {
 } from "../components/ui/field";
 import { Input } from "../components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
+import { useCommand } from "../mutations";
 import { useRepositoryPicker } from "../use-repository-picker";
 import { FormFeedback, QueryContent } from "./async-state";
 import { useDevelopmentFolders, useProductCommand } from "./data";
-import { ErrorNotice } from "./primitives";
 
 export const DiscoveryDialog = ({
   onClose,
@@ -154,45 +154,58 @@ export const DiscoveryDialog = ({
     </Dialog>
   );
 };
+const DevelopmentFolderRow = ({
+  folder,
+}: {
+  folder: NonNullable<ReturnType<typeof useDevelopmentFolders>["data"]>[number];
+}) => {
+  const remove = useCommand("remove-development-folder");
+  return (
+    <div className="product-setting-row">
+      <div className="min-w-0">
+        <p className="font-medium break-all">{folder.path}</p>
+        <p className="product-muted">
+          {folder.projectsFound} repositories found ·{" "}
+          {folder.lastScannedAt
+            ? `Scanned ${new Date(folder.lastScannedAt).toLocaleTimeString()}`
+            : "Not yet scanned"}
+        </p>
+        {remove.error ? (
+          <FormFeedback error={remove.error} title="Could not remove folder" />
+        ) : null}
+        {folder.warning ? (
+          <Alert>
+            <AlertDescription>{folder.warning}</AlertDescription>
+          </Alert>
+        ) : null}
+      </div>
+      <Button
+        disabled={remove.isPending}
+        onClick={() =>
+          remove.mutate({
+            repoPath: folder.path,
+          })
+        }
+        variant="ghost"
+      >
+        {remove.isPending ? "Removing…" : "Remove"}
+      </Button>
+    </div>
+  );
+};
+
 export const DevelopmentFoldersControls = ({
   onAdd,
 }: {
   onAdd: () => void;
 }) => {
   const folders = useDevelopmentFolders();
-  const command = useProductCommand();
+  const command = useCommand("scan-development-folders");
   return (
     <div className="product-folder-settings">
       <QueryContent label="Development folders" query={folders}>
         {folders.data?.map((folder) => (
-          <div className="product-setting-row" key={folder.path}>
-            <div className="min-w-0">
-              <p className="font-medium break-all">{folder.path}</p>
-              <p className="product-muted">
-                {folder.projectsFound} repositories found ·{" "}
-                {folder.lastScannedAt
-                  ? `Scanned ${new Date(folder.lastScannedAt).toLocaleTimeString()}`
-                  : "Not yet scanned"}
-              </p>
-              {folder.warning ? (
-                <Alert>
-                  <AlertDescription>{folder.warning}</AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
-            <Button
-              disabled={command.isPending}
-              onClick={() =>
-                command.mutate({
-                  command: "remove-development-folder",
-                  repoPath: folder.path,
-                })
-              }
-              variant="ghost"
-            >
-              Remove
-            </Button>
-          </div>
+          <DevelopmentFolderRow folder={folder} key={folder.path} />
         ))}
         {folders.data?.length === 0 ? (
           <p className="product-muted">
@@ -200,16 +213,14 @@ export const DevelopmentFoldersControls = ({
           </p>
         ) : null}
       </QueryContent>
-      <ErrorNotice
+      <FormFeedback
         error={command.error}
-        title="Could not update development folders"
+        title="Could not scan development folders"
       />
       <div className="product-actions">
         <Button
           disabled={command.isPending || !folders.data?.length}
-          onClick={() =>
-            command.mutate({ command: "scan-development-folders" })
-          }
+          onClick={() => command.mutate({})}
           variant="outline"
         >
           <RefreshCwIcon />

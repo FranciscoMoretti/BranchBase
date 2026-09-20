@@ -26,15 +26,15 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
-import { QueryContent } from "./async-state";
-import { hrefFor, useProductCommand, useProjects } from "./data";
+import { useCommand } from "../mutations";
+import { FormFeedback, QueryContent } from "./async-state";
+import { hrefFor, useProjects } from "./data";
 import { DiscoveryDialog } from "./discovery-dialog";
 import { ServiceLink, ServiceOverflow } from "./observed-project-page";
 import {
   AppLink,
   Blank,
   countLabel,
-  ErrorNotice,
   PageHeading,
   ResourceUsage,
   Search,
@@ -141,7 +141,8 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
         .filter((service) => !service.managed)
         .map((service) => ({ ...service, branch: worktree.branch }))
     ) ?? [];
-  const mutation = useProductCommand();
+  const pins = useCommand("save-project");
+  const remove = useCommand("remove-project");
   const [dialog, setDialog] = useState<"pins" | "remove" | null>(null);
   const active =
     workspace?.worktrees.filter((worktree) =>
@@ -185,7 +186,14 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
             ) : null;
           })}
           {project.pins.length > 2 ? (
-            <Button onClick={() => setDialog("pins")} size="sm" variant="link">
+            <Button
+              onClick={() => {
+                pins.reset();
+                setDialog("pins");
+              }}
+              size="sm"
+              variant="link"
+            >
               +{project.pins.length - 2} apps
             </Button>
           ) : null}
@@ -237,10 +245,20 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setDialog("pins")}>
+              <DropdownMenuItem
+                onClick={() => {
+                  pins.reset();
+                  setDialog("pins");
+                }}
+              >
                 Manage pinned apps ({project.pins.length})
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setDialog("remove")}>
+              <DropdownMenuItem
+                onClick={() => {
+                  remove.reset();
+                  setDialog("remove");
+                }}
+              >
                 Remove from BranchBase…
               </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -249,7 +267,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
       </div>
       <Dialog
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !pins.isPending && !remove.isPending) {
             setDialog(null);
           }
         }}
@@ -266,7 +284,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
                 : "Repository files and worktrees remain on disk. BranchBase checks for owned resources before removing this project from the list."}
             </DialogDescription>
           </DialogHeader>
-          <ErrorNotice error={mutation.error} />
+          <FormFeedback error={dialog === "pins" ? pins.error : remove.error} />
           {dialog === "pins" ? (
             <div>
               {project.pins.map((pin, index) => {
@@ -293,10 +311,9 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
                     </div>
                     <Button
                       aria-label={`Unpin ${app?.label ?? pin.appId}`}
-                      disabled={mutation.isPending}
+                      disabled={pins.isPending}
                       onClick={() =>
-                        mutation.mutate({
-                          command: "save-project",
+                        pins.mutate({
                           pins: project.pins.filter(
                             (_, position) => position !== index
                           ),
@@ -318,15 +335,18 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
             </div>
           ) : (
             <DialogFooter>
-              <Button onClick={() => setDialog(null)} variant="outline">
+              <Button
+                disabled={remove.isPending}
+                onClick={() => setDialog(null)}
+                variant="outline"
+              >
                 Cancel
               </Button>
               <Button
-                disabled={mutation.isPending}
+                disabled={remove.isPending}
                 onClick={async () => {
                   try {
-                    await mutation.mutateAsync({
-                      command: "remove-project",
+                    await remove.mutateAsync({
                       repoPath: project.path,
                     });
                     setDialog(null);

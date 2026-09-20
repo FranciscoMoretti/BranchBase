@@ -1,6 +1,11 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, expectTypeOf, it } from "bun:test";
 
-import { fetchCodexIntegration, getJson, pickRepository } from "./api";
+import {
+  fetchCodexIntegration,
+  getJson,
+  pickRepository,
+  runCommand,
+} from "./api";
 
 const originalFetch = globalThis.fetch;
 
@@ -77,5 +82,42 @@ describe("request recovery", () => {
     });
     await expect(pickRepository()).resolves.toBeNull();
     expect(calls).toBe(2);
+  });
+});
+
+describe("typed commands", () => {
+  it("rejects incomplete inputs before making a request", async () => {
+    let requests = 0;
+    globalThis.fetch = ((_input: string | URL | Request) => {
+      requests += 1;
+      return Promise.reject(new Error("Unexpected request"));
+    }) as typeof fetch;
+    await expect(
+      // @ts-expect-error App group commands require both the worktree and group.
+      runCommand("start-apps", { repoPath: "/repo" })
+    ).rejects.toThrow();
+    // @ts-expect-error Unknown commands must not compile either.
+    await expect(runCommand("unknown-command", {})).rejects.toThrow();
+    expect(requests).toBe(0);
+  });
+  it("infers each result and validates server output", async () => {
+    globalThis.fetch = ((input: string | URL | Request) =>
+      Promise.resolve(
+        Response.json(
+          String(input) === "/api/session"
+            ? { token: "qa-token" }
+            : { path: "/repo" }
+        )
+      )) as typeof fetch;
+    const result = await runCommand("pick-repository", {});
+    expectTypeOf(result).toEqualTypeOf<{ path: string | null }>();
+    expect(result.path).toBe("/repo");
+    await expect(
+      runCommand("stop-apps", {
+        appGroupName: "web",
+        repoPath: "/repo",
+        worktreeId: "main",
+      })
+    ).rejects.toThrow();
   });
 });

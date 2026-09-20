@@ -1,7 +1,10 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
 
-import type { CommandReceipt } from "../../application/command-contract";
+import type {
+  BranchBaseCommandInput,
+  BranchBaseCommandResult,
+} from "../../application/command-contract";
 import type { WorktreeSnapshot } from "../../project/worktree-status-contract";
 import { FormFeedback } from "../product/async-state";
 import {
@@ -22,9 +25,9 @@ export const DeleteWorktreeDialog = ({
   worktree,
 }: {
   mutation: UseMutationResult<
-    CommandReceipt,
+    BranchBaseCommandResult<"delete-worktree">,
     Error,
-    Record<string, unknown> & { repoPath: string; worktreeId?: string }
+    BranchBaseCommandInput<"delete-worktree">
   >;
   onClose: () => void;
   repoPath: string;
@@ -34,7 +37,11 @@ export const DeleteWorktreeDialog = ({
   const confirm = async () => {
     try {
       setMessage(null);
-      await mutation.mutateAsync({ repoPath, worktreeId: worktree.id });
+      await mutation.mutateAsync({
+        appGroupName: worktree.primaryAppGroup,
+        repoPath,
+        worktreeId: worktree.id,
+      });
       onClose();
     } catch (error) {
       setMessage(

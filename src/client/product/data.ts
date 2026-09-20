@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type {
+  BranchBaseCommandName,
+  BranchBaseCommandInput,
+} from "../../application/command-contract";
 import {
   ActivityResponseSchema,
   ProjectsResponseSchema,
@@ -9,6 +13,7 @@ import {
   ObservationSchema,
 } from "../../project/discovery-contract";
 import { getJson, runCommand } from "../api";
+import { invalidateCommandQueries } from "../command-invalidation";
 
 export const useObservation = (repoPath: string) =>
   useQuery({
@@ -52,25 +57,19 @@ export const useActivity = (repoPath?: string) =>
     retry: 1,
     retryDelay: 750,
   });
+export type ProductCommandInput = {
+  [Name in BranchBaseCommandName]: {
+    command: Name;
+  } & BranchBaseCommandInput<Name>;
+}[BranchBaseCommandName];
+
 export const useProductCommand = () => {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      command,
-      ...input
-    }: {
-      command: string;
-      [key: string]: unknown;
-    }) => runCommand(command, input),
-    onSuccess: () =>
-      Promise.all([
-        client.invalidateQueries({ queryKey: ["project-status"] }),
-        client.invalidateQueries({ queryKey: ["projects"] }),
-        client.invalidateQueries({ queryKey: ["observation"] }),
-        client.invalidateQueries({ queryKey: ["development-folders"] }),
-        client.invalidateQueries({ queryKey: ["workspace"] }),
-        client.invalidateQueries({ queryKey: ["activity"] }),
-      ]),
+    mutationFn: ({ command, ...input }: ProductCommandInput) =>
+      runCommand(command, input),
+    onSettled: (_result, _error, { command, ...input }) =>
+      invalidateCommandQueries(client, command, input),
   });
 };
 export type ProductView =

@@ -20,14 +20,15 @@ import {
   TabsList,
   TabsTrigger,
 } from "../components/ui/tabs";
-import { useCommands } from "../mutations";
+import { useCommand, useCommands } from "../mutations";
 import { useCodexIntegration } from "../queries";
-import { hrefFor, useProductCommand } from "./data";
+import { FormFeedback } from "./async-state";
+import { hrefFor } from "./data";
 import {
   DevelopmentFoldersControls,
   DiscoveryDialog,
 } from "./discovery-dialog";
-import { CopyButton, ErrorNotice, PageHeading, Status } from "./primitives";
+import { CopyButton, PageHeading, Status } from "./primitives";
 
 const connectionLabel = (error: boolean, loading: boolean): string => {
   if (error) {
@@ -99,7 +100,10 @@ export const SettingsPage = ({
 }) => {
   const [name, setName] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const mutation = useProductCommand();
+  const save = useCommand("save-project");
+  const remove = useCommand("remove-project");
+  const identityPending = save.isPending || remove.isPending;
+  const revoke = useCommand("revoke-trust");
   const commands = useCommands(data.repoPath);
   const [removing, setRemoving] = useState(false);
   if (editing) {
@@ -134,7 +138,6 @@ export const SettingsPage = ({
           BranchBase settings
         </a>
       </PageHeading>
-      <ErrorNotice error={mutation.error} />
       <Tabs
         className="product-settings"
         orientation="vertical"
@@ -160,8 +163,10 @@ export const SettingsPage = ({
               className="product-settings-panel"
               onSubmit={(event) => {
                 event.preventDefault();
-                mutation.mutate({
-                  command: "save-project",
+                if (identityPending) {
+                  return;
+                }
+                save.mutate({
                   name: name ?? project?.name ?? data.repoName,
                   repoPath: data.repoPath,
                 });
@@ -172,11 +177,12 @@ export const SettingsPage = ({
                 <Field>
                   <FieldLabel htmlFor="project-name">Project name</FieldLabel>
                   <Input
+                    disabled={identityPending}
                     id="project-name"
                     maxLength={100}
                     onChange={(event) => {
                       setName(event.target.value);
-                      mutation.reset();
+                      save.reset();
                     }}
                     required
                     value={name ?? project?.name ?? data.repoName}
@@ -195,14 +201,15 @@ export const SettingsPage = ({
               </FieldGroup>
               <Button
                 disabled={
-                  mutation.isPending ||
+                  identityPending ||
                   !(name ?? project?.name ?? data.repoName).trim()
                 }
                 type="submit"
               >
-                {mutation.isPending ? "Saving…" : "Save changes"}
+                {save.isPending ? "Saving…" : "Save changes"}
               </Button>
-              {mutation.isSuccess ? (
+              <FormFeedback error={save.error} title="Could not save project" />
+              {save.isSuccess ? (
                 <p aria-atomic="true" aria-live="polite">
                   Project saved.
                 </p>
@@ -216,15 +223,21 @@ export const SettingsPage = ({
               </p>
               {removing ? (
                 <div className="product-actions">
-                  <Button onClick={() => setRemoving(false)} variant="outline">
+                  <Button
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      setRemoving(false);
+                      remove.reset();
+                    }}
+                    variant="outline"
+                  >
                     Cancel
                   </Button>
                   <Button
-                    disabled={mutation.isPending}
+                    disabled={identityPending}
                     onClick={async () => {
                       try {
-                        await mutation.mutateAsync({
-                          command: "remove-project",
+                        await remove.mutateAsync({
                           repoPath: data.repoPath,
                         });
                         window.location.assign("/");
@@ -234,7 +247,7 @@ export const SettingsPage = ({
                     }}
                     variant="destructive"
                   >
-                    Remove project
+                    {remove.isPending ? "Removing…" : "Remove project"}
                   </Button>
                 </div>
               ) : (
@@ -242,6 +255,10 @@ export const SettingsPage = ({
                   Remove project…
                 </Button>
               )}
+              <FormFeedback
+                error={remove.error}
+                title="Could not remove project"
+              />
             </section>
           </TabsContent>
           <TabsContent value="configuration">
@@ -265,7 +282,13 @@ export const SettingsPage = ({
                     .join(", ")}
                 </span>
               </div>
-              <Button onClick={() => setEditing(true)} variant="outline">
+              <Button
+                onClick={() => {
+                  commands.updateRepositoryConfig.reset();
+                  setEditing(true);
+                }}
+                variant="outline"
+              >
                 Edit configuration
               </Button>
               <h3>Worktree overrides</h3>
@@ -311,20 +334,33 @@ export const SettingsPage = ({
                 {data.trustCommands.join("\n")}
               </pre>
               <div className="product-actions">
-                <Button onClick={review}>Review commands</Button>
                 <Button
-                  disabled={mutation.isPending || !data.trusted}
+                  onClick={() => {
+                    revoke.reset();
+                    review();
+                  }}
+                >
+                  Review commands
+                </Button>
+                <Button
+                  disabled={revoke.isPending || !data.trusted}
                   onClick={() =>
-                    mutation.mutate({
-                      command: "revoke-trust",
+                    revoke.mutate({
                       repoPath: data.repoPath,
                     })
                   }
                   variant="outline"
                 >
-                  Revoke project approvals
+                  {revoke.isPending ? "Revoking…" : "Revoke project approvals"}
                 </Button>
               </div>
+              <FormFeedback
+                error={revoke.error}
+                title="Could not revoke approvals"
+              />
+              {revoke.isSuccess && !data.trusted ? (
+                <p aria-live="polite">Project approvals revoked.</p>
+              ) : null}
               <p className="product-muted">
                 Stop running groups before revoking their command approvals.
               </p>
