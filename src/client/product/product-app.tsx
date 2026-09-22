@@ -416,7 +416,13 @@ export const ProductApp = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setPendingHref(null)} variant="outline">
+            <Button
+              onClick={() => {
+                pendingNavigation.current = null;
+                setPendingHref(null);
+              }}
+              variant="outline"
+            >
               Keep editing
             </Button>
             <Button

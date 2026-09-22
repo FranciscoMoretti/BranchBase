@@ -185,3 +185,46 @@ test("dirty Back cancel then discard preserves indexed history", async () => {
   );
   expect(history.length).toBe(lengthAfterPush);
 });
+
+test("cancelled dirty Back does not replace a later link destination", async () => {
+  await mount();
+  if (!dom) {
+    throw new Error("DOM was not installed");
+  }
+  const appDom = dom;
+  await settleHistory();
+  const anchor = appDom.document.createElement("a");
+  anchor.href = "/?view=machine&section=configuration";
+  appDom.document.body.append(anchor);
+  const clickLink = () =>
+    act(() => {
+      anchor.dispatchEvent(
+        new appDom.window.MouseEvent("click", { bubbles: true, button: 0 })
+      );
+    });
+  clickLink();
+  setDirty(true);
+  await act(async () => {
+    appDom.window.history.back();
+    await waitForHistoryEvent();
+    await waitForHistoryEvent();
+    await waitForHistoryEvent();
+  });
+  act(() => dialogButton("Keep editing").click());
+  anchor.href = "/?view=activity";
+  clickLink();
+  await act(async () => {
+    dialogButton("Leave and keep draft").click();
+    await waitForHistoryEvent();
+    await waitForHistoryEvent();
+  });
+  expect(appDom.window.location.search).toBe("?view=activity");
+  expect(appDom.window.history.length).toBe(3);
+  await act(async () => {
+    appDom.window.history.back();
+    await waitForHistoryEvent();
+  });
+  expect(appDom.window.location.search).toBe(
+    "?view=machine&section=configuration"
+  );
+});
