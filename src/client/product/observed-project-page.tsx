@@ -34,7 +34,6 @@ import {
   PageHeading,
   ResourceUsage,
   Search,
-  Status,
 } from "./primitives";
 import { OverviewSectionHeading, RecentActivity } from "./repository-overview";
 
@@ -305,17 +304,15 @@ export const ObservedProjectPage = ({
             title={observationTitle(data, location, project)}
           >
             <ResourceUsage usage={data.resources} />
-            <Button onClick={() => setConfigure(true)} variant="outline">
-              Configure app groups
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => setConfigure(true)} variant="outline">
+                Configure app groups
+              </Button>
+              <p className="text-muted-foreground text-xs">
+                Enable Start, Stop, and logs.
+              </p>
+            </div>
           </PageHeading>
-          <div className="product-observation-note">
-            <Status label="Observing" value="stopped" />
-            <p>
-              See what is running across your worktrees. Add app groups when you
-              want Start, Stop, and logs here.
-            </p>
-          </div>
           {isOverview ? (
             <OverviewSectionHeading
               title="Active worktrees"
