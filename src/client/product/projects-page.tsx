@@ -3,6 +3,7 @@ import {
   FolderGit2Icon,
   MoreHorizontalIcon,
   PlusIcon,
+  ListFilterIcon,
 } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -23,9 +24,12 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
-import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { useCommand } from "../mutations";
 import { FormFeedback, QueryContent } from "./async-state";
 import { hrefFor, useProjects } from "./data";
@@ -40,28 +44,13 @@ import {
   Search,
   Status,
 } from "./primitives";
+import { projectIsActive, selectProjects } from "./project-list";
+import type { ProjectFilter, ProjectSort } from "./project-list";
 import { runtimeCounts } from "./runtime-counts";
 import { runtimeSummary } from "./runtime-summary";
 
-export const projectIsActive = (project: ProjectOverview): boolean =>
-  (project.workspace?.globalRunningCount ?? 0) > 0 ||
-  Boolean(
-    project.observation?.worktrees.some(
-      (worktree) => worktree.services.length > 0
-    )
-  );
-const projectNeedsAttention = (project: ProjectOverview): boolean =>
-  Boolean(
-    project.error ||
-    project.observation?.warning ||
-    project.workspace?.worktrees.some(
-      (worktree) =>
-        worktree.configuration.error ||
-        !worktree.configuration.trusted ||
-        worktree.setupState === "failed" ||
-        runtimeSummary(worktree).value === "partial"
-    )
-  );
+export { projectIsActive } from "./project-list";
+
 const attentionHref = (
   repo: string,
   worktree: {
@@ -366,31 +355,18 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
 };
 const projectsSummary = (projects: ProjectOverview[]) => {
   const { managedGroups, detectedServices } = runtimeCounts(projects);
-  return `${countLabel(projects.length, "repository")} · ${countLabel(managedGroups, "managed group")} running · ${countLabel(detectedServices, "detected service")}`;
+  return `${`${projects.length} ${projects.length === 1 ? "repository" : "repositories"}`} · ${countLabel(managedGroups, "managed group")} running · ${countLabel(detectedServices, "detected service")}`;
 };
 export const ProjectsPage = () => {
   const projects = useProjects();
   const [search, setSearch] = useState("");
   const [add, setAdd] = useState<"project" | "folder" | null>(null);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<ProjectFilter>("all");
+  const [sort, setSort] = useState<ProjectSort>("running");
   const unavailableSummary = projects.error
     ? "Project summary unavailable"
     : "Loading project summary…";
-  const items = (projects.data ?? [])
-    .toSorted(
-      (a, b) =>
-        Number(projectIsActive(b)) - Number(projectIsActive(a)) ||
-        a.name.localeCompare(b.name)
-    )
-    .filter(
-      (project) =>
-        (filter === "all" ||
-          (filter === "running" && projectIsActive(project)) ||
-          (filter === "attention" && projectNeedsAttention(project))) &&
-        `${project.name} ${project.path}`
-          .toLowerCase()
-          .includes(search.toLowerCase())
-    );
+  const items = selectProjects(projects.data ?? [], search, filter, sort);
   return (
     <>
       <PageHeading
@@ -400,10 +376,6 @@ export const ProjectsPage = () => {
         <a className="product-link" href={hrefFor({ view: "machine" })}>
           Development folders
         </a>
-        <Button onClick={() => setAdd("project")}>
-          <PlusIcon />
-          Add repository
-        </Button>
       </PageHeading>
 
       <p className="product-muted">
@@ -411,38 +383,107 @@ export const ProjectsPage = () => {
           ? unavailableSummary
           : projectsSummary(projects.data)}
       </p>
-      <div className="product-filterbar">
-        <Search
-          onChange={setSearch}
-          placeholder="Search repositories…"
-          value={search}
-        />
-        <ToggleGroup
-          aria-label="Filter repositories"
-          className="flex-wrap"
-          onValueChange={(values) => {
-            if (values[0]) {
-              setFilter(values[0]);
+      <div className="my-6 flex flex-wrap items-center gap-3">
+        <div className="min-w-48 flex-1 [&>div]:w-full">
+          <Search
+            onChange={setSearch}
+            placeholder="Search repositories…"
+            value={search}
+          />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                aria-label="Filter and sort repositories"
+                variant={filter === "all" ? "outline" : "secondary"}
+                size="icon"
+              >
+                <ListFilterIcon />
+              </Button>
             }
-          }}
-          value={[filter]}
-          variant="outline"
-        >
-          {[
-            ["all", "All"],
-            ["running", "Running"],
-            ["attention", "Needs attention"],
-          ].map(([value, label]) => (
-            <ToggleGroupItem key={value} value={value}>
-              {label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <a className="product-link" href={hrefFor({ view: "activity" })}>
-          View activity
-          <ArrowRightIcon />
-        </a>
+          />
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={filter}
+                onValueChange={(value) => {
+                  if (
+                    value === "all" ||
+                    value === "running" ||
+                    value === "stopped" ||
+                    value === "attention"
+                  ) {
+                    setFilter(value);
+                  }
+                }}
+              >
+                <DropdownMenuRadioItem value="all">
+                  All repositories
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="running">
+                  Running
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="stopped">
+                  Stopped
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="attention">
+                  Needs attention
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={sort}
+                onValueChange={(value) => {
+                  if (
+                    value === "running" ||
+                    value === "name" ||
+                    value === "added"
+                  ) {
+                    setSort(value);
+                  }
+                }}
+              >
+                <DropdownMenuRadioItem value="running">
+                  Running first
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="name">Name</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="added">
+                  Recently added
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button onClick={() => setAdd("project")}>
+          <PlusIcon data-icon="inline-start" />
+          Add repository
+        </Button>
       </div>
+      {search || filter !== "all" ? (
+        <div className="mb-4 flex items-center gap-3">
+          {projects.data === undefined ? null : (
+            <output className="product-muted">
+              {items.length} matching{" "}
+              {items.length === 1 ? "repository" : "repositories"}
+            </output>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setFilter("all");
+            }}
+          >
+            Clear filters
+          </Button>
+        </div>
+      ) : null}
       <QueryContent label="Projects" query={projects}>
         <div className="product-project-list">
           {items.map((project) => (
