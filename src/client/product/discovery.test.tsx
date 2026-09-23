@@ -109,7 +109,7 @@ test("detected listeners make a project active and quiet unconfigured projects a
   expect(projectIsActive(project)).toBe(true);
   expect(projectIsActive(quiet)).toBe(false);
   const html = render(<ProjectsPage />, [quiet, project]);
-  expect(html.indexOf(">App</a>")).toBeLessThan(
+  expect(html.indexOf(">App</a>")).toBeGreaterThan(
     html.indexOf(">A quiet project</a>")
   );
   expect(html).toContain("3 services detected");

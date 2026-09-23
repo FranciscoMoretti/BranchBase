@@ -278,3 +278,71 @@ test("activity history initializes when upgrading a project-only catalog", () =>
   expect(product.projects()[0]?.name).toBe("App");
   expect(new ProductStore(directory).events()).toHaveLength(1);
 });
+
+test("last observed service start survives stop, metadata edits, and restart", () => {
+  const { product, directory } = store();
+  product.saveProject("/repo", "App");
+  const observation = {
+    configured: false,
+    repoPath: "/repo",
+    updatedAt: "2026-09-23T10:00:00Z",
+    warning: null,
+    worktrees: [
+      {
+        branch: "main",
+        id: "main",
+        isMain: true,
+        path: "/repo",
+        services: [
+          {
+            address: "127.0.0.1:3000",
+            command: "bun dev",
+            cwd: "/repo",
+            managed: false,
+            pid: 42,
+            port: 3000,
+            resources: null,
+            startedAt: "2026-09-23T09:00:00Z",
+            url: null,
+          },
+        ],
+      },
+    ],
+  };
+  product.observeDetected(observation);
+  expect(product.projects()[0].lastStartedAt).toBe("2026-09-23T09:00:00.000Z");
+  observation.worktrees[0].services[0].startedAt = "2026-09-23T09:30:00Z";
+  product.observeDetected(observation);
+  expect(product.projects()[0].lastStartedAt).toBe("2026-09-23T09:30:00.000Z");
+  observation.worktrees[0].services = [];
+  product.observeDetected(observation);
+  product.saveProject("/repo", "Renamed");
+  expect(new ProductStore(directory).projects()[0].lastStartedAt).toBe(
+    "2026-09-23T09:30:00.000Z"
+  );
+});
+
+test("managed starts retain the newest timestamp after runs disappear", async () => {
+  const { product, snapshot, controller } = observedFixture();
+  try {
+    product.saveProject(snapshot.repoPath, "App");
+    const [group] = snapshot.worktrees[0].appGroups;
+    group.run = {
+      startedAt: "2026-09-23T11:00:00Z",
+      worktreePath: snapshot.mainWorktreePath,
+    };
+    product.observe(snapshot);
+    group.run = {
+      startedAt: "2026-09-22T11:00:00Z",
+      worktreePath: snapshot.mainWorktreePath,
+    };
+    product.observe(snapshot);
+    group.run = null;
+    product.observe(snapshot);
+    expect(product.projects()[0].lastStartedAt).toBe(
+      "2026-09-23T11:00:00.000Z"
+    );
+  } finally {
+    await controller.close();
+  }
+});

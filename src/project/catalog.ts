@@ -26,6 +26,26 @@ const StoreSchema = z.strictObject({
   version: z.literal(1),
 });
 
+const rememberLatestStart = (
+  state: z.infer<typeof StoreSchema>,
+  repoPath: string,
+  timestamps: (string | null | undefined)[]
+): boolean => {
+  const project = state.projects.find((item) => item.path === repoPath);
+  if (!project) {
+    return false;
+  }
+  const latest = Math.max(
+    Date.parse(project.lastStartedAt ?? "") || 0,
+    ...timestamps.map((value) => Date.parse(value ?? "") || 0)
+  );
+  if (!latest || latest === Date.parse(project.lastStartedAt ?? "")) {
+    return false;
+  }
+  project.lastStartedAt = new Date(latest).toISOString();
+  return true;
+};
+
 export class ProductStore {
   private readonly file: string;
   constructor(directory: string) {
@@ -52,6 +72,7 @@ export class ProductStore {
     const existing = state.projects.find((project) => project.path === path);
     const record = ProjectRecordSchema.parse({
       addedAt: existing?.addedAt ?? new Date().toISOString(),
+      lastStartedAt: existing?.lastStartedAt,
       name,
       path,
       pins: pins ?? existing?.pins ?? [],
@@ -95,6 +116,13 @@ export class ProductStore {
   }
   observeDetected(observation: RepositoryObservation) {
     const state = this.read();
+    const startChanged = rememberLatestStart(
+      state,
+      observation.repoPath,
+      observation.worktrees.flatMap((worktree) =>
+        worktree.services.map((service) => service.startedAt)
+      )
+    );
     const previous = state.detected[observation.repoPath];
     const current: Record<string, string> = {};
     for (const worktree of observation.worktrees) {
@@ -104,7 +132,7 @@ export class ProductStore {
           `${worktree.branch} · ${service.command} on port ${service.port}`;
       }
     }
-    if (JSON.stringify(previous) === JSON.stringify(current)) {
+    if (!startChanged && JSON.stringify(previous) === JSON.stringify(current)) {
       return;
     }
     if (previous) {
@@ -158,6 +186,13 @@ export class ProductStore {
   }
   observe(workspace: WorkspaceSnapshot): void {
     const state = this.read();
+    const startChanged = rememberLatestStart(
+      state,
+      workspace.repoPath,
+      workspace.worktrees.flatMap((worktree) =>
+        worktree.appGroups.map((group) => group.run?.startedAt)
+      )
+    );
     const previous = state.observations[workspace.repoPath];
     const current: Record<string, string> = {};
     const events: Omit<ActivityEvent, "id" | "at">[] = [];
@@ -184,7 +219,7 @@ export class ProductStore {
         });
       }
     }
-    if (JSON.stringify(previous) === JSON.stringify(current)) {
+    if (!startChanged && JSON.stringify(previous) === JSON.stringify(current)) {
       return;
     }
     state.observations[workspace.repoPath] = current;
