@@ -79,7 +79,8 @@ test("unconfigured projects show observed worktrees and extra service access wit
   const html = render(
     <ObservedProjectPage data={data} location={location} project={project} />
   );
-  expect(html).toContain("Observing");
+  expect(html).not.toContain("Observing");
+  expect(html).toContain("Enable Start, Stop, and logs.");
   expect(html).toContain("Main worktree");
   expect(html).toContain('aria-label="1 more services"');
   expect(html).toContain("Configure app groups");

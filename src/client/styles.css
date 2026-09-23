@@ -2112,19 +2112,6 @@
   min-height: 360px;
 }
 /* Repository observation uses the same quiet rows as managed environments. */
-.product-observation-note {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  padding: 16px 20px;
-  font-size: 13px;
-  background: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.product-observation-note p {
-  color: var(--muted-foreground);
-}
 .product-observed-worktrees {
   border-top: 1px solid var(--border);
 }
@@ -2230,7 +2217,6 @@
   margin-top: 24px;
 }
 @media (max-width: 700px) {
-  .product-observation-note,
   .product-detected-service {
     flex-wrap: wrap;
     align-items: flex-start;
