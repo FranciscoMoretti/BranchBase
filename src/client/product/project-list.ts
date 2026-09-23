@@ -22,7 +22,7 @@ export const projectNeedsAttention = (project: ProjectOverview): boolean =>
   );
 
 export type ProjectFilter = "all" | "running" | "stopped" | "attention";
-export type ProjectSort = "running" | "name" | "added";
+export type ProjectSort = "started" | "name";
 
 export const selectProjects = (
   projects: ProjectOverview[],
@@ -48,11 +48,9 @@ export const selectProjects = (
     })
     .toSorted(
       (a, b) =>
-        (sort === "running"
-          ? Number(projectIsActive(b)) - Number(projectIsActive(a))
-          : 0) ||
-        (sort === "added"
-          ? Date.parse(b.addedAt) - Date.parse(a.addedAt)
+        (sort === "started"
+          ? (Date.parse(b.lastStartedAt ?? "") || 0) -
+            (Date.parse(a.lastStartedAt ?? "") || 0)
           : 0) ||
         a.name.localeCompare(b.name) ||
         a.path.localeCompare(b.path)

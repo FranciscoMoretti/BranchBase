@@ -20,7 +20,10 @@ const project = (name: string, addedAt: string): ProjectOverview => ({
   workspace: null,
 });
 const alpha = project("Alpha", "2026-09-01T00:00:00Z");
-const beta = project("Beta", "2026-09-02T00:00:00Z");
+const beta = {
+  ...project("Beta", "2026-09-02T00:00:00Z"),
+  lastStartedAt: "2026-09-03T00:00:00Z",
+};
 const broken = {
   ...project("Broken", "2026-09-03T00:00:00Z"),
   error: "Inspection failed",
@@ -36,14 +39,17 @@ test("search combines trimmed case-insensitive name and path terms with filters"
     broken,
   ]);
 });
-test("sort supports name and newest addition without changing the catalog", () => {
+test("sort supports name and last start without changing the catalog", () => {
   const projects = [beta, alpha];
   expect(selectProjects(projects, "", "all", "name")).toEqual([alpha, beta]);
-  expect(selectProjects(projects, "", "all", "added")).toEqual([beta, alpha]);
+  expect(selectProjects(projects, "", "all", "started")).toEqual([beta, alpha]);
   expect(projects).toEqual([beta, alpha]);
 });
 test("detected services count as running for filtering and ordering", () => {
-  const running = project("Zeta", alpha.addedAt);
+  const running = {
+    ...project("Zeta", alpha.addedAt),
+    lastStartedAt: "2026-09-04T00:00:00Z",
+  };
   if (!running.observation) {
     throw new Error("Missing fixture observation");
   }
@@ -60,7 +66,7 @@ test("detected services count as running for filtering and ordering", () => {
       url: "http://127.0.0.1:3000",
     },
   ];
-  expect(selectProjects([alpha, running], "", "all", "running")).toEqual([
+  expect(selectProjects([alpha, running], "", "all", "started")).toEqual([
     running,
     alpha,
   ]);

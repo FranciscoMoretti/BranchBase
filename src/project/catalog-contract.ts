@@ -10,6 +10,7 @@ export const AppPinSchema = z.strictObject({
 });
 export const ProjectRecordSchema = z.strictObject({
   addedAt: z.iso.datetime({ offset: true }),
+  lastStartedAt: z.iso.datetime({ offset: true }).optional(),
   name: z.string().trim().min(1).max(100),
   path: z.string().min(1),
   pins: z.array(AppPinSchema).max(24),

@@ -156,6 +156,26 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
       <div className="product-project-summary">
         <ResourceUsage usage={projectResources(project)} />
         <span>{projectSummary(project, active, detected.length)}</span>
+        <span
+          className="product-muted"
+          title="Most recent recorded app or service start across this repository's worktrees"
+        >
+          {project.lastStartedAt ? (
+            <>
+              Last started{" "}
+              <time dateTime={project.lastStartedAt}>
+                {new Date(project.lastStartedAt).toLocaleString([], {
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  month: "short",
+                })}
+              </time>
+            </>
+          ) : (
+            "No recorded starts"
+          )}
+        </span>
         <div className="product-actions">
           {project.pins.slice(0, 2).map((pin) => {
             const worktree = workspace?.worktrees.find(
@@ -362,7 +382,7 @@ export const ProjectsPage = () => {
   const [search, setSearch] = useState("");
   const [add, setAdd] = useState<"project" | "folder" | null>(null);
   const [filter, setFilter] = useState<ProjectFilter>("all");
-  const [sort, setSort] = useState<ProjectSort>("running");
+  const [sort, setSort] = useState<ProjectSort>("started");
   const unavailableSummary = projects.error
     ? "Project summary unavailable"
     : "Loading project summary…";
@@ -439,21 +459,16 @@ export const ProjectsPage = () => {
               <DropdownMenuRadioGroup
                 value={sort}
                 onValueChange={(value) => {
-                  if (
-                    value === "running" ||
-                    value === "name" ||
-                    value === "added"
-                  ) {
+                  if (value === "started" || value === "name") {
                     setSort(value);
                   }
                 }}
               >
-                <DropdownMenuRadioItem value="running">
-                  Running first
+                <DropdownMenuRadioItem value="started">
+                  Last started
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="name">Name</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="added">
-                  Recently added
+                <DropdownMenuRadioItem value="name">
+                  Name (A–Z)
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuGroup>
