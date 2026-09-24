@@ -239,6 +239,83 @@ const observationTitle = (
   }
   return location.view === "logs" ? "Logs" : "Worktrees";
 };
+const discoveryStatus = (
+  pending: boolean,
+  unavailable: boolean
+): string | undefined => {
+  if (pending) {
+    return "Discovering tasks…";
+  }
+  if (unavailable) {
+    return "Task discovery unavailable";
+  }
+  return undefined;
+};
+
+const ObservedHeading = ({
+  data,
+  location,
+  project,
+  configure,
+}: {
+  data: Observation;
+  location: ProductLocation;
+  project?: ProjectOverview;
+  configure: () => void;
+}) => {
+  const selectedWorktree = data.worktrees.find(
+    (worktree) => worktree.id === location.worktree
+  );
+  const services = data.worktrees.flatMap((worktree) => worktree.services);
+  return (
+    <PageHeading
+      description={
+        selectedWorktree
+          ? selectedWorktree.path
+          : `${countLabel(data.worktrees.length, "worktree")} · ${countLabel(services.length, "service")} detected`
+      }
+      title={observationTitle(data, location, project)}
+    >
+      {selectedWorktree ? null : <ResourceUsage usage={data.resources} />}
+      <div className="flex flex-col gap-2">
+        <Button onClick={configure} variant="outline">
+          Configure app groups
+        </Button>
+        <p className="text-muted-foreground text-xs">
+          Enable Start, Stop, and logs.
+        </p>
+      </div>
+    </PageHeading>
+  );
+};
+
+const visibleWorktrees = (
+  data: Observation,
+  location: ProductLocation,
+  search: string,
+  running: boolean,
+  isOverview: boolean
+) => {
+  const selectedWorktree = data.worktrees.find(
+    (worktree) => worktree.id === location.worktree
+  );
+  return selectedWorktree
+    ? [selectedWorktree]
+    : data.worktrees
+        .filter(
+          (worktree) =>
+            (!location.worktree || worktree.id === location.worktree) &&
+            `${worktree.branch} ${worktree.path}`
+              .toLowerCase()
+              .includes(search.toLowerCase()) &&
+            (!(running || isOverview) || worktree.services.length)
+        )
+        .toSorted(
+          (a, b) =>
+            Number(b.services.length > 0) - Number(a.services.length > 0)
+        );
+};
+
 export const ObservedProjectPage = ({
   data,
   project,
@@ -253,26 +330,15 @@ export const ObservedProjectPage = ({
   const [configure, setConfigure] = useState(false);
   const client = useQueryClient();
   const codex = useCodexIntegration(data.repoPath);
-  let taskDiscoveryStatus: string | undefined;
-  if (codex.isPending) {
-    taskDiscoveryStatus = "Discovering tasks…";
-  } else if (codex.isError && codex.data === undefined) {
-    taskDiscoveryStatus = "Task discovery unavailable";
-  }
+  const taskDiscoveryStatus = discoveryStatus(
+    codex.isPending,
+    codex.isError && codex.data === undefined
+  );
   const isOverview = location.view === "workspace" && !location.worktree;
-  const visible = data.worktrees
-    .filter(
-      (worktree) =>
-        (!location.worktree || worktree.id === location.worktree) &&
-        `${worktree.branch} ${worktree.path}`
-          .toLowerCase()
-          .includes(search.toLowerCase()) &&
-        (!(running || isOverview) || worktree.services.length)
-    )
-    .toSorted(
-      (a, b) => Number(b.services.length > 0) - Number(a.services.length > 0)
-    );
-  const services = data.worktrees.flatMap((worktree) => worktree.services);
+  const selectedWorktree = data.worktrees.find(
+    (worktree) => worktree.id === location.worktree
+  );
+  const visible = visibleWorktrees(data, location, search, running, isOverview);
   return (
     <>
       {location.view === "activity" ? (
@@ -292,7 +358,7 @@ export const ObservedProjectPage = ({
             title="Infrastructure"
           />
           <Blank
-            description="Detected listeners appear in Environments. Configure app groups to describe shared databases and other infrastructure, and give them managed controls."
+            description="Detected services appear in Worktrees. Configure app groups to describe shared databases and other infrastructure, and give them managed controls."
             title="Shared infrastructure is not configured"
           >
             <Button onClick={() => setConfigure(true)} variant="outline">
@@ -301,31 +367,44 @@ export const ObservedProjectPage = ({
           </Blank>
         </>
       ) : null}
-      {location.view === "workspace" ||
-      location.view === "worktrees" ||
-      location.view === "logs" ? (
+      {location.view === "logs" ? (
         <>
           <PageHeading
-            description={`${countLabel(data.worktrees.length, "worktree")} · ${countLabel(services.length, "service")} detected`}
-            title={observationTitle(data, location, project)}
+            title="Logs"
+            description="Output from apps started by BranchBase"
+          />
+          <Blank
+            title="Logs need configured app groups"
+            description="Their logs stay in the terminal or tool that launched them. Configure app groups to start apps and read their logs here."
           >
-            <ResourceUsage usage={data.resources} />
-            <div className="flex flex-col gap-2">
-              <Button onClick={() => setConfigure(true)} variant="outline">
-                Configure app groups
-              </Button>
-              <p className="text-muted-foreground text-xs">
-                Enable Start, Stop, and logs.
-              </p>
-            </div>
-          </PageHeading>
+            <Button onClick={() => setConfigure(true)}>
+              Configure app groups
+            </Button>
+            <a
+              className="product-link"
+              href={hrefFor({ repo: data.repoPath, view: "worktrees" })}
+            >
+              View worktrees
+            </a>
+          </Blank>
+        </>
+      ) : null}
+      {location.view === "workspace" || location.view === "worktrees" ? (
+        <>
+          <ObservedHeading
+            data={data}
+            location={location}
+            project={project}
+            configure={() => setConfigure(true)}
+          />
           {isOverview ? (
             <OverviewSectionHeading
               title="Active worktrees"
               href={hrefFor({ repo: data.repoPath, view: "worktrees" })}
               linkLabel={`View all ${data.worktrees.length} worktrees`}
             />
-          ) : (
+          ) : null}
+          {!isOverview && !selectedWorktree && (
             <div className="product-filterbar">
               <Search
                 onChange={setSearch}
@@ -397,6 +476,7 @@ export const ObservedProjectPage = ({
                 </div>
                 <Disclosure
                   className="product-observed-details"
+                  open={Boolean(selectedWorktree)}
                   summary={`${countLabel(worktree.services.length, "service")} · ${taskDiscoveryStatus ?? countLabel(codex.data?.worktrees[worktree.id]?.tasks.length ?? 0, "task")} · Details`}
                 >
                   {worktree.services.map((service) => (

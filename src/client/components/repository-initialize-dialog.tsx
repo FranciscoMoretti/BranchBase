@@ -41,14 +41,14 @@ export const RepositoryInitializeDialog = ({
       }}
       open
     >
-      <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-xl overflow-auto">
+      <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-xl overflow-auto sm:max-w-2xl">
         <DialogHeader className="pr-8">
           <DialogTitle>Initialize BranchBase</DialogTitle>
           <DialogDescription>
             Review the detected settings before creating .branchbase.json.
           </DialogDescription>
         </DialogHeader>
-        <div className="modal-copy initialize-copy">
+        <div className="modal-copy initialize-copy min-w-0">
           <div className="initialize-intro">
             <FilePlus2Icon />
             <div>
