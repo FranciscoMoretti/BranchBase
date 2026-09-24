@@ -115,7 +115,6 @@ test("initial load reserves the same content region as initial failure, without 
     isPending: false,
   });
   for (const html of [loading, failed]) {
-    expect(html).toContain("product-query-status");
     expect(html).toContain("product-query-body");
     expect(html).not.toContain("Saved project");
   }
@@ -124,7 +123,7 @@ test("initial load reserves the same content region as initial failure, without 
   expect(failed).toContain("Try again");
   expect(failed).toContain("Technical details");
 });
-test("refresh failure preserves usable content and offers a read-only retry", () => {
+test("background refresh failures preserve content without a refresh banner", () => {
   const html = region({
     data: [1],
     error: new Error("Failed to fetch"),
@@ -132,8 +131,8 @@ test("refresh failure preserves usable content and offers a read-only retry", ()
     isPending: false,
   });
   expect(html).toContain("Saved project");
-  expect(html).toContain("Showing the last successful update");
-  expect(html).toContain("Retry");
+  expect(html).not.toContain("Showing the last successful update");
+  expect(html).not.toContain("Retry");
   expect(html).not.toContain("product-unavailable");
   expect(region({ data: [1], isPending: false })).toContain("Saved project");
 });

@@ -235,7 +235,7 @@ export const WorkspacePage = ({
           />
           <GroupDetails
             codex={codex.data}
-            codexError={codex.isError}
+            codexError={codex.isError && codex.data === undefined}
             controls={controls}
             group={selectedGroup}
             key={`${selected.id}:${selectedGroup.id}`}
@@ -365,7 +365,7 @@ export const WorkspacePage = ({
           >
             <EnvironmentList
               codex={codex.data}
-              codexError={codex.isError}
+              codexError={codex.isError && codex.data === undefined}
               commandActions={actions.commandActions}
               controls={controls}
               onDelete={onDelete}

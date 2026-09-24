@@ -2002,26 +2002,6 @@
 }
 
 /* Async feedback occupies stable regions; background errors never replace data. */
-.product-query-status {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  height: 44px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-.product-refreshing {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-}
-.product-query-status svg {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-}
-
 .product-query-body {
   min-height: 288px;
 }
@@ -2089,10 +2069,6 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 700px) {
-  .product-query-status {
-    height: 64px;
-  }
-
   .product-unavailable {
     padding: 20px;
   }

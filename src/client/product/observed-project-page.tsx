@@ -253,6 +253,12 @@ export const ObservedProjectPage = ({
   const [configure, setConfigure] = useState(false);
   const client = useQueryClient();
   const codex = useCodexIntegration(data.repoPath);
+  let taskDiscoveryStatus: string | undefined;
+  if (codex.isPending) {
+    taskDiscoveryStatus = "Discovering tasks…";
+  } else if (codex.isError && codex.data === undefined) {
+    taskDiscoveryStatus = "Task discovery unavailable";
+  }
   const isOverview = location.view === "workspace" && !location.worktree;
   const visible = data.worktrees
     .filter(
@@ -391,7 +397,7 @@ export const ObservedProjectPage = ({
                 </div>
                 <Disclosure
                   className="product-observed-details"
-                  summary={`${countLabel(worktree.services.length, "service")} · ${codex.isPending ? "Discovering tasks…" : `${countLabel(codex.data?.worktrees[worktree.id]?.tasks.length ?? 0, "task")}`} · Details`}
+                  summary={`${countLabel(worktree.services.length, "service")} · ${taskDiscoveryStatus ?? countLabel(codex.data?.worktrees[worktree.id]?.tasks.length ?? 0, "task")} · Details`}
                 >
                   {worktree.services.map((service) => (
                     <ServiceRow
@@ -400,7 +406,9 @@ export const ObservedProjectPage = ({
                     />
                   ))}
                   <CodexTasksSection
-                    discoveryUnavailable={codex.isError}
+                    discoveryUnavailable={
+                      codex.isError && codex.data === undefined
+                    }
                     loading={codex.isPending}
                     tasks={codex.data?.worktrees[worktree.id]?.tasks ?? []}
                     worktreePath={worktree.path}

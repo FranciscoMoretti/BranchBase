@@ -83,54 +83,6 @@ export const FormFeedback = ({
   </div>
 );
 
-const QueryProgress = ({
-  query,
-  label,
-}: {
-  query: QueryState;
-  label: string;
-}) => {
-  if (query.data !== undefined && query.error) {
-    return (
-      <Alert className="flex items-center gap-2 py-1">
-        <AlertCircleIcon aria-hidden="true" />
-        <AlertDescription className="flex-1">
-          Update unavailable · Showing the last successful update
-        </AlertDescription>
-        <Button
-          disabled={query.isFetching}
-          onClick={() => query.refetch()}
-          size="sm"
-          variant="ghost"
-        >
-          {query.isFetching ? "Reconnecting…" : "Retry"}
-        </Button>
-      </Alert>
-    );
-  }
-  if (query.data === undefined && query.error) {
-    return null;
-  }
-  if (query.isFetching) {
-    return (
-      <span className="product-refreshing">
-        <RefreshCwIcon aria-hidden="true" />
-        {query.data === undefined
-          ? `Loading ${label.toLowerCase()}…`
-          : "Updating…"}
-      </span>
-    );
-  }
-  return query.dataUpdatedAt ? (
-    <span>
-      Updated{" "}
-      {new Date(query.dataUpdatedAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}
-    </span>
-  ) : null;
-};
 const QueryPlaceholder = ({
   query,
   label,
@@ -235,9 +187,6 @@ export const QueryContent = ({
           : "product-query-region"
       }
     >
-      <div aria-live="polite" className="product-query-status">
-        <QueryProgress label={label} query={displayed} />
-      </div>
       <div
         aria-busy={!(hasData || displayed.error)}
         className="product-query-body"

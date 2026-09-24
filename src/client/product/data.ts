@@ -24,7 +24,6 @@ export const useObservation = (repoPath: string) =>
       ),
     queryKey: ["observation", repoPath],
     refetchInterval: 5000,
-    retry: 1,
   });
 export const useDevelopmentFolders = () =>
   useQuery({
@@ -33,7 +32,6 @@ export const useDevelopmentFolders = () =>
         .folders,
     queryKey: ["development-folders"],
     refetchInterval: 30_000,
-    retry: 1,
   });
 export const useProjects = (poll = true) =>
   useQuery({
@@ -41,8 +39,6 @@ export const useProjects = (poll = true) =>
       ProjectsResponseSchema.parse(await getJson("/api/projects")).projects,
     queryKey: ["projects"],
     refetchInterval: poll ? 5000 : false,
-    retry: 1,
-    retryDelay: 750,
   });
 export const useActivity = (repoPath?: string) =>
   useQuery({
@@ -54,8 +50,6 @@ export const useActivity = (repoPath?: string) =>
       ).events,
     queryKey: ["activity", repoPath ?? "all"],
     refetchInterval: 5000,
-    retry: 1,
-    retryDelay: 750,
   });
 export type ProductCommandInput = {
   [Name in BranchBaseCommandName]: {

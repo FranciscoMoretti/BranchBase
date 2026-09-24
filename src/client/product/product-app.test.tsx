@@ -11,6 +11,7 @@ import { ThemeProvider } from "../components/theme-provider";
 
 let dom: Window | null = null;
 let root: Root | null = null;
+let queryClient: QueryClient | null = null;
 let originalGlobals: Record<string, PropertyDescriptor | undefined>;
 
 const mount = async () => {
@@ -50,6 +51,7 @@ const mount = async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  queryClient = client;
   client.setQueryData(["development-folders"], []);
   const container = dom.document.createElement("div");
   dom.document.body.append(container);
@@ -67,9 +69,14 @@ const mount = async () => {
 };
 
 afterEach(async () => {
-  if (root) {
-    await act(() => root?.unmount());
-  }
+  await act(async () => {
+    root?.unmount();
+    await queryClient?.cancelQueries();
+    queryClient?.clear();
+    // Drain queued query notifications before removing the browser globals.
+    await delay(0);
+  });
+  queryClient = null;
   root = null;
   dom = null;
   for (const [name, descriptor] of Object.entries(originalGlobals ?? {})) {
