@@ -1,4 +1,4 @@
-import { ArrowRightIcon, Clock3Icon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "../components/ui/button";
@@ -178,10 +178,10 @@ export const ActivityPage = ({
                   month: "short",
                 })}
               </time>
-              <Clock3Icon />
               <div>
                 <strong>{event.message}</strong>
                 <p className="product-muted">
+                  {repoPath ? "" : `${event.repoPath.split("/").at(-1)} · `}
                   {event.worktreeName ?? event.repoPath}
                   {event.groupId ? ` · ${event.groupId}` : ""}
                 </p>

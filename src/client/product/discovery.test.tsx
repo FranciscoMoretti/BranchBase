@@ -156,3 +156,29 @@ test("task discovery distinguishes initial failure from a cached empty task list
   expect(cached).toContain("0 tasks");
   expect(cached).not.toContain("Task discovery unavailable");
 });
+
+test("unconfigured Logs explain access instead of repeating the worktree list", () => {
+  const html = render(
+    <ObservedProjectPage
+      data={data}
+      location={{ ...location, view: "logs" }}
+      project={project}
+    />
+  );
+  expect(html).toContain("Logs need configured app groups");
+  expect(html).toContain("View worktrees");
+  expect(html).not.toContain('aria-label="Copy path for main"');
+});
+
+test("a selected worktree exposes its details without repository filters", () => {
+  const html = render(
+    <ObservedProjectPage
+      data={data}
+      location={{ ...location, worktree: "main" }}
+      project={project}
+    />
+  );
+  expect(html).toContain('open=""');
+  expect(html).toContain("PID 42");
+  expect(html).not.toContain("Search worktrees");
+});

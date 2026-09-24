@@ -894,7 +894,7 @@
 .port-preview,
 .detection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
   border: 1px solid var(--border);
 }
 
@@ -918,8 +918,8 @@
   padding: 0.75rem;
   margin: 0;
   overflow: auto;
-  color: var(--background);
-  background: var(--foreground);
+  color: var(--foreground);
+  background: var(--muted);
 }
 
 .setup-warning,
@@ -1601,10 +1601,11 @@
   gap: 20px;
 }
 .product-project-row {
+  position: relative;
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr);
-  gap: 16px;
-  padding: 24px;
+  gap: 10px;
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--card);
@@ -1621,10 +1622,9 @@
   grid-column: 1 / -1;
 }
 .product-project-row > .product-actions {
-  grid-column: 1 / -1;
-  justify-content: space-between;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  position: absolute;
+  top: 12px;
+  right: 12px;
 }
 .product-project-icon {
   width: 28px;
@@ -1791,10 +1791,10 @@
 }
 .product-event {
   display: grid;
-  grid-template-columns: 125px 22px minmax(200px, 1fr) 100px 120px;
-  gap: 20px;
+  grid-template-columns: 115px minmax(0, 1fr) 85px 85px;
+  gap: 16px;
   align-items: center;
-  padding: 20px;
+  padding: 14px 16px;
 }
 .product-event + .product-event {
   border-top: 1px solid var(--border);
@@ -1953,25 +1953,21 @@
     padding: 18px;
   }
   .product-event {
-    grid-template-columns: 16px 1fr;
+    grid-template-columns: 1fr;
     gap: 10px;
     padding: 16px;
   }
   .product-event time {
-    grid-column: 2;
-  }
-  .product-event > svg {
-    grid-row: 2;
     grid-column: 1;
   }
   .product-event > div {
-    grid-column: 2;
+    grid-column: 1;
   }
   .product-event > .product-status {
     display: none;
   }
   .product-event > a {
-    grid-column: 2;
+    grid-column: 1;
   }
 }
 
@@ -2003,7 +1999,7 @@
 
 /* Async feedback occupies stable regions; background errors never replace data. */
 .product-query-body {
-  min-height: 288px;
+  min-height: 0;
 }
 .product-query-compact .product-query-body {
   min-height: 360px;
@@ -2092,7 +2088,7 @@
   border-top: 1px solid var(--border);
 }
 .product-observed-worktree {
-  padding: 22px 4px 14px;
+  padding: 14px 4px 8px;
   border-bottom: 1px solid var(--border);
 }
 .product-observed-worktree-heading {
@@ -2141,7 +2137,7 @@
   white-space: nowrap;
 }
 .product-observed-details {
-  margin: 10px 0 0 34px;
+  margin: 4px 0 0 34px;
   font-size: 12px;
 }
 .product-observed-details > summary {
@@ -2321,7 +2317,7 @@
   min-height: 0;
 }
 .product-project-row {
-  gap: 14px;
+  gap: 10px;
 }
 .product-environment-title > .product-branch-button {
   overflow: hidden;
@@ -2509,4 +2505,67 @@
   color: var(--status-partial-foreground);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+/* Keep real repository names, paths and previews inside their layout tracks. */
+.initialize-intro > div {
+  min-width: 0;
+}
+.initialize-intro > svg {
+  flex-shrink: 0;
+}
+.detection-grid > div {
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.detection-grid dd {
+  overflow-wrap: anywhere;
+}
+.product-form-feedback:empty {
+  display: none;
+}
+.product-project-identity {
+  padding-right: 28px;
+  gap: 4px;
+}
+.product-project-summary {
+  gap: 6px;
+}
+.product-project-summary > .product-actions:empty {
+  display: none;
+}
+.product-observed-identity h2 {
+  overflow-wrap: anywhere;
+}
+.product-filterbar {
+  flex-wrap: wrap;
+}
+.product-filterbar > .product-muted {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.product-running-projects .product-detected-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.product-running-projects .product-detected-section > h2,
+.product-running-projects .product-detected-section > p {
+  display: none;
+}
+.product-running-projects > section {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.product-running-projects .product-running-project-link {
+  margin-bottom: 8px;
+}
+.product-runtime-summary > div {
+  padding: 16px 20px;
+}
+.product-settings-panel {
+  gap: 16px;
+  padding: 24px;
 }

@@ -1,5 +1,4 @@
 import {
-  ArrowRightIcon,
   FolderGit2Icon,
   MoreHorizontalIcon,
   PlusIcon,
@@ -236,10 +235,6 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
         )}
       </div>
       <div className="product-actions">
-        <a className="product-link" href={hrefFor({ repo: project.path })}>
-          Open repository
-          <ArrowRightIcon />
-        </a>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

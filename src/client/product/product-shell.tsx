@@ -192,70 +192,70 @@ const Navigation = ({
           <SidebarSearch projects={projects} />
         </SidebarMenu>
       </SidebarHeader>
+      <SidebarGroup className="shrink-0">
+        <SidebarMenu>
+          {scoped ? (
+            <>
+              <NavigationLink
+                active={location.view === "workspace" && !location.worktree}
+                href={hrefFor({ repo: location.repo })}
+                icon={LayoutGridIcon}
+                label="Overview"
+              />
+              <NavigationLink
+                active={location.view === "worktrees"}
+                href={hrefFor({ repo: location.repo, view: "worktrees" })}
+                icon={GitBranchIcon}
+                label="Worktrees"
+              />
+              <NavigationLink
+                active={location.view === "logs"}
+                href={hrefFor({ repo: location.repo, view: "logs" })}
+                icon={LogsIcon}
+                label="Logs"
+              />
+              <NavigationLink
+                active={location.view === "infrastructure"}
+                href={hrefFor({
+                  repo: location.repo,
+                  view: "infrastructure",
+                })}
+                icon={BoxesIcon}
+                label="Infrastructure"
+              />
+              <NavigationLink
+                active={location.view === "activity"}
+                href={hrefFor({ repo: location.repo, view: "activity" })}
+                icon={ListIcon}
+                label="Activity"
+              />
+              <NavigationLink
+                active={location.view === "settings"}
+                href={hrefFor({ repo: location.repo, view: "settings" })}
+                icon={SettingsIcon}
+                label="Settings"
+              />
+            </>
+          ) : (
+            <>
+              <NavigationLink
+                active={location.view === "workspace"}
+                href="/?"
+                icon={LayoutGridIcon}
+                label="Repositories"
+              />
+              <NavigationLink
+                active={location.view === "activity"}
+                href={hrefFor({ view: "activity" })}
+                icon={ListIcon}
+                label="Activity"
+              />
+            </>
+          )}
+        </SidebarMenu>
+      </SidebarGroup>
+      <SidebarSeparator />
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            {scoped ? (
-              <>
-                <NavigationLink
-                  active={location.view === "workspace" && !location.worktree}
-                  href={hrefFor({ repo: location.repo })}
-                  icon={LayoutGridIcon}
-                  label="Overview"
-                />
-                <NavigationLink
-                  active={location.view === "worktrees"}
-                  href={hrefFor({ repo: location.repo, view: "worktrees" })}
-                  icon={GitBranchIcon}
-                  label="Worktrees"
-                />
-                <NavigationLink
-                  active={location.view === "logs"}
-                  href={hrefFor({ repo: location.repo, view: "logs" })}
-                  icon={LogsIcon}
-                  label="Logs"
-                />
-                <NavigationLink
-                  active={location.view === "infrastructure"}
-                  href={hrefFor({
-                    repo: location.repo,
-                    view: "infrastructure",
-                  })}
-                  icon={BoxesIcon}
-                  label="Infrastructure"
-                />
-                <NavigationLink
-                  active={location.view === "activity"}
-                  href={hrefFor({ repo: location.repo, view: "activity" })}
-                  icon={ListIcon}
-                  label="Activity"
-                />
-                <NavigationLink
-                  active={location.view === "settings"}
-                  href={hrefFor({ repo: location.repo, view: "settings" })}
-                  icon={SettingsIcon}
-                  label="Settings"
-                />
-              </>
-            ) : (
-              <>
-                <NavigationLink
-                  active={location.view === "workspace"}
-                  href="/?"
-                  icon={LayoutGridIcon}
-                  label="Repositories"
-                />
-                <NavigationLink
-                  active={location.view === "activity"}
-                  href={hrefFor({ view: "activity" })}
-                  icon={ListIcon}
-                  label="Activity"
-                />
-              </>
-            )}
-          </SidebarMenu>
-        </SidebarGroup>
-        <SidebarSeparator />
         <SidebarGroup>
           <SidebarGroupLabel>
             {scoped ? "Worktrees" : "Repositories"}
