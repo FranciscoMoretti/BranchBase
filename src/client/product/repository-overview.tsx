@@ -107,7 +107,11 @@ export const RecentActivity = ({ repoPath }: { repoPath: string }) => {
         href={hrefFor({ repo: repoPath, view: "activity" })}
         linkLabel="View all activity"
       />
-      <QueryContent label="Recent activity" query={activity}>
+      <QueryContent
+        label="Recent activity"
+        query={activity}
+        resetKey={repoPath}
+      >
         <div className="divide-y rounded-lg border">
           {events.map((event) => (
             <a

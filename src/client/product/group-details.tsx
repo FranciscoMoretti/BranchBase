@@ -319,7 +319,12 @@ export const GroupDetails = ({
               Clear logs
             </Button>
           </div>
-          <QueryContent compact label="Logs" query={logs}>
+          <QueryContent
+            compact
+            label="Logs"
+            query={logs}
+            resetKey={JSON.stringify([repoPath, worktree.id, group.id])}
+          >
             <ScrollArea
               className="product-logs"
               scrollbars={["vertical", "horizontal"]}

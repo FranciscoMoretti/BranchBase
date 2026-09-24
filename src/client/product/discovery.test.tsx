@@ -60,15 +60,29 @@ const location: ProductLocation = {
   view: "workspace",
   worktree: "",
 };
-const render = (child: ReactNode, projects: ProjectOverview[] = [project]) => {
+const render = (
+  child: ReactNode,
+  projects: ProjectOverview[] = [project],
+  failure?: "initial" | "refresh"
+) => {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: { queries: { retry: false, retryOnMount: false } },
   });
   client.setQueryData(["projects"], projects);
   client.setQueryData(["codex-integration", data.repoPath], {
     updatedAt: data.updatedAt,
     worktrees: { main: { tasks: [] } },
   });
+  if (failure) {
+    const query = client
+      .getQueryCache()
+      .find({ queryKey: ["codex-integration", data.repoPath] });
+    query?.setState({
+      ...(failure === "initial" ? { data: undefined } : {}),
+      error: new Error("Discovery failed"),
+      status: "error",
+    });
+  }
   const html = renderToStaticMarkup(
     <QueryClientProvider client={client}>{child}</QueryClientProvider>
   );
@@ -129,4 +143,16 @@ test("unconfigured Infrastructure and Settings offer explicit configuration with
     expect(html).toContain("Configure app groups");
     expect(html).not.toContain('role="alert"');
   }
+});
+
+test("task discovery distinguishes initial failure from a cached empty task list", () => {
+  const page = (
+    <ObservedProjectPage data={data} location={location} project={project} />
+  );
+  const failed = render(page, [project], "initial");
+  expect(failed).toContain("Task discovery unavailable");
+  expect(failed).not.toContain("0 tasks");
+  const cached = render(page, [project], "refresh");
+  expect(cached).toContain("0 tasks");
+  expect(cached).not.toContain("Task discovery unavailable");
 });

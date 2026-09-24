@@ -16,8 +16,6 @@ export const useProjectStatus = (repoPath: string) =>
     queryFn: () => fetchProjectStatus(repoPath),
     queryKey: ["project-status", repoPath],
     refetchInterval: REFRESH_INTERVAL,
-    retry: false,
-    staleTime: REFRESH_INTERVAL,
   });
 
 export const useWorkspace = (repoPath: string, enabled = true) =>
@@ -26,8 +24,6 @@ export const useWorkspace = (repoPath: string, enabled = true) =>
     queryFn: () => fetchWorkspace(repoPath),
     queryKey: ["workspace", repoPath],
     refetchInterval: REFRESH_INTERVAL,
-    retry: false,
-    staleTime: REFRESH_INTERVAL,
   });
 
 export const useCodexIntegration = (repoPath: string) =>
@@ -36,10 +32,6 @@ export const useCodexIntegration = (repoPath: string) =>
     queryFn: () => fetchCodexIntegration(repoPath),
     queryKey: ["codex-integration", repoPath],
     refetchInterval: CODEX_REFRESH_INTERVAL,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 500,
-    staleTime: CODEX_REFRESH_INTERVAL,
   });
 
 export const useLogs = (
@@ -57,7 +49,4 @@ export const useLogs = (
     },
     queryKey: ["logs", repoPath, worktreeId, appGroupName],
     refetchInterval: 2500,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 500,
   });

@@ -162,7 +162,11 @@ export const ActivityPage = ({
         )}
         <span className="product-muted">Latest 2,000 events retained</span>
       </div>
-      <QueryContent label="Activity" query={activity}>
+      <QueryContent
+        label="Activity"
+        query={activity}
+        resetKey={repoPath ?? "all"}
+      >
         <div className="product-event-list">
           {events.slice(0, limit).map((event) => (
             <article className="product-event" key={event.id}>

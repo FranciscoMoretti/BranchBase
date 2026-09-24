@@ -45,8 +45,8 @@ const IntegrationSettings = ({ repoPath }: { repoPath: string }) => {
     <section className="product-settings-panel">
       <h2>Codex</h2>
       <Status
-        label={connectionLabel(codex.isError, codex.isLoading)}
-        value={codex.isError || codex.isLoading ? "partial" : "running"}
+        label={connectionLabel(codex.isError, codex.isPending)}
+        value={codex.isError || codex.isPending ? "partial" : "running"}
       />
       <p className="product-muted">
         Task discovery matches conversations to their exact worktree paths. Live

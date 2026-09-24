@@ -25,13 +25,13 @@ export const RepositoryInitializeDialog = ({
   const preview = useQuery({
     queryFn: () => previewRepositoryConfig(repoPath),
     queryKey: ["repository-initialization", repoPath],
-    retry: false,
   });
   const create = useMutation({
     mutationFn: () => initializeRepository(repoPath),
     onSuccess: onCreated,
   });
-  const error = preview.error ?? create.error;
+  const error =
+    create.error ?? (preview.data === undefined ? preview.error : null);
   return (
     <Dialog
       onOpenChange={(nextOpen) => {
@@ -91,7 +91,16 @@ export const RepositoryInitializeDialog = ({
               </code>
             </>
           ) : null}
-          {preview.isLoading ? <p>Inspecting repository…</p> : null}
+          {preview.isPending ? <p>Inspecting repository…</p> : null}
+          {preview.data === undefined && preview.error ? (
+            <Button
+              disabled={preview.isFetching}
+              onClick={() => preview.refetch()}
+              variant="outline"
+            >
+              {preview.isFetching ? "Retrying…" : "Retry preview"}
+            </Button>
+          ) : null}
           <FormFeedback error={error} title="Could not initialize project" />
         </div>
         <DialogFooter>

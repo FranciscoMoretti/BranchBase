@@ -152,7 +152,7 @@ test("a failed refresh retains selectable cached results and labels them stale",
     isFetching: false,
     isPending: false,
   });
-  expect(text()).toContain("Showing the last successful update");
+  expect(text()).not.toContain("Showing the last successful update");
   expect(text()).toContain("1 result");
   expect(text()).toContain("Last known catalog");
   const result = dom.document.querySelector('[role="option"]');

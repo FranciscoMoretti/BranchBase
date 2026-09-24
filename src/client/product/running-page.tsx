@@ -39,7 +39,7 @@ const RunningWorktrees = ({
         commandActions={actions.commandActions}
         onDelete={onDelete}
         codex={codex.data}
-        codexError={codex.isError}
+        codexError={codex.isError && codex.data === undefined}
       />
     </>
   );
