@@ -1,10 +1,7 @@
 import type { DiskUsage } from "../../project/disk-usage-contract";
 import { formatBytes } from "./resource-format";
 
-const diskLabel = (
-  usage: DiskUsage | undefined,
-  aggregate: boolean
-): string => {
+const diskLabel = (usage: DiskUsage | undefined): string => {
   if (!usage) {
     return "Disk unavailable";
   }
@@ -13,10 +10,10 @@ const diskLabel = (
   }
   const size = formatBytes(usage.bytes);
   if (usage.state === "pending") {
-    return `Disk ${aggregate ? "≥ " : ""}${size} · updating`;
+    return `Disk ${size} · updating`;
   }
   if (usage.state === "unavailable") {
-    return `Disk ${aggregate ? "≥ " : ""}${size} · incomplete`;
+    return `Disk ${size} · incomplete`;
   }
   return `Disk ${size}`;
 };
@@ -43,6 +40,6 @@ export const DiskUsageMetric = ({
       .filter(Boolean)
       .join(" ")}
   >
-    {diskLabel(usage, aggregate)}
+    {diskLabel(usage)}
   </span>
 );

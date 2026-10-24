@@ -9,7 +9,27 @@ import {
   parseCwds,
   parseListeners,
 } from "./detected-services";
+import type { HostObservation } from "./host-observation";
 import { delay, pollUntil } from "./polling";
+
+test("fresh inspections bypass a cached empty listener list", () => {
+  const observation: HostObservation = {
+    available: true,
+    cwds: new Map(),
+    listeners: [],
+    samples: [],
+    startedAt: new Map(),
+    warning: null,
+  };
+  const detector = new DetectedServices(() => observation);
+  expect(detector.inspect([]).services).toHaveLength(0);
+  observation.listeners = [
+    { address: "127.0.0.1:3000", command: "bun", pid: process.pid, port: 3000 },
+  ];
+  observation.cwds.set(process.pid, process.cwd());
+  expect(detector.inspect([]).services).toHaveLength(0);
+  expect(detector.inspect([], { fresh: true }).services).toHaveLength(1);
+});
 
 test("listener parsing deduplicates IPv4/IPv6 and rejects invalid identities and ports", () => {
   expect(

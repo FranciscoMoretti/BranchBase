@@ -56,6 +56,12 @@ const evictProbes = (
 };
 /** Observation only. These PIDs are never authority to terminate a process. */
 export class DetectedServices {
+  private readonly observe: typeof collectHostObservation;
+
+  constructor(observe = collectHostObservation) {
+    this.observe = observe;
+  }
+
   private cached: {
     at: number;
     samples?: ProcessSample[] | null;
@@ -68,14 +74,21 @@ export class DetectedServices {
   >();
   private activeProbes = 0;
   private managedKey = "";
-  inspect(managedPids: number[]): {
+  inspect(
+    managedPids: number[],
+    options: { fresh?: boolean } = {}
+  ): {
     at: number;
     services: DetectedService[];
     warning: string | null;
     samples?: ProcessSample[] | null;
   } {
     const managedKey = managedPids.toSorted((a, b) => a - b).join(",");
-    if (managedKey === this.managedKey && Date.now() - this.cached.at < 4000) {
+    if (
+      !options.fresh &&
+      managedKey === this.managedKey &&
+      Date.now() - this.cached.at < 4000
+    ) {
       const samples = inspectProcessSamples();
       if (samples !== this.cached.samples) {
         this.cached = {
@@ -98,7 +111,7 @@ export class DetectedServices {
           "Detected services are currently supported on macOS and Linux.",
       };
     }
-    const observation = collectHostObservation();
+    const observation = this.observe();
     if (observation.warning && observation.listeners.length === 0) {
       return { at: Date.now(), services: [], warning: observation.warning };
     }

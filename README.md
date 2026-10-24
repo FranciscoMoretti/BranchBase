@@ -119,11 +119,11 @@ Development-folder scans run every 30 seconds while the dashboard is active; **D
 
 Repository cards and repository headers show **Disk** as the sum of their worktree folder sizes. Each worktree row shows its own **Disk** usage alongside its existing status and actions. **RAM** and **CPU** remain separate, explicitly labeled process metrics. Measurements appear automatically, including for repositories without `.branchbase.json`.
 
-Disk scans run in the background, with at most two folders measured at once and a 30-second limit per folder. Cached values refresh every five minutes while viewed. Initial and partial measurements are labeled rather than presented as complete totals.
+Disk scans run in the background, with at most two folders measured at once and a 30-second limit per folder. At most 64 scans wait in the queue; queued scans expire after 30 seconds without a status read, and the cache retains at most 512 folders. Cached values refresh every five minutes while viewed. Initial and partial measurements are labeled rather than presented as complete totals.
 
 Sizes include dependencies, build output, and ignored files inside each folder. Symlinks and mounted filesystems are not traversed. External caches and container volumes outside the folders are excluded. The primary folder includes shared Git data. Project totals sum folder estimates; shared files or nested worktrees may be counted more than once, and filesystem storage sharing means measured size is not guaranteed space reclaimed.
 
-Use a linked worktree's actions menu to **Delete worktree** when appropriate. The confirmation includes its path and measured size. BranchBase checks running resources, protects the primary worktree, and never forces Git removal. Dirty or locked worktrees are refused. Deletion removes ignored local files too, but keeps the Git branch.
+Use a linked worktree's actions menu to **Delete worktree** when appropriate. The confirmation includes its path and measured size. BranchBase takes a fresh service observation before removal, protects the primary worktree, and never forces Git removal. A shared service owned by another worktree does not block deletion of an idle consumer. External processes can still start after the observation; BranchBase cannot lock launches from unrelated terminals. Dirty or locked worktrees are refused. Deletion removes ignored local files too, but keeps the Git branch.
 
 ## Repository configuration
 

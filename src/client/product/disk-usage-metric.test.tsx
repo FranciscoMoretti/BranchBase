@@ -20,7 +20,7 @@ test("inline disk, RAM, and CPU metrics label their resource and incomplete tota
     renderToStaticMarkup(
       <DiskUsageMetric usage={{ ...disk, state: "pending" }} aggregate />
     )
-  ).toContain("Disk ≥ 1.0 GiB · updating");
+  ).toContain("Disk 1.0 GiB · updating");
   expect(
     renderToStaticMarkup(
       <DiskUsageMetric usage={{ ...disk, bytes: null, state: "unavailable" }} />

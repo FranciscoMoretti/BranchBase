@@ -1,8 +1,8 @@
-import { measureDirectoryDiskUsage } from "../adapters/host/disk-usage";
 import type { DiskUsage } from "./disk-usage-contract";
 
 interface Entry {
   at: number;
+  requestedAt: number;
   controller: AbortController;
   result: DiskUsage;
 }
@@ -14,14 +14,20 @@ export class WorktreeDiskUsageCache {
   private active = 0;
   private closed = false;
 
-  private readonly measure: typeof measureDirectoryDiskUsage;
+  private readonly measure: (
+    path: string,
+    signal: AbortSignal
+  ) => Promise<number>;
 
-  constructor(measure = measureDirectoryDiskUsage) {
+  constructor(measure: (path: string, signal: AbortSignal) => Promise<number>) {
     this.measure = measure;
   }
 
   read(path: string, refresh = false): DiskUsage {
     const previous = this.entries.get(path);
+    if (previous) {
+      previous.requestedAt = Date.now();
+    }
     if (
       previous &&
       (previous.result.state === "pending" ||
@@ -37,9 +43,27 @@ export class WorktreeDiskUsageCache {
         state: "unavailable",
       };
     }
+    // Refuse excess work until the next read instead of growing an unbounded queue.
+    if (this.queue.size >= 64) {
+      return {
+        bytes: previous?.result.bytes ?? null,
+        error: null,
+        measuredAt: previous?.result.measuredAt ?? null,
+        state: "pending",
+      };
+    }
+    if (this.entries.size >= 512) {
+      for (const [key, entry] of this.entries) {
+        if (entry.result.state !== "pending") {
+          this.entries.delete(key);
+          break;
+        }
+      }
+    }
     const entry: Entry = {
       at: Date.now(),
       controller: new AbortController(),
+      requestedAt: Date.now(),
       result: {
         bytes: previous?.result.bytes ?? null,
         error: null,
@@ -76,6 +100,10 @@ export class WorktreeDiskUsageCache {
       }
       const [path, entry] = next;
       this.queue.delete(path);
+      if (Date.now() - entry.requestedAt > 30_000) {
+        this.entries.delete(path);
+        continue;
+      }
       this.active += 1;
       void this.scan(path, entry);
     }
@@ -94,7 +122,7 @@ export class WorktreeDiskUsageCache {
       entry.result = {
         bytes: null,
         error:
-          "Could not measure this folder within 30 seconds. Check access and rescan.",
+          "Could not measure this folder. Check access; measurement retries automatically.",
         measuredAt: null,
         state: "unavailable",
       };
