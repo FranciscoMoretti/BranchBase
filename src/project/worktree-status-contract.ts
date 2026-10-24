@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { BranchBaseConfigSchema } from "../configuration/branchbase-schema";
 import { WorktreeConfigSourceSchema } from "../configuration/worktree-config-source";
+import { DiskUsageSchema } from "./disk-usage-contract";
 
 export type { WorktreeConfigSource } from "../configuration/worktree-config-source";
 
@@ -81,6 +82,7 @@ export const WorktreeSnapshotSchema = z.strictObject({
     trustFingerprint: z.string().min(1),
     trusted: z.boolean(),
   }),
+  disk: DiskUsageSchema.optional(),
   health: AppHealthSchema,
   id: z.string(),
   isMain: z.boolean(),
@@ -92,6 +94,7 @@ export const WorktreeSnapshotSchema = z.strictObject({
 });
 
 export const WorkspaceSnapshotSchema = z.strictObject({
+  disk: DiskUsageSchema.optional(),
   globalProcesses: z.array(
     z.strictObject({
       argv: z.array(z.string()),

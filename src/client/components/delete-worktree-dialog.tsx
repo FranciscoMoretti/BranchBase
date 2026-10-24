@@ -5,8 +5,9 @@ import type {
   BranchBaseCommandInput,
   BranchBaseCommandResult,
 } from "../../application/command-contract";
-import type { WorktreeSnapshot } from "../../project/worktree-status-contract";
+import type { DiskUsage } from "../../project/disk-usage-contract";
 import { FormFeedback } from "../product/async-state";
+import { formatBytes } from "../product/resource-format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,7 @@ export const DeleteWorktreeDialog = ({
   onClose,
   repoPath,
   worktree,
+  disk,
 }: {
   mutation: UseMutationResult<
     BranchBaseCommandResult<"delete-worktree">,
@@ -31,7 +33,8 @@ export const DeleteWorktreeDialog = ({
   >;
   onClose: () => void;
   repoPath: string;
-  worktree: WorktreeSnapshot;
+  worktree: { id: string; path: string; primaryAppGroup?: string };
+  disk?: DiskUsage;
 }) => {
   const [message, setMessage] = useState<string | null>(null);
   const confirm = async () => {
@@ -66,9 +69,17 @@ export const DeleteWorktreeDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <code className="path-callout">{worktree.path}</code>
+        {disk?.bytes !== null && disk?.bytes !== undefined ? (
+          <p className="text-sm">
+            Disk: {formatBytes(disk.bytes)} measured. Space freed may be lower
+            because files can share storage.
+          </p>
+        ) : null}
         <p className="hint text-xs/relaxed">
           Git will refuse if the worktree has uncommitted changes. BranchBase
-          never forces removal.
+          never forces removal. Ignored files, including dependencies, build
+          output, and any ignored local data, will also be deleted. The Git
+          branch is kept.
         </p>
         <FormFeedback
           error={message ? new Error(message) : null}

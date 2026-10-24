@@ -100,6 +100,7 @@ export const useWorktreeControls = ({
             onClose={() => setDeleting(null)}
             repoPath={data.repoPath}
             worktree={deleting}
+            disk={deleting.disk}
           />
         ) : null}
         {trust.open ? (

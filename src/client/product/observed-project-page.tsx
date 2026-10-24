@@ -27,6 +27,8 @@ import { ActivityPage } from "./activity-page";
 import { FormFeedback } from "./async-state";
 import { hrefFor, useProductCommand } from "./data";
 import type { ProductLocation } from "./data";
+import { DiskUsageMetric } from "./disk-usage-metric";
+import { ObservedWorktreeActions } from "./observed-worktree-actions";
 import {
   Blank,
   CopyButton,
@@ -276,6 +278,10 @@ const ObservedHeading = ({
       }
       title={observationTitle(data, location, project)}
     >
+      <DiskUsageMetric
+        usage={selectedWorktree ? selectedWorktree.disk : data.disk}
+        aggregate={!selectedWorktree}
+      />
       {selectedWorktree ? null : <ResourceUsage usage={data.resources} />}
       <div className="flex flex-col gap-2">
         <Button onClick={configure} variant="outline">
@@ -459,6 +465,11 @@ export const ObservedProjectPage = ({
                       />
                     </div>
                   </div>
+                  <DiskUsageMetric usage={worktree.disk} />
+                  <ObservedWorktreeActions
+                    repoPath={data.repoPath}
+                    worktree={worktree}
+                  />
                   <div className="product-observed-links">
                     {worktree.services.slice(0, 2).map((service) => (
                       <ServiceLink

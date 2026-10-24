@@ -30,6 +30,7 @@ import {
 import { Spinner } from "../components/ui/spinner";
 import { WorktreeActionsMenu } from "../components/worktree-actions-menu";
 import type { WorktreeCommandActions } from "../worktree-command-menu";
+import { DiskUsageMetric } from "./disk-usage-metric";
 import type { ProductPanel } from "./location";
 import { AppLink, Blank, Status } from "./primitives";
 import {
@@ -331,6 +332,7 @@ const EnvironmentRow = ({
             {tasks?.[0]?.title ?? worktree.name}
           </span>
         </div>
+        <DiskUsageMetric usage={worktree.disk} />
         <Status value={summary.value} label={summary.label} />
         <span className="product-readiness-count">
           {summary.ready}/{summary.total} ready

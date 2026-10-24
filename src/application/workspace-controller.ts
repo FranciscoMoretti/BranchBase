@@ -7,6 +7,7 @@ import {
   readOnlyWorktreePath,
   projectAliasPaths,
 } from "../adapters/git/project-worktrees";
+import { measureDirectoryDiskUsage } from "../adapters/host/disk-usage";
 import { pathInside } from "../adapters/host/ports";
 import {
   ProcessSupervisor,
@@ -52,8 +53,10 @@ import type { AppPin, ProjectOverview } from "../project/catalog-contract";
 import { readConfiguredStatus } from "../project/configured-status";
 import { ProjectDiscovery } from "../project/discovery";
 import type { Observation } from "../project/discovery-contract";
+import { aggregateDiskUsage } from "../project/disk-usage";
 import { readProjectStatus } from "../project/status";
 import type { ProjectStatus } from "../project/status-contract";
+import { WorktreeDiskUsageCache } from "../project/worktree-disk-usage";
 import { worktreeHasRunningAppGroups } from "../project/worktree-status-contract";
 import type { WorkspaceSnapshot } from "../project/worktree-status-contract";
 import { parseCommandInput, parseCommandResult } from "./command-contract";
@@ -193,6 +196,9 @@ export interface CodexHookResult {
 }
 
 export class WorkspaceController {
+  private readonly diskUsage = new WorktreeDiskUsageCache(
+    measureDirectoryDiskUsage
+  );
   private readonly product: ProductStore;
   private readonly appGroups: AppGroupRuntime;
   private readonly codexAdapter: CodexIntegrationAdapter;
@@ -238,7 +244,60 @@ export class WorkspaceController {
   }
 
   close(): Promise<void> {
+    this.diskUsage.close();
     return this.codexAdapter.close();
+  }
+
+  forgetWorktreeDiskUsage(path: string): void {
+    this.diskUsage.forget(path);
+  }
+
+  worktreeRemovalTarget(repoPath: string, id: string) {
+    const status = this.projectStatus(repoPath, { freshObservation: true });
+    const worktree = status.worktrees.find((item) => item.id === id);
+    if (!worktree) {
+      throw new Error("Unknown worktree");
+    }
+    if (worktree.isMain) {
+      throw new Error("The main worktree cannot be deleted");
+    }
+    if (status.issues.some((issue) => issue.area !== "configuration")) {
+      throw new Error(
+        "Could not verify running resources. Refresh the repository before deleting this worktree."
+      );
+    }
+    const configured = status.workspace?.worktrees.find(
+      (item) => item.id === id
+    );
+    const observed = status.observation?.worktrees.find(
+      (item) => item.id === id
+    );
+    const recorded = this.state.runningInstancesForWorktree(
+      status.repoPath,
+      worktree.path
+    );
+    const managed = this.processes
+      .listManagedProcesses()
+      .some((item) => pathInside(item.cwd, worktree.path));
+    if (
+      this.appGroups.hasPendingLifecycle(worktree.path) ||
+      managed ||
+      recorded.length ||
+      observed?.services.length ||
+      configured?.setupState === "running" ||
+      configured?.appGroups.some(
+        (group) =>
+          (!group.run || group.run.worktreePath === worktree.path) &&
+          (group.pending ||
+            group.processRunning ||
+            group.health !== "not-running")
+      )
+    ) {
+      throw new Error(
+        "Stop this worktree's app groups and detected services before deleting it."
+      );
+    }
+    return { mainWorktreePath: status.repoPath, worktree };
   }
 
   async inspectCodex(
@@ -402,15 +461,49 @@ export class WorkspaceController {
       state: this.state,
     });
     this.product.observe(snapshot);
+    snapshot.disk = this.populateWorktreeDiskUsage(snapshot.worktrees);
     return snapshot;
   }
-  projectStatus(repoPath: string): ProjectStatus {
-    return readProjectStatus(repoPath, {
+  private populateWorktreeDiskUsage(worktrees: ProjectStatus["worktrees"]) {
+    for (const worktree of worktrees) {
+      worktree.disk = this.diskUsage.read(worktree.path);
+    }
+    return aggregateDiskUsage(
+      worktrees.flatMap((worktree) => (worktree.disk ? [worktree.disk] : []))
+    );
+  }
+
+  projectStatus(
+    repoPath: string,
+    options: { freshObservation?: boolean } = {}
+  ): ProjectStatus {
+    const status = readProjectStatus(repoPath, {
       appGroups: this.appGroups,
-      observe: (path) => this.discovery.observe(path),
+      observe: (path) =>
+        this.discovery.observe(path, { fresh: options.freshObservation }),
       processes: this.processes,
       state: this.state,
     });
+    status.disk = this.populateWorktreeDiskUsage(status.worktrees);
+    const disks = new Map(
+      status.worktrees.map((worktree) => [worktree.id, worktree.disk])
+    );
+    for (const worktrees of [
+      status.worktrees,
+      status.workspace?.worktrees ?? [],
+      status.observation?.worktrees ?? [],
+    ]) {
+      for (const worktree of worktrees) {
+        worktree.disk = disks.get(worktree.id);
+      }
+    }
+    if (status.workspace) {
+      status.workspace.disk = status.disk;
+    }
+    if (status.observation) {
+      status.observation.disk = status.disk;
+    }
+    return status;
   }
 
   refreshProjectStatus(repoPath: string): ProjectStatus {
@@ -485,6 +578,7 @@ export class WorkspaceController {
         ({ observation } = status);
         return {
           ...project,
+          disk: status.disk,
           error: status.issues.map((issue) => issue.message).join("; ") || null,
           observation,
           workspace: status.workspace,

@@ -22,6 +22,7 @@ import {
   InputGroupInput,
 } from "../components/ui/input-group";
 import { ActionFeedback } from "./async-state";
+import { formatBytes } from "./resource-format";
 
 export const ErrorNotice = ({
   error,
@@ -192,16 +193,13 @@ export const ResourceUsage = ({
   if (!usage || usage.processCount === 0) {
     return null;
   }
-  const memory =
-    usage.memoryBytes >= 1024 ** 3
-      ? `${(usage.memoryBytes / 1024 ** 3).toFixed(1)} GB`
-      : `${Math.round(usage.memoryBytes / 1024 ** 2)} MB`;
+  const memory = formatBytes(usage.memoryBytes);
   return (
     <span
       className="product-muted product-resource-usage"
       title="Observed CPU and resident memory of associated processes and their descendants. CPU can exceed 100% across cores."
     >
-      {memory} · {usage.cpuPercent.toFixed(1)}% CPU
+      RAM {memory} · CPU {usage.cpuPercent.toFixed(1)}%
     </span>
   );
 };

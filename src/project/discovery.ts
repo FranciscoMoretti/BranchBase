@@ -156,13 +156,13 @@ export class ProjectDiscovery {
     this.cwdRoots.set(cwd, { at: Date.now(), root });
     return root;
   }
-  observe(path: string): Observation {
+  observe(path: string, options: { fresh?: boolean } = {}): Observation {
     const worktrees = this.worktrees(path);
     const repoPath = worktrees[0]?.path;
     if (!repoPath) {
       throw new Error("No Git worktrees found.");
     }
-    const inspected = this.services.inspect(this.managedPids());
+    const inspected = this.services.inspect(this.managedPids(), options);
     const result: Observation = {
       configured: findBranchBaseConfig(repoPath) !== null,
       repoPath,

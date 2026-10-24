@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ObservationSchema } from "./discovery-contract";
+import { DiskUsageSchema } from "./disk-usage-contract";
 import { WorkspaceSnapshotSchema } from "./worktree-status-contract";
 
 export const AppPinSchema = z.strictObject({
@@ -27,6 +28,7 @@ export const ActivityEventSchema = z.strictObject({
   worktreeName: z.string().optional(),
 });
 export const ProjectOverviewSchema = ProjectRecordSchema.extend({
+  disk: DiskUsageSchema.optional(),
   error: z.string().nullable(),
   observation: ObservationSchema.nullable().optional(),
   workspace: WorkspaceSnapshotSchema.nullable(),

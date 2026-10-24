@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { DiskUsageSchema } from "./disk-usage-contract";
 import { ProcessUsageSchema } from "./worktree-status-contract";
 
 export const DetectedServiceSchema = z.object({
@@ -15,6 +16,7 @@ export const DetectedServiceSchema = z.object({
 });
 export const ObservationSchema = z.object({
   configured: z.boolean(),
+  disk: DiskUsageSchema.optional(),
   repoPath: z.string(),
   resources: ProcessUsageSchema.nullable().optional(),
   updatedAt: z.string(),
@@ -22,6 +24,7 @@ export const ObservationSchema = z.object({
   worktrees: z.array(
     z.object({
       branch: z.string(),
+      disk: DiskUsageSchema.optional(),
       id: z.string(),
       isMain: z.boolean(),
       path: z.string(),

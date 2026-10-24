@@ -49,7 +49,10 @@ const INPUT_SCHEMAS = {
     createBranch: z.boolean(),
     folderName: z.string().min(1),
   }),
-  "delete-worktree": StartStopSchema,
+  "delete-worktree": RepositoryPathSchema.extend({
+    appGroupName: z.string().min(1).optional(),
+    worktreeId: z.string().min(1),
+  }),
   "initialize-repository": RepositoryPathSchema,
   "pick-repository": z.object({}),
   "preview-repository-config": RepositoryPathSchema,
