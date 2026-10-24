@@ -108,6 +108,7 @@ const statusObservation = (
           })),
         }),
         configured: Boolean(status.workspace),
+        disk: status.disk,
         warning: status.issues.map((issue) => issue.message).join("; ") || null,
       }
     : undefined;

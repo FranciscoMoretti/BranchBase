@@ -17,6 +17,7 @@ import { useCodexIntegration } from "../queries";
 import { ActivityPage } from "./activity-page";
 import { hrefFor } from "./data";
 import type { ProductLocation, ProductRoute } from "./data";
+import { DiskUsageMetric } from "./disk-usage-metric";
 import { EnvironmentList } from "./environment-list";
 import type { GroupControls } from "./environment-list";
 import { GroupDetails } from "./group-details";
@@ -70,6 +71,7 @@ const WorkspaceHeading = ({
           view === "worktrees" ? "Worktrees" : (project?.name ?? data.repoName)
         }
       >
+        <DiskUsageMetric usage={data.disk} aggregate />
         <ResourceUsage usage={data.resources} />
         <Button
           aria-label="Refresh workspace"
@@ -122,6 +124,7 @@ const WorktreeHeading = ({
       />
     </div>
     <p className="product-muted product-detail-path">{worktree.path}</p>
+    <DiskUsageMetric usage={worktree.disk} />
     <nav aria-label="App groups" className="product-group-navigation">
       {worktree.appGroups.map((group) => (
         <Button

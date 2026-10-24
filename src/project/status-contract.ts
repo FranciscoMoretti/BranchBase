@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ObservationSchema } from "./discovery-contract";
+import { DiskUsageSchema } from "./disk-usage-contract";
 import {
   AppGroupSnapshotSchema,
   WorkspaceSnapshotSchema,
@@ -14,6 +15,7 @@ export const ProjectConfigurationStateSchema = z.enum([
 
 export const ProjectStatusWorktreeSchema = z.strictObject({
   branch: z.string(),
+  disk: DiskUsageSchema.optional(),
   id: z.string(),
   isMain: z.boolean(),
   path: z.string(),
@@ -37,6 +39,7 @@ export const ProjectStatusSchema = z.strictObject({
     error: z.string().nullable(),
     state: ProjectConfigurationStateSchema,
   }),
+  disk: DiskUsageSchema.optional(),
   issues: z.array(
     z.strictObject({
       area: z.enum(["configuration", "runtime", "observation"]),

@@ -33,6 +33,7 @@ import { useCommand } from "../mutations";
 import { FormFeedback, QueryContent } from "./async-state";
 import { hrefFor, useProjects } from "./data";
 import { DiscoveryDialog } from "./discovery-dialog";
+import { DiskUsageMetric } from "./disk-usage-metric";
 import { ServiceLink, ServiceOverflow } from "./observed-project-page";
 import {
   AppLink,
@@ -153,7 +154,10 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
         </span>
       </div>
       <div className="product-project-summary">
-        <ResourceUsage usage={projectResources(project)} />
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <DiskUsageMetric usage={project.disk} aggregate />
+          <ResourceUsage usage={projectResources(project)} />
+        </div>
         <span>{projectSummary(project, active, detected.length)}</span>
         <span
           className="product-muted"
