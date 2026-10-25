@@ -96,7 +96,7 @@ const QueryPlaceholder = ({
         <AlertCircleIcon aria-hidden="true" />
         <AlertTitle>
           {isConnectionError(query.error)
-            ? "Can't connect to BranchBase"
+            ? "Can't connect to Brum"
             : `Couldn't load ${label.toLowerCase()}`}
         </AlertTitle>
         <AlertDescription>{errorDescription(query.error)}</AlertDescription>

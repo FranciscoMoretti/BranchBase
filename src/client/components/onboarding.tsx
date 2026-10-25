@@ -73,8 +73,8 @@ export const Onboarding = ({
     <main className="onboarding-shell brand-canvas min-h-screen">
       <header className="onboarding-header">
         <span className="flex items-center gap-3">
-          <span className="brand-lockup-mark grid size-10 place-items-center">
-            <BrandMark className="size-6" />
+          <span className="grid size-10 place-items-center">
+            <BrandMark className="size-10" />
           </span>
           <BrandWordmark />
         </span>
@@ -83,16 +83,16 @@ export const Onboarding = ({
       <div className="onboarding-layout">
         <section className="onboarding-story">
           <div className="onboarding-eyebrow">
-            Local development control plane
+            Your local development companion
           </div>
           <h1>
-            Your branches,
+            Keep your local
             <br />
-            ready to run.
+            world running.
           </h1>
           <p>
-            Start Apps, open Friendly URLs, inspect logs, and resume Codex tasks
-            from one calm workspace.
+            Worktrees, apps, ports, logs, and Codex tasks. One little engine to
+            keep them together.
           </p>
           <div aria-hidden="true" className="branch-topology">
             <div className="topology-row" data-state="ready">
@@ -124,7 +124,7 @@ export const Onboarding = ({
             </EmptyMedia>
             <CardTitle>Open a repository</CardTitle>
             <CardDescription>
-              BranchBase discovers existing worktrees from{" "}
+              Brum discovers existing worktrees from{" "}
               <code>.branchbase.json</code>, or helps you review a safe starter
               configuration.
             </CardDescription>

@@ -8,12 +8,14 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { AppEndpointSnapshot } from "../../project/worktree-status-contract";
+import { BrandMark } from "../components/brand-mark";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from "../components/ui/empty";
 import {
@@ -35,13 +37,20 @@ export const Blank = ({
   title,
   description,
   children,
+  mascot,
 }: {
   title: string;
   description: string;
   children?: ReactNode;
+  mascot?: "ready" | "running" | "resting";
 }) => (
   <Empty>
     <EmptyHeader>
+      {mascot ? (
+        <EmptyMedia>
+          <BrandMark className="size-28" pose={mascot} title="" />
+        </EmptyMedia>
+      ) : null}
       <EmptyTitle>{title}</EmptyTitle>
       <EmptyDescription>{description}</EmptyDescription>
     </EmptyHeader>

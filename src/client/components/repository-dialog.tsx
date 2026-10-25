@@ -88,7 +88,7 @@ export const RepositoryDialog = ({
             <DialogDescription>
               {currentPath
                 ? "The current repository stays open until the replacement has been verified."
-                : "Choose an existing Git repository. BranchBase discovers its worktrees and configured app groups."}
+                : "Choose an existing Git repository. Brum discovers its worktrees and configured app groups."}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>

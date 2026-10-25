@@ -1,0 +1,63 @@
+{
+  "iconSource": "assets/brand/brum-ready-master.png: approved brand-board engine, transparent background, no surrounding tile or frame. No new generation.",
+  "encoding": {
+    "icons": "PNG, lossless, compression level 9; favicon.ico contains 16/32/48 variants",
+    "mascots": "WebP, lossless, 384 square; alpha preserved"
+  },
+  "exports": [
+    {
+      "file": "public/brand/brum-engine-16.png",
+      "width": 16,
+      "height": 16,
+      "bytes": 678
+    },
+    {
+      "file": "public/brand/brum-engine-32.png",
+      "width": 32,
+      "height": 32,
+      "bytes": 1631
+    },
+    {
+      "file": "public/brand/brum-engine-48.png",
+      "width": 48,
+      "height": 48,
+      "bytes": 2831
+    },
+    {
+      "file": "public/brand/brum-engine-64.png",
+      "width": 64,
+      "height": 64,
+      "bytes": 4276
+    },
+    {
+      "file": "public/brand/brum-engine-96.png",
+      "width": 96,
+      "height": 96,
+      "bytes": 7564
+    },
+    {
+      "file": "public/brand/brum-engine-180.png",
+      "width": 180,
+      "height": 180,
+      "bytes": 18896
+    },
+    {
+      "file": "public/brand/brum-ready.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 48374
+    },
+    {
+      "file": "public/brand/brum-running.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 51738
+    },
+    {
+      "file": "public/brand/brum-resting.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 47968
+    }
+  ]
+}

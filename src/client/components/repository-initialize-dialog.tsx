@@ -43,7 +43,7 @@ export const RepositoryInitializeDialog = ({
     >
       <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-xl overflow-auto sm:max-w-2xl">
         <DialogHeader className="pr-8">
-          <DialogTitle>Initialize BranchBase</DialogTitle>
+          <DialogTitle>Initialize Brum</DialogTitle>
           <DialogDescription>
             Review the detected settings before creating .branchbase.json.
           </DialogDescription>
@@ -54,7 +54,7 @@ export const RepositoryInitializeDialog = ({
             <div>
               <strong>Create a starter worktree configuration</strong>
               <p>
-                BranchBase detected this repository and prepared a conservative
+                Brum detected this repository and prepared a conservative
                 single-app configuration. Creating this file does not approve or
                 run its commands.
               </p>

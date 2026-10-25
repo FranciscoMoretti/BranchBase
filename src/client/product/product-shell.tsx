@@ -4,9 +4,8 @@ import {
   ChevronsUpDownIcon,
   FolderGit2Icon,
   GitBranchIcon,
-  GitForkIcon,
+  HistoryIcon,
   LayoutGridIcon,
-  ListIcon,
   LogsIcon,
   SettingsIcon,
 } from "lucide-react";
@@ -15,6 +14,7 @@ import type { ReactNode } from "react";
 
 import type { Observation } from "../../project/discovery-contract";
 import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
+import { BrandMark, BrandWordmark } from "../components/brand-mark";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -127,7 +127,24 @@ const Navigation = ({
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
-          <NavigationLink href="/?" icon={GitForkIcon} label="BranchBase" />
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              tooltip="Brum · All repositories"
+              render={
+                <a
+                  aria-label="Brum · All repositories"
+                  href="/?"
+                  onClick={() => setOpenMobile(false)}
+                />
+              }
+            >
+              <BrandMark className="size-8 shrink-0" title="" variant="icon" />
+              <span className="group-data-[collapsible=icon]:hidden">
+                <BrandWordmark />
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -226,7 +243,7 @@ const Navigation = ({
               <NavigationLink
                 active={location.view === "activity"}
                 href={hrefFor({ repo: location.repo, view: "activity" })}
-                icon={ListIcon}
+                icon={HistoryIcon}
                 label="Activity"
               />
               <NavigationLink
@@ -247,7 +264,7 @@ const Navigation = ({
               <NavigationLink
                 active={location.view === "activity"}
                 href={hrefFor({ view: "activity" })}
-                icon={ListIcon}
+                icon={HistoryIcon}
                 label="Activity"
               />
             </>
@@ -322,7 +339,7 @@ const Navigation = ({
             active={location.view === "machine"}
             href={hrefFor({ view: "machine" })}
             icon={SettingsIcon}
-            label="BranchBase settings"
+            label="Brum settings"
           />
         </SidebarMenu>
       </SidebarFooter>

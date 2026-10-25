@@ -126,7 +126,7 @@ export const DetectedServicesSection = ({ data }: { data?: Observation }) => {
       <h2>Detected services</h2>
       <p className="product-muted">
         Associated by working directory. These processes were started outside
-        BranchBase; lifecycle and logs are managed by their launcher.
+        Brum; lifecycle and logs are managed by their launcher.
       </p>
       {data.warning ? (
         <Alert aria-atomic="true" aria-live="polite">
@@ -215,8 +215,8 @@ const ObservedSettings = ({
         <h2>App groups</h2>
         <p className="product-muted">
           Add .branchbase.json to define apps, shared infrastructure, and
-          commands for each worktree. Commands need your approval before
-          BranchBase runs them.
+          commands for each worktree. Commands need your approval before Brum
+          runs them.
         </p>
         <Button onClick={configure} variant="outline">
           Configure app groups
@@ -377,7 +377,7 @@ export const ObservedProjectPage = ({
         <>
           <PageHeading
             title="Logs"
-            description="Output from apps started by BranchBase"
+            description="Output from apps started by Brum"
           />
           <Blank
             title="Logs need configured app groups"

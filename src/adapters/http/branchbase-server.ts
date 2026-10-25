@@ -43,8 +43,11 @@ const COMMAND_PATH = /^\/api\/commands\/(?<command>[a-z-]+)$/u;
 const CONTENT_TYPES: Record<string, string> = {
   ".css": "text/css",
   ".html": "text/html",
+  ".ico": "image/vnd.microsoft.icon",
   ".js": "text/javascript",
+  ".png": "image/png",
   ".svg": "image/svg+xml",
+  ".webp": "image/webp",
 };
 
 export type BranchBaseServerController = Pick<

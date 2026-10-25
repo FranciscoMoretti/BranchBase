@@ -12,10 +12,10 @@ export const RepositorySetupNotice = ({
 }) => (
   <Alert>
     <FileWarningIcon />
-    <AlertTitle>This repository needs BranchBase setup</AlertTitle>
+    <AlertTitle>This repository needs Brum setup</AlertTitle>
     <AlertDescription>
-      Review a detected starter configuration before BranchBase creates it, or
-      add the file manually at <code>{configPath}</code>.
+      Review a detected starter configuration before Brum creates it, or add the
+      file manually at <code>{configPath}</code>.
     </AlertDescription>
     {onInitialize ? (
       <AlertAction>

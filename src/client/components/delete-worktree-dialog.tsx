@@ -76,10 +76,10 @@ export const DeleteWorktreeDialog = ({
           </p>
         ) : null}
         <p className="hint text-xs/relaxed">
-          Git will refuse if the worktree has uncommitted changes. BranchBase
-          never forces removal. Ignored files, including dependencies, build
-          output, and any ignored local data, will also be deleted. The Git
-          branch is kept.
+          Git will refuse if the worktree has uncommitted changes. Brum never
+          forces removal. Ignored files, including dependencies, build output,
+          and any ignored local data, will also be deleted. The Git branch is
+          kept.
         </p>
         <FormFeedback
           error={message ? new Error(message) : null}

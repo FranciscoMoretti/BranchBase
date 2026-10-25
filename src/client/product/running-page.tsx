@@ -75,7 +75,7 @@ export const RunningPage = ({
             <dt>Managed app groups</dt>
             <dd>{counts.managedGroups}</dd>
             <p className="product-muted">
-              Start, stop, and inspect logs in BranchBase.
+              Start, stop, and inspect logs in Brum.
             </p>
           </div>
           <div>
@@ -117,6 +117,7 @@ export const RunningPage = ({
         </div>
         {active.length === 0 ? (
           <Blank
+            mascot="resting"
             title="Nothing is running"
             description="Open a repository and start an app group to see it here."
           >

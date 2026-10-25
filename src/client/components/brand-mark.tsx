@@ -2,34 +2,35 @@ import { cn } from "../lib/utils";
 
 export const BrandMark = ({
   className,
-  title = "BranchBase",
+  title = "Brum",
+  pose = "ready",
+  variant = "mascot",
 }: {
   className?: string;
   title?: string;
+  pose?: "ready" | "running" | "resting";
+  variant?: "mascot" | "icon";
 }) => (
-  <svg
-    aria-label={title}
+  <img
+    alt={title}
     className={cn("brand-mark", className)}
-    fill="none"
-    viewBox="0 0 32 32"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <title>{title}</title>
-    <path d="M7 5v22" stroke="currentColor" strokeWidth="2" />
-    <path
-      d="M7 10h7c5 0 8-2 8-5M7 21h8c6 0 10 2 10 6"
-      stroke="currentColor"
-      strokeLinecap="square"
-      strokeWidth="2"
-    />
-    <path d="M4 27h24" stroke="currentColor" strokeWidth="2" />
-    <rect fill="currentColor" height="4" width="4" x="20" y="3" />
-    <rect fill="currentColor" height="4" width="4" x="23" y="25" />
-  </svg>
+    height={variant === "icon" ? 32 : 384}
+    src={
+      variant === "icon"
+        ? "/brand/brum-engine-32.png"
+        : `/brand/brum-${pose}.webp`
+    }
+    srcSet={
+      variant === "icon"
+        ? "/brand/brum-engine-64.png 2x, /brand/brum-engine-96.png 3x"
+        : undefined
+    }
+    width={variant === "icon" ? 32 : 384}
+  />
 );
 
 export const BrandWordmark = ({ compact = false }: { compact?: boolean }) => (
   <span className="brand-wordmark" data-compact={compact || undefined}>
-    branchbase
+    brum
   </span>
 );

@@ -141,7 +141,7 @@ export const RepositoryConfigPage = ({
             </p>
           </div>
           <Textarea
-            aria-label="BranchBase configuration JSON"
+            aria-label="Brum configuration JSON"
             className="min-h-[32rem] font-mono text-sm"
             onChange={(event) => setSource(event.target.value)}
             spellCheck={false}

@@ -79,13 +79,13 @@ export const request = async (
     }
     if (error instanceof Error && error.name === "TimeoutError") {
       throw new BranchBaseApiError(
-        "BranchBase did not respond before the request timed out",
+        "Brum did not respond before the request timed out",
         "REQUEST_TIMEOUT",
         null
       );
     }
     throw new BranchBaseApiError(
-      "Connection to BranchBase is unavailable",
+      "Connection to Brum is unavailable",
       "CONNECTION_UNAVAILABLE",
       null
     );

@@ -119,7 +119,7 @@ test("initial load reserves the same content region as initial failure, without 
     expect(html).not.toContain("Saved project");
   }
   expect(loading).toContain('aria-busy="true"');
-  expect(failed).toContain("connect to BranchBase");
+  expect(failed).toContain("connect to Brum");
   expect(failed).toContain("Try again");
   expect(failed).toContain("Technical details");
 });
@@ -353,9 +353,7 @@ test("repository open clears pending state after a rejected request", async () =
   expect(open).not.toBeNull();
   await act(() => open?.click());
   expect(container.querySelector("[data-status]")?.textContent).toBe("idle");
-  expect(container.textContent).toContain(
-    "Connection to BranchBase is unavailable"
-  );
+  expect(container.textContent).toContain("Connection to Brum is unavailable");
 });
 test("repository picker clears pending state after a rejected request", async () => {
   const container = mountDom();
@@ -364,9 +362,7 @@ test("repository picker clears pending state after a rejected request", async ()
   expect(browse).not.toBeNull();
   await act(() => browse?.click());
   expect(container.querySelector("[data-status]")?.textContent).toBe("idle");
-  expect(container.textContent).toContain(
-    "Connection to BranchBase is unavailable"
-  );
+  expect(container.textContent).toContain("Connection to Brum is unavailable");
 });
 test("recovery boundary remounts children after a render failure", async () => {
   const container = mountDom();

@@ -267,7 +267,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
                   setDialog("remove");
                 }}
               >
-                Remove from BranchBase…
+                Remove from Brum…
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -289,7 +289,7 @@ const ProjectRow = ({ project }: { project: ProjectOverview }) => {
             <DialogDescription>
               {dialog === "pins"
                 ? "Pinned links are qualified by worktree. Only ready apps can be opened."
-                : "Repository files and worktrees remain on disk. BranchBase checks for owned resources before removing this project from the list."}
+                : "Repository files and worktrees remain on disk. Brum checks for owned resources before removing this project from the list."}
             </DialogDescription>
           </DialogHeader>
           <FormFeedback error={dialog === "pins" ? pins.error : remove.error} />
@@ -506,10 +506,11 @@ export const ProjectsPage = () => {
         </div>
         {items.length === 0 ? (
           <Blank
+            mascot={search || filter !== "all" ? undefined : "ready"}
             description={
               search || filter !== "all"
                 ? "Try another search or choose All to see your saved projects."
-                : "Add an existing repository to manage its worktrees and apps."
+                : "Give Brum a repository to keep your worktrees and apps together."
             }
             title={
               search || filter !== "all"

@@ -301,7 +301,7 @@ export const GroupDetails = ({
                 );
                 const link = document.createElement("a");
                 link.href = url;
-                link.download = "branchbase.log";
+                link.download = "brum.log";
                 link.click();
                 URL.revokeObjectURL(url);
               }}

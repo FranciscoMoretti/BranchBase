@@ -207,7 +207,7 @@ export const InfrastructurePage = ({
             </div>
             <p className="product-muted">
               {cleanup
-                ? "This retained run is still owned by BranchBase and can be stopped."
+                ? "This retained run is still owned by Brum and can be stopped."
                 : `Open ${worktree.branch} to select this instance before starting it.`}
             </p>
           </section>

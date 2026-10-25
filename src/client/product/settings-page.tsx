@@ -50,7 +50,7 @@ const IntegrationSettings = ({ repoPath }: { repoPath: string }) => {
       />
       <p className="product-muted">
         Task discovery matches conversations to their exact worktree paths. Live
-        activity requires the optional BranchBase Codex plugin.
+        activity requires the optional Brum Codex plugin.
       </p>
       <Button
         disabled={codex.isFetching}
@@ -137,7 +137,7 @@ export const SettingsPage = ({
     <>
       <PageHeading title="Project settings">
         <a className="product-link" href={hrefFor({ view: "machine" })}>
-          BranchBase settings
+          Brum settings
         </a>
       </PageHeading>
       <Tabs
@@ -222,7 +222,7 @@ export const SettingsPage = ({
               ) : null}
             </form>
             <section className="product-settings-panel">
-              <h2>Remove project from BranchBase</h2>
+              <h2>Remove project from Brum</h2>
               <p className="product-muted">
                 Repository files and worktrees remain on disk. Stop its running
                 groups before removing it.
@@ -386,7 +386,7 @@ export const BranchBaseSettings = () => {
     <>
       <PageHeading
         description="Appearance and project discovery across your workspace."
-        title="BranchBase settings"
+        title="Brum settings"
       />
       <section className="product-settings-panel">
         <h2>Appearance</h2>
@@ -398,15 +398,15 @@ export const BranchBaseSettings = () => {
       <section className="product-settings-panel" id="development-folders">
         <h2>Development folders</h2>
         <p className="product-muted">
-          Choose where BranchBase discovers projects. New repositories are found
-          every 30 seconds while the dashboard is active. Removing a folder
-          keeps its projects.
+          Choose where Brum discovers projects. New repositories are found every
+          30 seconds while the dashboard is active. Removing a folder keeps its
+          projects.
         </p>
         <DevelopmentFoldersControls onAdd={() => setAdding(true)} />
       </section>
       <Disclosure className="product-diagnostics" summary="Diagnostics">
         <p className="product-muted">
-          Connection details for troubleshooting BranchBase.
+          Connection details for troubleshooting Brum.
         </p>
         <div className="product-setting-row">
           <span>Dashboard address</span>

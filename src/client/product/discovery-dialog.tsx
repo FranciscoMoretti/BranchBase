@@ -50,7 +50,7 @@ export const DiscoveryDialog = ({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add to BranchBase</DialogTitle>
+          <DialogTitle>Add to Brum</DialogTitle>
           <DialogDescription>
             Discover worktrees and what they have running. No configuration
             required.
@@ -81,7 +81,7 @@ export const DiscoveryDialog = ({
             </ToggleGroup>
             <FieldDescription>
               {kind === "folder"
-                ? "Choose a folder containing Git repositories. BranchBase scans up to three levels, skips dependencies, and discovers new projects while you use the app."
+                ? "Choose a folder containing Git repositories. Brum scans up to three levels, skips dependencies, and discovers new projects while you use the app."
                 : "Choose an existing Git repository. Its linked worktrees are included, even when they live elsewhere."}
             </FieldDescription>
           </Field>

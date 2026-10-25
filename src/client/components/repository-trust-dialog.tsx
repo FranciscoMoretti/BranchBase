@@ -73,14 +73,13 @@ export const RepositoryTrustDialog = ({
         <DialogDescription>
           {actionLabel ? (
             <>
-              To {actionLabel.toLowerCase()}, BranchBase needs permission to run
-              this repository&apos;s configured commands.
+              To {actionLabel.toLowerCase()}, Brum needs permission to run this
+              repository&apos;s configured commands.
             </>
           ) : (
             <>
-              BranchBase opened this repository in restricted mode. You can
-              inspect it, but configured commands will not run until you trust
-              them.
+              Brum opened this repository in restricted mode. You can inspect
+              it, but configured commands will not run until you trust them.
             </>
           )}
         </DialogDescription>
@@ -108,8 +107,8 @@ export const RepositoryTrustDialog = ({
         })}
       </div>
       <p className="text-muted-foreground">
-        Trust is saved for this command fingerprint. BranchBase asks again if
-        the configured commands change.
+        Trust is saved for this command fingerprint. Brum asks again if the
+        configured commands change.
       </p>
       <FormFeedback error={error} title="Could not approve commands" />
       <DialogFooter>
