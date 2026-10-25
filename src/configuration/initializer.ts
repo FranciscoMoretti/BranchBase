@@ -106,7 +106,7 @@ export const planRepositoryInitialization = (
   const start = defaults.start ?? defaultBranchBaseStartCommand();
   const config: WorktreeEnvConfig = {
     $schema:
-      "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json",
+      "https://raw.githubusercontent.com/FranciscoMoretti/brum/main/schema/branchbase.schema.json",
     appGroups: {
       Apps: {
         apps: {

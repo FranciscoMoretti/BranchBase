@@ -62,12 +62,12 @@ const IntegrationSettings = ({ repoPath }: { repoPath: string }) => {
       <h3>Enable live activity</h3>
       <p>Install the plugin, restart Codex, and review its hooks.</p>
       <code className="product-command-preview">
-        codex plugin marketplace add FranciscoMoretti/BranchBase --ref main
+        codex plugin marketplace add FranciscoMoretti/brum --ref main
         {"\n"}codex plugin add branchbase@branchbase
       </code>
       <CopyButton
         label="Copy plugin installation commands"
-        value="codex plugin marketplace add FranciscoMoretti/BranchBase --ref main\ncodex plugin add branchbase@branchbase"
+        value="codex plugin marketplace add FranciscoMoretti/brum --ref main\ncodex plugin add branchbase@branchbase"
       />
       <div
         aria-atomic="true"

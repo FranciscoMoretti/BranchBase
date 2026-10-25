@@ -109,7 +109,7 @@ const waitForHealth = async (expectedPid: number): Promise<void> => {
     {
       intervalMs: 100,
       maxAttempts: 50,
-      message: `BranchBase did not become healthy; inspect ${LOG_FILE}`,
+      message: `Brum did not become healthy; inspect ${LOG_FILE}`,
     }
   );
 };
@@ -118,7 +118,7 @@ const start = async (): Promise<void> => {
   mkdirSync(CONTROL_DIR, { recursive: true });
   const existing = readPid();
   if (existing && alive(existing)) {
-    console.log(`BranchBase is already running (pid ${existing}): ${appUrl()}`);
+    console.log(`Brum is already running (pid ${existing}): ${appUrl()}`);
     return;
   }
   rmSync(PID_FILE, { force: true });
@@ -131,7 +131,7 @@ const start = async (): Promise<void> => {
   });
   closeSync(log);
   if (!child.pid) {
-    throw new Error("Failed to start BranchBase");
+    throw new Error("Failed to start Brum");
   }
   child.unref();
   writeFileSync(
@@ -139,16 +139,16 @@ const start = async (): Promise<void> => {
     `${JSON.stringify({ pid: child.pid, startMarker: startMarker(child.pid) })}\n`
   );
   await waitForHealth(child.pid);
-  console.log(`BranchBase started: ${appUrl()}`);
+  console.log(`Brum started: ${appUrl()}`);
 };
 
 const status = (): void => {
   const pid = readPid();
   if (pid && alive(pid)) {
-    console.log(`BranchBase is running (pid ${pid})`);
+    console.log(`Brum is running (pid ${pid})`);
     return;
   }
-  console.log("BranchBase is stopped");
+  console.log("Brum is stopped");
   process.exitCode = 1;
 };
 
@@ -156,7 +156,7 @@ const stop = (): void => {
   const pid = readPid();
   if (!(pid && alive(pid))) {
     rmSync(PID_FILE, { force: true });
-    console.log("BranchBase is already stopped");
+    console.log("Brum is already stopped");
     return;
   }
   try {
@@ -165,7 +165,7 @@ const stop = (): void => {
     // The daemon may have exited after the liveness check.
   }
   rmSync(PID_FILE, { force: true });
-  console.log("BranchBase stopped");
+  console.log("Brum stopped");
 };
 
 if (command === "start") {

@@ -1,9 +1,9 @@
 {
-  "name": "branchbase",
+  "name": "brum",
   "version": "0.4.0",
   "description": "A local control plane for running apps across Git worktrees.",
   "keywords": [
-    "branchbase",
+    "brum",
     "dev-server",
     "developer-tools",
     "development",
@@ -12,15 +12,15 @@
     "local-development",
     "ports"
   ],
-  "homepage": "https://github.com/FranciscoMoretti/BranchBase",
-  "bugs": "https://github.com/FranciscoMoretti/BranchBase/issues",
+  "homepage": "https://github.com/FranciscoMoretti/brum",
+  "bugs": "https://github.com/FranciscoMoretti/brum/issues",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/FranciscoMoretti/BranchBase.git"
+    "url": "git+https://github.com/FranciscoMoretti/brum.git"
   },
   "bin": {
-    "branchbase": "scripts/daemon.ts"
+    "brum": "scripts/daemon.ts"
   },
   "files": [
     "dist",
@@ -29,7 +29,8 @@
     "scripts",
     "src",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "assets/brand/brum-logo-horizontal.png"
   ],
   "type": "module",
   "exports": {

@@ -1,0 +1,61 @@
+{
+  "name": "brum",
+  "version": "1.1",
+  "tagline": "Keep your local world running.",
+  "description": "A local development companion for worktrees, apps, ports, logs, and coding-agent tasks.",
+  "palette": {
+    "paper": "#F3EBD8",
+    "petrol": "#183B3B",
+    "machine": "#E8B644",
+    "oxide": "#B84D35"
+  },
+  "typography": {
+    "wordmark": "Use brum-logo-horizontal.png for the original marketing lockup; the app uses lowercase Geist Variable at weight 900 with -0.065em letter spacing.",
+    "body": "Geist Variable, sans-serif",
+    "commands": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+    "note": "The original concept board is reference only. src/client/styles.css is authoritative for application semantic colors and typography."
+  },
+  "mascot": {
+    "required": [
+      "Smol squat body",
+      "Three right-side cooling fins",
+      "Blank low top cap",
+      "Bent upper-left exhaust",
+      "Simple face",
+      "Stubby feet",
+      "Thick rounded petrol outline"
+    ],
+    "avoid": [
+      "Inner fin seam",
+      "Rivets or bolts",
+      "Cap marks",
+      "Arms",
+      "Long legs",
+      "Extra machinery"
+    ],
+    "poses": {
+      "ready": "Default / standing by",
+      "running": "Active work / on it",
+      "happy": "Completion / all done",
+      "resting": "Idle / taking a breather"
+    }
+  },
+  "usage": {
+    "background": "Use the bare transparent engine without a tile, circle, border, or frame. The petrol marketing wordmark belongs on light surfaces. The app wordmark inherits the current theme foreground.",
+    "clearSpace": "Start with one cap-height around the full logo; preserve generous breathing room.",
+    "colors": "Petrol for text, paper for main surfaces, machine for mascot and emphasis, oxide sparingly. Do not use yellow text on cream.",
+    "smallSizes": "Use public/brand/brum-engine-{16,32,48,64,96,180}.png at the corresponding pixel size. Sidebar: 32 CSS px with 64/96 sources for 2x/3x. Favicon: 16/32/48 PNG with ICO fallback; touch icon: 180 PNG.",
+    "voice": "Warm, clear, capable. Short concrete copy; friendly without baby talk.",
+    "commands": ["brum daemon start", "brum project list"]
+  },
+  "assetStatus": "Approved raster assets reused from the original brand kit. No new image generation. Concept board preserved under reference; its icon tile, font samples, and surface examples are superseded by the current app. No vector master is claimed.",
+  "assets": [
+    "brum-logo-horizontal.png",
+    "brum-ready-master.png",
+    "brum-running-master.png",
+    "brum-happy-master.png",
+    "brum-resting-master.png",
+    "reference/brand-board-v1.png"
+  ],
+  "themeSource": "../../src/client/styles.css"
+}

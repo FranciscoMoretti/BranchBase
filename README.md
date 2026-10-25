@@ -1,6 +1,8 @@
-# BranchBase
+# Brum
 
-BranchBase is an open-source, macOS-first local development control plane for Git worktrees. It keeps each worktree's apps, ports, processes, logs, and Codex tasks in one place, so parallel work does not turn into a collection of terminals and forgotten conversations.
+<img src="assets/brand/brum-logo-horizontal.png" alt="brum — the little engine" width="420" />
+
+Brum is an open-source, macOS-first local development control plane for Git worktrees. It keeps each worktree's apps, ports, processes, logs, and Codex tasks in one place, so parallel work does not turn into a collection of terminals and forgotten conversations.
 
 Use it when you regularly create worktrees, run several copies of the same app, or have multiple Codex tasks working in the same repository.
 
@@ -12,7 +14,7 @@ Use it when you regularly create worktrees, run several copies of the same app, 
 - Command review and trust before repository setup or lifecycle commands run.
 - Every non-archived Codex task associated with each exact worktree path.
 - Direct **Open task** and **New task** links into the Codex desktop app.
-- Optional live Codex activity and automatic BranchBase context through the bundled plugin.
+- Optional live Codex activity and automatic Brum context through the bundled plugin.
 
 The core model is:
 
@@ -28,10 +30,10 @@ repository
 
 ### Requirements
 
-- Core BranchBase: macOS, Git, [Bun](https://bun.sh/) 1.3 or newer, and `lsof` (included with macOS).
+- Core Brum: macOS, Git, [Bun](https://bun.sh/) 1.3 or newer, and `lsof` (included with macOS).
 - Codex task discovery: a compatible Codex CLI or ChatGPT desktop app bundle.
 - **Open task** and **New task**: ChatGPT desktop, which handles `codex://` links.
-- Live status and automatic context: the bundled BranchBase plugin installed in Codex, with its hooks trusted.
+- Live status and automatic context: the bundled Brum plugin installed in Codex, with its hooks trusted.
 
 Codex is optional, and the integration does not require an OpenAI API key.
 
@@ -40,14 +42,14 @@ Codex is optional, and the integration does not require an OpenAI API key.
 The Codex integration is currently available from `main`:
 
 ```sh
-git clone https://github.com/FranciscoMoretti/BranchBase.git
-cd BranchBase
+git clone https://github.com/FranciscoMoretti/brum.git
+cd brum
 bun install --frozen-lockfile
 bun run build
 bun scripts/daemon.ts start --repo /path/to/your/repository
 ```
 
-Open <http://127.0.0.1:3999>. BranchBase will inspect the repository's worktrees and ask you to review any repository commands before trusting them.
+Open <http://127.0.0.1:3999>. Brum will inspect the repository's worktrees and ask you to review any repository commands before trusting them.
 
 Use these commands to manage the source-run daemon:
 
@@ -56,7 +58,9 @@ bun scripts/daemon.ts status
 bun scripts/daemon.ts stop
 ```
 
-BranchBase has not yet been published to npm. Use the source installation above until the first package release is available.
+The npm package and installed command are named `brum`. This branch prepares the first Brum release; use the source installation above until that release is published.
+
+The rename preserves `.branchbase.json`, `~/.branchbase`, `BRANCHBASE_*` environment variables, the `branchbase@branchbase` plugin identifier, and existing configuration API symbol names. Import the configuration API from `brum/config`.
 
 ### CLI-only use
 
@@ -77,39 +81,39 @@ See [Architecture](docs/architecture.md) for module ownership and dependency rul
 
 ## Codex integration
 
-BranchBase matches Codex tasks to worktrees using the task's exact canonical working directory. It exposes every matching non-archived top-level task; the UI may emphasize the newest one, but the backend does not discard the others.
+Brum matches Codex tasks to worktrees using the task's exact canonical working directory. It exposes every matching non-archived top-level task; the UI may emphasize the newest one, but the backend does not discard the others.
 
 ### Task discovery and desktop links
 
 No plugin is required for the basic integration:
 
-1. Start BranchBase for a repository.
+1. Start Brum for a repository.
 2. Open that repository in the dashboard.
 3. Select a worktree to see all of its associated Codex tasks.
 4. Use **Open task** to continue an existing conversation or **New task** to open Codex at that worktree's path.
 
-BranchBase starts a private `codex app-server` process and decodes only task names, IDs, timestamps, Git metadata, and exact working directories. Although a task-list response can contain a preview, BranchBase does not retain, project, or expose it, and it never requests full turns or transcripts with `thread/read`. If task discovery is unavailable, the rest of BranchBase continues to work; the **New task** link is still rendered and works when ChatGPT desktop is installed.
+Brum starts a private `codex app-server` process and decodes only task names, IDs, timestamps, Git metadata, and exact working directories. Although a task-list response can contain a preview, Brum does not retain, project, or expose it, and it never requests full turns or transcripts with `thread/read`. If task discovery is unavailable, the rest of Brum continues to work; the **New task** link is still rendered and works when ChatGPT desktop is installed.
 
 ### Optional live status and automatic context
 
-Install the bundled BranchBase plugin to add **Working**, **Waiting for approval**, **Ready**, and **Unknown** activity plus automatic BranchBase context:
+Install the bundled Brum plugin to add **Working**, **Waiting for approval**, **Ready**, and **Unknown** activity plus automatic Brum context:
 
 ```sh
-codex plugin marketplace add FranciscoMoretti/BranchBase --ref main
+codex plugin marketplace add FranciscoMoretti/brum --ref main
 codex plugin add branchbase@branchbase
 ```
 
-Then restart the ChatGPT desktop app, keep the BranchBase daemon running, and open or resume a Codex task at a worktree whose root contains a valid `.branchbase.json`. Review and trust the BranchBase plugin hooks when Codex asks.
+Then restart the ChatGPT desktop app, keep the Brum daemon running, and open or resume a Codex task at a worktree whose root contains a valid `.branchbase.json`. Review and trust the Brum plugin hooks when Codex asks.
 
-The context uses an explicit allowlist: canonical worktree path, branch, app and group labels, ports, URLs, and process/readiness state. This helps Codex use the correct running app instead of starting a competing server. Managed logs, environment values, repository command definitions, prompts, transcripts, and tool arguments or results are omitted. Hooks are fail-open: if BranchBase is stopped or the plugin is disabled, Codex continues normally and live activity eventually becomes Unknown.
+The context uses an explicit allowlist: canonical worktree path, branch, app and group labels, ports, URLs, and process/readiness state. This helps Codex use the correct running app instead of starting a competing server. Managed logs, environment values, repository command definitions, prompts, transcripts, and tool arguments or results are omitted. Hooks are fail-open: if Brum is stopped or the plugin is disabled, Codex continues normally and live activity eventually becomes Unknown.
 
 See the official [Codex plugin](https://learn.chatgpt.com/docs/plugins) and [hook](https://learn.chatgpt.com/docs/hooks) documentation for the underlying installation and trust model.
 
 ## Discover projects without configuration
 
-Use **Add project → Development folder** to watch a folder containing Git repositories, or choose **Single project** to add one repository. BranchBase includes linked worktrees even when their checkouts live outside that folder. No `.branchbase.json` is needed for observation.
+Use **Add project → Development folder** to watch a folder containing Git repositories, or choose **Single project** to add one repository. Brum includes linked worktrees even when their checkouts live outside that folder. No `.branchbase.json` is needed for observation.
 
-On macOS, observed projects show associated TCP listeners, process start times, and sampled CPU and memory. Verified HTTP listeners have Open links; other listeners have copyable addresses. Processes are associated by working directory and Git root. BranchBase does not infer app groups, claim who launched a process, retrieve an external process's logs, or take control of it.
+On macOS, observed projects show associated TCP listeners, process start times, and sampled CPU and memory. Verified HTTP listeners have Open links; other listeners have copyable addresses. Processes are associated by working directory and Git root. Brum does not infer app groups, claim who launched a process, retrieve an external process's logs, or take control of it.
 
 Development-folder scans run every 30 seconds while the dashboard is active; **Development folders → Scan now** refreshes them immediately. Scans go three levels deep, skip hidden and dependency directories and symlinks, and stop traversing once a repository is found. Each folder scan is limited to 2,000 visited directories and 100 repositories; up to 20 development folders can be watched. Removing a folder keeps discovered projects. Removing a project suppresses its rediscovery until it is explicitly added again.
 
@@ -123,7 +127,7 @@ Disk scans run in the background, with at most two folders measured at once and 
 
 Sizes include dependencies, build output, and ignored files inside each folder. Symlinks and mounted filesystems are not traversed. External caches and container volumes outside the folders are excluded. The primary folder includes shared Git data. Project totals sum folder estimates; shared files or nested worktrees may be counted more than once, and filesystem storage sharing means measured size is not guaranteed space reclaimed.
 
-Use a linked worktree's actions menu to **Delete worktree** when appropriate. The confirmation includes its path and measured size. BranchBase takes a fresh service observation before removal, protects the primary worktree, and never forces Git removal. A shared service owned by another worktree does not block deletion of an idle consumer. External processes can still start after the observation; BranchBase cannot lock launches from unrelated terminals. Dirty or locked worktrees are refused. Deletion removes ignored local files too, but keeps the Git branch.
+Use a linked worktree's actions menu to **Delete worktree** when appropriate. The confirmation includes its path and measured size. Brum takes a fresh service observation before removal, protects the primary worktree, and never forces Git removal. A shared service owned by another worktree does not block deletion of an idle consumer. External processes can still start after the observation; Brum cannot lock launches from unrelated terminals. Dirty or locked worktrees are refused. Deletion removes ignored local files too, but keeps the Git branch.
 
 ## Repository configuration
 
@@ -131,7 +135,7 @@ Commit `.branchbase.json` at the repository root. The setup command prepares one
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json",
+  "$schema": "https://raw.githubusercontent.com/FranciscoMoretti/brum/main/schema/branchbase.schema.json",
   "version": 1,
   "setup": { "argv": ["bun", "install"] },
   "appGroups": {
@@ -172,22 +176,22 @@ Commit `.branchbase.json` at the repository root. The setup command prepares one
 Important configuration behavior:
 
 - The Primary worktree's `.branchbase.json` is the Project default. Every worktree inherits it unless **This worktree** is selected as its Configuration source in App-group details → Configuration.
-- A worktree-specific selection reads `.branchbase.json` from that worktree, so a branch can test different commands or App groups without changing its siblings. If the selected file is missing or invalid, BranchBase visibly falls back to the Project default while preserving the worktree-specific preference.
+- A worktree-specific selection reads `.branchbase.json` from that worktree, so a branch can test different commands or App groups without changing its siblings. If the selected file is missing or invalid, Brum visibly falls back to the Project default while preserving the worktree-specific preference.
 - Commands are argv arrays and run from the selected worktree root.
-- With `"stop": "process"`, Start must remain in the foreground. BranchBase owns that process and terminates it on Stop.
+- With `"stop": "process"`, Start must remain in the foreground. Brum owns that process and terminates it on Stop.
 - A command-based Stop is useful for detached infrastructure such as Docker Compose.
 - Set `"category": "infrastructure"` on an App group to include its instances in the Infrastructure tab. The default is `"application"`; names do not determine category. Shared instances appear once, with their selecting worktrees.
 - App groups default to `"instances": { "mode": "per-worktree" }`, which gives every worktree its own stable endpoints without any slot or port setup.
 - `"mode": "selectable"` creates a shared Default instance and lets each worktree select or create named alternatives—for example, an isolated Docker Compose database for a migration experiment.
-- BranchBase assigns each instance collision-free loopback backing ports and keeps them stable across Stop and Restart.
+- Brum assigns each instance collision-free loopback backing ports and keeps them stable across Stop and Restart.
 - HTTP Apps receive stable `*.localhost` Friendly URLs through Portless. TCP Apps expose their assigned host and port to command templates.
 - App-group environment values can be literals or templates such as `{apps.Web.port}`, `{apps.Web.directUrl}`, and `{apps.Web.url}`. A group may reference another selected instance's host, port, direct URL, or Friendly URL with tokens such as `{appGroups.Local Infrastructure.apps.Postgres.port}`.
 
-For a repository without configuration, BranchBase can prepare a starter file based on common runtime markers. Undetected commands are clearly labeled and require editing for the project. Creating the file does not approve commands; you review and trust the resulting fingerprint before anything runs.
+For a repository without configuration, Brum can prepare a starter file based on common runtime markers. Undetected commands are clearly labeled and require editing for the project. Creating the file does not approve commands; you review and trust the resulting fingerprint before anything runs.
 
 ### Repository tooling API
 
-Bun scripts can reuse BranchBase's checked-in configuration contract:
+Bun scripts can reuse Brum's checked-in configuration contract:
 
 ```ts
 import {
@@ -196,7 +200,7 @@ import {
   resolveStartCommand,
   type ResolvedBranchBaseAppGroups,
   type BranchBaseConfig,
-} from "branchbase/config";
+} from "brum/config";
 ```
 
 The public API exposes configuration schemas and types, discovery/loading, and command resolution against an active run's endpoint values. Endpoint allocation, Portless routing, process ownership, command execution, trust, and controller internals remain private.
@@ -207,7 +211,7 @@ Maintained decisions and compatibility notes live in:
 
 - [ADR 0001: Portless runtime](docs/adr/0001-portless-runtime.md)
 - [ADR 0002: Repository schema and local state](docs/adr/0002-repository-schema-and-local-state.md)
-- [ADR 0003: Adopt the BranchBase namespace](docs/adr/0003-branchbase-namespace.md)
+- [ADR 0003: Adopt the BranchBase namespace (historical)](docs/adr/0003-branchbase-namespace.md)
 
 ## Development
 
@@ -221,9 +225,9 @@ bun run test:integration
 bun run build
 ```
 
-`bun run dev` uses an isolated development session for the current BranchBase checkout. It chooses collision-free dashboard and Portless ports, prints the dashboard URL, and keeps its state, trust decisions, managed-process records, logs, routes, and Codex hook capability separate from the production daemon under `~/.branchbase/development/`. An installed or source-run daemon may remain running while BranchBase is developed.
+`bun run dev` uses an isolated development session for the current Brum checkout. It chooses collision-free dashboard and Portless ports, prints the dashboard URL, and keeps its state, trust decisions, managed-process records, logs, routes, and Codex hook capability separate from the production daemon under `~/.branchbase/development/`. An installed or source-run daemon may remain running while Brum is developed.
 
-Only one development server may own a checkout's session at a time. Different BranchBase checkouts receive different sessions and can run concurrently. Before development starts an app group, it checks the production BranchBase state and refuses to run the repository Start command if production still has a verified process or listener for the same worktree. This guard is read-only and only affects BranchBase development.
+Only one development server may own a checkout's session at a time. Different Brum checkouts receive different sessions and can run concurrently. Before development starts an app group, it checks the production Brum state and refuses to run the repository Start command if production still has a verified process or listener for the same worktree. This guard is read-only and only affects Brum development.
 
 Stopping the foreground development server releases its ownership lease and stops only its own Portless proxy. Codex task discovery remains available, but the isolated development hook capability does not replace a running production daemon's capability.
 
@@ -234,3 +238,7 @@ Git, configuration, port inspection, process ownership, and command rules stay b
 ## License
 
 Apache-2.0
+
+## Brand assets
+
+The approved transparent engine masters, horizontal logo, happy pose, and current [brand specification](assets/brand/brand-spec.json) live in `assets/brand`. Optimized application assets live in `public/brand`; [export metadata](assets/brand/exports.json) records their sizes. The original [concept board](assets/brand/reference/brand-board-v1.png) is preserved for reference: its framed icon and typography samples are superseded by the current borderless icon and app theme.

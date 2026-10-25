@@ -3,7 +3,7 @@ import { z } from "zod";
 import { BranchBaseConfigSchema } from "./branchbase-schema";
 
 const SCHEMA_ID =
-  "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json";
+  "https://raw.githubusercontent.com/FranciscoMoretti/brum/main/schema/branchbase.schema.json";
 
 export const branchbaseJsonSchema = (): Record<string, unknown> => ({
   ...z.toJSONSchema(BranchBaseConfigSchema, { io: "input" }),

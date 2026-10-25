@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
-import { resolveStartCommand } from "branchbase/config";
+import { resolveStartCommand } from "brum/config";
 import type {
   BranchBaseConfig,
   ResolvedBranchBaseAppGroups,
-} from "branchbase/config";
+} from "brum/config";
 
 describe("public config contract", () => {
   it("resolves slot-free app endpoints through the package subpath", () => {

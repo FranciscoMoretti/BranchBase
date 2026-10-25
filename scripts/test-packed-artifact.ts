@@ -76,7 +76,7 @@ const waitUntilStopped = async (url: string): Promise<void> => {
     {
       intervalMs: 100,
       maxAttempts: 50,
-      message: "Packed BranchBase daemon did not stop",
+      message: "Packed Brum daemon did not stop",
     }
   );
 };
@@ -93,7 +93,7 @@ let daemonEnvironment: Record<string, string> = {};
 
 try {
   mkdirSync(installDirectory);
-  const tarballName = "branchbase.tgz";
+  const tarballName = "brum.tgz";
   mkdirSync(packDirectory);
   const tarballPath = pathModule.join(packDirectory, tarballName);
   run("bun", ["pm", "pack", "--filename", tarballPath, "--quiet"]);
@@ -103,6 +103,9 @@ try {
   for (const requiredPath of [
     "package/scripts/daemon.ts",
     "package/dist/index.html",
+    "package/assets/brand/brum-logo-horizontal.png",
+    "package/dist/brand/brum-engine-32.png",
+    "package/dist/brand/brum-ready.webp",
     "package/plugins/branchbase/.codex-plugin/plugin.json",
     "package/plugins/branchbase/hooks/hooks.json",
     "package/plugins/branchbase/hooks/branchbase-hook",
@@ -128,26 +131,18 @@ try {
   run("bun", ["add", "--ignore-scripts", tarballPath], {
     cwd: installDirectory,
   });
-  cliPath = pathModule.join(
-    installDirectory,
-    "node_modules",
-    ".bin",
-    "branchbase"
-  );
-  assert(
-    existsSync(cliPath),
-    "Packed install did not expose the branchbase CLI"
-  );
+  cliPath = pathModule.join(installDirectory, "node_modules", ".bin", "brum");
+  assert(existsSync(cliPath), "Packed install did not expose the brum CLI");
   const helpOutput = run(cliPath, ["help"], { cwd: installDirectory });
   assert(
-    helpOutput.includes("branchbase project status"),
+    helpOutput.includes("brum project status"),
     "Packed CLI help did not run without a daemon"
   );
   run(
     "bun",
     [
       "-e",
-      'import { BranchBaseConfigSchema } from "branchbase/config"; const config = BranchBaseConfigSchema.parse({ version: 1, setup: { argv: ["bun", "install"] }, appGroups: { Apps: { start: { argv: ["bun", "run", "dev"] }, stop: "process", env: { PORT: "{apps.web.port}" }, apps: { web: { protocol: "http", readiness: "tcp" } } } } }); if (config.appGroups.Apps.apps.web.protocol !== "http") process.exit(1);',
+      'import { BranchBaseConfigSchema } from "brum/config"; const config = BranchBaseConfigSchema.parse({ version: 1, setup: { argv: ["bun", "install"] }, appGroups: { Apps: { start: { argv: ["bun", "run", "dev"] }, stop: "process", env: { PORT: "{apps.web.port}" }, apps: { web: { protocol: "http", readiness: "tcp" } } } } }); if (config.appGroups.Apps.apps.web.protocol !== "http") process.exit(1);',
     ],
     { cwd: installDirectory }
   );
@@ -196,15 +191,12 @@ try {
     cwd: installDirectory,
     env: daemonEnvironment,
   });
-  assert(
-    startOutput.includes("BranchBase started"),
-    "Packed CLI did not start"
-  );
+  assert(startOutput.includes("Brum started"), "Packed CLI did not start");
   assert(
     run(cliPath, ["status"], {
       cwd: installDirectory,
       env: daemonEnvironment,
-    }).includes("BranchBase is running"),
+    }).includes("Brum is running"),
     "Packed CLI status did not report the daemon"
   );
 
@@ -261,7 +253,7 @@ try {
     run(cliPath, ["stop"], {
       cwd: installDirectory,
       env: daemonEnvironment,
-    }).includes("BranchBase stopped"),
+    }).includes("Brum stopped"),
     "Packed CLI did not stop"
   );
   await waitUntilStopped(`${baseUrl}/api/health`);
@@ -271,7 +263,7 @@ try {
     env: daemonEnvironment,
   });
   assert(
-    stoppedStatus.includes("BranchBase is stopped"),
+    stoppedStatus.includes("Brum is stopped"),
     "Packed CLI status did not report the stopped daemon"
   );
 
@@ -283,9 +275,7 @@ try {
     !daemonLog.includes("VITE"),
     "Packed daemon unexpectedly started the Vite development server"
   );
-  console.log(
-    "Packed BranchBase artifact passed install and daemon smoke tests"
-  );
+  console.log("Packed Brum artifact passed install and daemon smoke tests");
 } finally {
   if (cliPath) {
     run(cliPath, ["stop"], {

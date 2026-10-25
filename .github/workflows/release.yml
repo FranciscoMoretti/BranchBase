@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.repository == 'FranciscoMoretti/BranchBase'
+    if: github.repository == 'FranciscoMoretti/brum'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -37,7 +37,7 @@ jobs:
         run: |
           version="$(node -p "require('./package.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if npm view "branchbase@$version" version --json >/dev/null 2>&1; then
+          if npm view "brum@$version" version --json >/dev/null 2>&1; then
             echo "published=true" >> "$GITHUB_OUTPUT"
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
@@ -77,4 +77,4 @@ jobs:
           gh release create "$tag" \
             --generate-notes \
             --target "$GITHUB_SHA" \
-            --title "BranchBase $VERSION"
+            --title "Brum $VERSION"

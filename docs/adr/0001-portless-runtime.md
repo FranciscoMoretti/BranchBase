@@ -23,7 +23,7 @@ This replaces the CLI proxy's filesystem-watcher cache. Browser testing and real
 - BranchBase does not depend on Portless's human-readable CLI output as a stable status protocol. It owns the state directory and verifies observable routes.
 - HTTPS, an owned development domain, reserved literal localhost origins, and richer structured diagnostics remain follow-up capabilities.
 
-Authentication providers do not consistently accept arbitrary `*.localhost` callback URLs. BranchBase therefore treats provider-constrained callback origins as a separate compatibility capability rather than weakening the normal per-worktree Friendly URL model. A canonical authentication origin or reserved literal `localhost:<port>` may be added after the lifecycle and isolation rules are proven in [issue #43](https://github.com/FranciscoMoretti/BranchBase/issues/43).
+Authentication providers do not consistently accept arbitrary `*.localhost` callback URLs. BranchBase therefore treats provider-constrained callback origins as a separate compatibility capability rather than weakening the normal per-worktree Friendly URL model. A canonical authentication origin or reserved literal `localhost:<port>` may be added after the lifecycle and isolation rules are proven in [issue #43](https://github.com/FranciscoMoretti/brum/issues/43).
 
 ## Ownership boundary
 

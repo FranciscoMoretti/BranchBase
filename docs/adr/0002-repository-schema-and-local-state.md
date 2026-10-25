@@ -20,7 +20,7 @@ The intended shape is:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/FranciscoMoretti/BranchBase/main/schema/branchbase.schema.json",
+  "$schema": "https://raw.githubusercontent.com/FranciscoMoretti/brum/main/schema/branchbase.schema.json",
   "version": 1,
   "setup": {
     "argv": ["bun", "install"]

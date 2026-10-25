@@ -5,7 +5,7 @@ Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all op
 ## Conventions
 
 - Create, read, comment on, label, assign, and close issues using `gh issue`.
-- Infer `FranciscoMoretti/BranchBase` from the repository remote.
+- Infer `FranciscoMoretti/brum` from the repository remote.
 - PRs are not treated as a triage request surface.
 - When a skill says “publish to the issue tracker,” create a GitHub issue.
 

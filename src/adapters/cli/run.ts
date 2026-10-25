@@ -2,14 +2,14 @@ import pathModule from "node:path";
 
 import type { DaemonClient } from "./client";
 
-export const CLI_HELP = `BranchBase
+export const CLI_HELP = `Brum
 
-  branchbase daemon <start|status|stop>
-  branchbase dashboard [--repo PATH]
-  branchbase project list
-  branchbase project status [--repo PATH]
-  branchbase execute COMMAND --input JSON
-  branchbase logs --repo PATH --worktree ID --group ID
+  brum daemon <start|status|stop>
+  brum dashboard [--repo PATH]
+  brum project list
+  brum project status [--repo PATH]
+  brum execute COMMAND --input JSON
+  brum logs --repo PATH --worktree ID --group ID
 
 Use --json for structured output. Commands use the same validation and approval
 rules as the dashboard. Start the daemon before querying or executing commands.`;
