@@ -32,7 +32,13 @@ export const repositoryCommandFingerprint = (
         name,
         {
           apps: group.apps,
+          ...(config.profiles
+            ? { category: group.category ?? "application" }
+            : {}),
+          ...(group.dependsOn ? { dependsOn: group.dependsOn } : {}),
           env: group.env ?? {},
+          ...(group.outputs ? { outputs: group.outputs } : {}),
+          ...(group.inputs ? { inputs: group.inputs } : {}),
           instances: group.instances,
           start: fingerprintCommand(group.start),
           stop:
@@ -43,6 +49,7 @@ export const repositoryCommandFingerprint = (
       ])
     ),
     setup: fingerprintCommand(config.setup),
+    ...(config.profiles ? { profiles: config.profiles } : {}),
   };
   return createHash("sha256")
     .update(JSON.stringify(commands))

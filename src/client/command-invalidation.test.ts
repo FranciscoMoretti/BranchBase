@@ -1,6 +1,11 @@
 import { expect, expectTypeOf, test } from "bun:test";
+import { setTimeout } from "node:timers/promises";
 
-import { QueryClient } from "@tanstack/react-query";
+import {
+  MutationObserver,
+  QueryClient,
+  QueryObserver,
+} from "@tanstack/react-query";
 
 import type {
   BranchBaseCommandInput,
@@ -118,4 +123,38 @@ test("mutation inputs retain their command-specific required fields", () => {
   >().toEqualTypeOf<
     { command: "start-apps" } & BranchBaseCommandInput<"start-apps">
   >();
+});
+
+test("completed commands settle while an active catalog refresh is still pending", async () => {
+  const client = new QueryClient();
+  const refresh = Promise.withResolvers<object>();
+  client.setQueryData(["projects"], {});
+  const query = new QueryObserver(client, {
+    queryFn: () => refresh.promise,
+    queryKey: ["projects"],
+    staleTime: Infinity,
+  });
+  const unsubscribe = query.subscribe(() => {});
+  const mutation = new MutationObserver(client, {
+    mutationFn: () => Promise.resolve("applied"),
+    onSettled: () =>
+      invalidateCommandQueries(client, "select-resource-profile", {
+        profileId: "1",
+        repoPath: "/repo",
+        restart: false,
+        worktreeId: "main",
+      }),
+  });
+  try {
+    const result = await Promise.race([
+      mutation.mutate(),
+      setTimeout(100, "blocked"),
+    ]);
+    expect(result).toBe("applied");
+    expect(query.getCurrentResult().isFetching).toBe(true);
+  } finally {
+    refresh.resolve({});
+    unsubscribe();
+    client.clear();
+  }
 });

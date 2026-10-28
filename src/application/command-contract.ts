@@ -4,6 +4,10 @@ import { BranchBaseConfigSchema } from "../configuration/branchbase-schema";
 import { RepositoryTrustApprovalSchema } from "../configuration/repository-trust-approval";
 import { WorktreeConfigSourceSchema } from "../configuration/worktree-config-source";
 import { AppPinSchema } from "../project/catalog-contract";
+import {
+  ExistingResourceSchema,
+  WorktreeProfileSchema,
+} from "../resources/resource-contract";
 
 const RepositoryPathSchema = z.object({
   repoPath: z.string().min(1),
@@ -40,6 +44,14 @@ export const RepositoryInitializationPlanSchema = z.object({
 
 const INPUT_SCHEMAS = {
   "add-development-folder": RepositoryPathSchema,
+  "approve-managed-resource": RepositoryPathSchema.extend({
+    resource: z.string().min(1),
+    revision: z.string().min(1),
+  }),
+  "build-managed-resource": RepositoryPathSchema.extend({
+    instance: z.string().min(1),
+    resource: z.string().min(1),
+  }),
   "clear-logs": StartStopSchema,
   "create-app-group-instance": StartStopSchema.extend({
     name: z.string().trim().min(1),
@@ -53,11 +65,31 @@ const INPUT_SCHEMAS = {
     appGroupName: z.string().min(1).optional(),
     worktreeId: z.string().min(1),
   }),
+  "enable-resource-profiles": RepositoryPathSchema.extend({
+    revision: z.string().min(1),
+  }),
   "initialize-repository": RepositoryPathSchema,
+  "operate-managed-resource": RepositoryPathSchema.extend({
+    action: z.enum(["start", "stop", "restart"]),
+    instance: z.string().min(1),
+    resource: z.string().min(1),
+  }),
   "pick-repository": z.object({}),
   "preview-repository-config": RepositoryPathSchema,
+  "preview-resource-profile": RepositoryPathSchema.extend({
+    profileId: z.string().min(1).nullable(),
+    worktreeId: z.string().min(1),
+  }),
+  "register-managed-resource": RepositoryPathSchema.extend({
+    definitionPath: z.string().min(1),
+  }),
+  "register-resource": RepositoryPathSchema.extend({
+    resource: ExistingResourceSchema,
+  }),
+  "release-command-context": z.object({ leaseId: z.string().min(1) }),
   "remove-development-folder": RepositoryPathSchema,
   "remove-project": RepositoryPathSchema,
+  "resource-command-context": StartStopSchema,
   "restart-apps": StartStopSchema,
   "restart-running-apps": VisibleBulkSchema,
   "retry-apps": StartStopSchema,
@@ -69,6 +101,11 @@ const INPUT_SCHEMAS = {
   "scan-development-folders": z.object({}),
   "select-app-group-instance": StartStopSchema.extend({
     instanceId: z.string().min(1),
+  }),
+  "select-resource-profile": RepositoryPathSchema.extend({
+    profileId: z.string().min(1).nullable(),
+    restart: z.boolean(),
+    worktreeId: z.string().min(1),
   }),
   "select-worktree-config-source": RepositoryPathSchema.extend({
     source: WorktreeConfigSourceSchema,
@@ -90,15 +127,34 @@ const INPUT_SCHEMAS = {
 
 const RESULT_SCHEMAS = {
   "add-development-folder": CommandReceiptSchema,
+  "approve-managed-resource": CommandReceiptSchema,
+  "build-managed-resource": CommandReceiptSchema,
   "clear-logs": CommandReceiptSchema,
   "create-app-group-instance": CommandReceiptSchema,
   "create-worktree": CommandReceiptSchema,
   "delete-worktree": CommandReceiptSchema,
+  "enable-resource-profiles": CommandReceiptSchema,
   "initialize-repository": RepositoryInitializationPlanSchema,
+  "operate-managed-resource": CommandReceiptSchema,
   "pick-repository": PickRepositoryResultSchema,
   "preview-repository-config": RepositoryInitializationPlanSchema,
+  "preview-resource-profile": WorktreeProfileSchema,
+  "register-managed-resource": z.object({
+    definition: z.unknown(),
+    directory: z.string(),
+    id: z.string(),
+    revision: z.string(),
+  }),
+  "register-resource": CommandReceiptSchema,
+  "release-command-context": CommandReceiptSchema,
   "remove-development-folder": CommandReceiptSchema,
   "remove-project": CommandReceiptSchema,
+  "resource-command-context": z.object({
+    cwd: z.string(),
+    env: z.record(z.string(), z.string()),
+    inputs: z.record(z.string(), z.object({ file: z.string() })),
+    leaseId: z.string(),
+  }),
   "restart-apps": CommandReceiptSchema,
   "restart-running-apps": CommandReceiptSchema,
   "retry-apps": CommandReceiptSchema,
@@ -106,6 +162,7 @@ const RESULT_SCHEMAS = {
   "save-project": CommandReceiptSchema,
   "scan-development-folders": CommandReceiptSchema,
   "select-app-group-instance": CommandReceiptSchema,
+  "select-resource-profile": CommandReceiptSchema,
   "select-worktree-config-source": CommandReceiptSchema,
   "setup-all-apps": CommandReceiptSchema,
   "start-all-apps": CommandReceiptSchema,

@@ -38,6 +38,7 @@ import {
 import { runtimeSummary } from "./runtime-summary";
 import { SettingsPage } from "./settings-page";
 import { useWorktreeControls } from "./use-worktree-controls";
+import { WorktreeProfile } from "./worktree-profile";
 
 const isMissingEnvironment = (
   location: ProductLocation,
@@ -74,7 +75,7 @@ const WorkspaceHeading = ({
         <DiskUsageMetric usage={data.disk} aggregate />
         <ResourceUsage usage={data.resources} />
         <Button
-          aria-label="Refresh workspace"
+          aria-label="Refresh project"
           onClick={onRefresh}
           size="icon"
           variant="outline"
@@ -147,7 +148,13 @@ const selectedAppGroup = (
 ) =>
   groupId
     ? worktree?.appGroups.find((group) => group.id === groupId)
-    : worktree?.appGroups[0];
+    : (worktree?.appGroups.find(
+        (group) => group.category === "application" && !group.cleanupOnly
+      ) ??
+      worktree?.appGroups.find(
+        (group) => group.id === worktree.primaryAppGroup
+      ) ??
+      worktree?.appGroups[0]);
 
 export const WorkspacePage = ({
   observation,
@@ -235,6 +242,11 @@ export const WorkspacePage = ({
             worktree={selected}
             groupId={selectedGroup.id}
             controls={controls}
+          />
+          <WorktreeProfile
+            key={selected.id}
+            repoPath={data.repoPath}
+            worktree={selected}
           />
           <GroupDetails
             codex={codex.data}

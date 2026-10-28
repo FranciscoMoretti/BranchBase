@@ -56,7 +56,24 @@ bun scripts/daemon.ts status
 bun scripts/daemon.ts stop
 ```
 
-BranchBase has not yet been published to npm. Use the source installation above until the first package release is available.
+### Package installation
+
+The npm package is named `branchbase` and requires Bun 1.3 or newer:
+
+```sh
+bun add --global branchbase
+branchbase start --repo /path/to/your/repository
+```
+
+The next release also installs `bbase` as a shorter CLI alias. Both commands use the same daemon, configuration, and state:
+
+```sh
+bbase start --repo /path/to/your/repository
+bbase project list --json
+bbase stop
+```
+
+When `branchbase` is installed as a project dependency, both commands are also available in package scripts. The package name and configuration import remain `branchbase` and `branchbase/config`.
 
 ### CLI-only use
 
@@ -230,6 +247,12 @@ Stopping the foreground development server releases its ownership lease and stop
 `BRANCHBASE_PORT` and `BRANCHBASE_PORTLESS_PORT` may be used when a fixed development port is required. They are not needed for normal development.
 
 Git, configuration, port inspection, process ownership, and command rules stay behind `WorkspaceController` and its internal modules.
+
+## Resource profiles
+
+Use shared project infrastructure, isolated resources per worktree, or existing services on your machine. Profiles support branch rules, connection previews, dependency startup, and explicit restarts when switching. See the [resource profiles guide](docs/resource-profiles.md) for configuration and Docker Compose examples.
+
+Declare infrastructure definition files in `.branchbase.json` under `managedResources` to discover them automatically. Named managed resources can also serve applications across projects, with independent lifecycle commands, fixed ports, connection outputs, and command approval. See the [managed resources guide](docs/managed-resources.md).
 
 ## License
 

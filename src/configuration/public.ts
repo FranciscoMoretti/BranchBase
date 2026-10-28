@@ -28,3 +28,12 @@ export {
   cloneBranchBaseConfig,
   type WorktreeEnvConfig,
 } from "./branchbase-schema";
+
+export {
+  type ResourceConnection,
+  ResourceConnectionSchema,
+  type ResourceProfiles,
+  ResourceProfilesSchema,
+} from "./resource-profiles";
+
+export { ManagedResourceDefinitionSchema } from "./managed-resource-schema";

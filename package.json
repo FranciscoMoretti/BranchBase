@@ -20,6 +20,7 @@
     "url": "git+https://github.com/FranciscoMoretti/BranchBase.git"
   },
   "bin": {
+    "bbase": "scripts/daemon.ts",
     "branchbase": "scripts/daemon.ts"
   },
   "files": [
@@ -46,7 +47,7 @@
     "dev": "bun dev/server.ts",
     "lint": "ultracite check",
     "prepack": "bun run build",
-    "schema:generate": "bun scripts/generate-config-schema.ts && oxfmt --write schema/branchbase.schema.json",
+    "schema:generate": "bun scripts/generate-config-schema.ts && oxfmt --write schema/branchbase.schema.json schema/managed-resource.schema.json",
     "test": "bun test ./dev ./src",
     "test:integration": "bun test --path-ignore-patterns=__branchbase_no_ignored_tests__ ./src/integration/portless-routing.test.ts",
     "test:pack": "bun scripts/test-packed-artifact.ts",

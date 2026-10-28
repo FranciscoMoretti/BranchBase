@@ -77,7 +77,7 @@ describe("shared BranchBase schema", () => {
     });
   });
 
-  it("requires setup and at least one App group with one App", () => {
+  it("requires setup and groups; allows workers without endpoints", () => {
     expect(
       BranchBaseConfigSchema.safeParse({ ...validConfig, setup: undefined })
         .success
@@ -97,7 +97,7 @@ describe("shared BranchBase schema", () => {
           },
         },
       }).success
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects invalid references and accepts cross-group instance references", () => {
@@ -157,4 +157,20 @@ describe("shared BranchBase schema", () => {
     expect(clone).toEqual(parsed);
     expect(clone).not.toBe(parsed);
   });
+});
+
+it("accepts direct URL templates for HTTP endpoints with configured fixed ports", () => {
+  const config = structuredClone(validConfig);
+  const parsed = BranchBaseConfigSchema.parse({
+    ...config,
+    appGroups: {
+      ...config.appGroups,
+      development: {
+        ...config.appGroups.development,
+        apps: { api: { port: 8000, protocol: "http" } },
+        env: { API_PORT: "{apps.api.port}", API_URL: "{apps.api.directUrl}" },
+      },
+    },
+  });
+  expect(parsed.appGroups.development.apps.api.port).toBe(8000);
 });

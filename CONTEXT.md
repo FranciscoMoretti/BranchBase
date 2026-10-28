@@ -22,11 +22,29 @@ BranchBase coordinates development worktrees and the app groups they expose.
 
 **App group**: The named collection of apps that share one Start, Stop, and Restart lifecycle. Its stable identity is independent of its display name. _Avoid_: Runtime
 
+**Resource**: Reusable development infrastructure such as a database, cache, or service stack. A resource may be managed by BranchBase or connected as an existing service whose lifecycle belongs to another owner.
+
+**Resource definition**: The authoritative recipe for a Resource, including its lifecycle, execution context, inputs, endpoints, and outputs.
+
+**Resource instance**: A concrete, named realization of a Resource definition with stable identity and associated persistent data. Its consumers may belong to different Projects.
+
+**Application instance**: An independently identifiable App group associated with a source checkout, with its own endpoints and selected Resource connections.
+
+**Resource output**: A public connection value supplied by a selected Resource instance, such as a database name, bucket, or endpoint.
+
+**Resource connection**: A consumer's binding from a logical dependency to a particular Resource instance, independently of the consumer's own identity.
+
+**Resource profile**: A named set of Resource connection policies selected for a Worktree. Selection follows an explicit Worktree choice, then a matching branch rule, then the Project default; a profile describes connections rather than a running environment.
+
+**Resource consumer**: An App-group run that captured a dependency on a Resource instance. Its dependency remains in use until that run is safely stopped.
+
+**Idle policy**: The decision to keep a managed Resource running or stop it after its last Resource consumer stops. Stopping a Resource and deleting its data are separate actions.
+
 **App**: An observable endpoint in an app group. An HTTP app has a stable Friendly URL backed by a worktree-specific Backing endpoint.
 
 **Friendly URL**: The stable local HTTP address assigned to an app, independent of the backing port selected for its worktree. Every hostname has the shape `<app>.<worktree>.<repository>.localhost`, using stable, locally unique route labels rather than mutable display names. BranchBase owns the assignment and provides the route through Portless. _Avoid_: Public URL, Portless URL
 
-**Backing endpoint**: The host and dynamically assigned port where an app process listens and to which its Friendly URL routes. BranchBase allocates all Backing endpoints for an app group before Start; they may change on every Start. _Avoid_: Slot URL, Real URL
+**Backing endpoint**: The host and configured or dynamically assigned port where an app process listens and to which its Friendly URL routes. BranchBase allocates all Backing endpoints for an app group before Start; they may change on every Start. _Avoid_: Slot URL, Real URL
 
 **Endpoint identity**: The opaque, locally persisted identity of a repository, worktree, app group, or app. Display names and route labels do not identify an endpoint; app-group and app logical IDs associate checked-in definitions with their local identities.
 

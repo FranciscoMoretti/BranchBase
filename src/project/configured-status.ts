@@ -30,7 +30,10 @@ import type { WorkspaceSnapshot } from "./worktree-status-contract";
 export interface StatusDependencies {
   state: Pick<
     FileBranchBaseStateStore,
-    "worktreeConfigSource" | "runningInstancesForWorktree" | "hasRunForWorktree"
+    | "worktreeConfigSource"
+    | "runningInstancesForWorktree"
+    | "hasRunForWorktree"
+    | "allResourceInstances"
   >;
   appGroups: Pick<AppGroupRuntime, "inspect" | "inspectDetached">;
   processes: Pick<
@@ -106,12 +109,19 @@ export const readConfiguredStatus = (
     (worktree) =>
       state.runningInstancesForWorktree(projectRoot, worktree.path).length > 0
   );
-  const ports = hasRuns
-    ? inspectListeningPorts()
-    : {
-        pidsByPort: new Map<number, Set<number>>(),
-        samples: inspectProcessSamples(),
-      };
+  const hasSharedRuns = state
+    .allResourceInstances()
+    .some(
+      ({ repoPath: owner, instance }) =>
+        owner.startsWith("resource:") && instance.run
+    );
+  const ports =
+    hasRuns || hasSharedRuns
+      ? inspectListeningPorts()
+      : {
+          pidsByPort: new Map<number, Set<number>>(),
+          samples: inspectProcessSamples(),
+        };
   const worktrees = discovered.map((item, index) => {
     const { id, path } = item;
     const preference = state.worktreeConfigSource(projectRoot, path);

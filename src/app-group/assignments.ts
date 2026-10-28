@@ -40,10 +40,41 @@ const ResolvedRunCommandSchema = z.strictObject({
 
 const AppGroupRunSchema = z.strictObject({
   apps: z.record(z.string(), RunEndpointSchema),
+  bindings: z
+    .record(
+      z.string(),
+      z.object({
+        apps: z.record(
+          z.string(),
+          z.object({
+            directUrl: z.string().optional(),
+            host: z.string().optional(),
+            port: z.number().optional(),
+            url: z.string().optional(),
+          })
+        ),
+        id: z.string(),
+        instanceId: z.string().optional(),
+        instanceName: z.string().optional(),
+        outputs: z.record(z.string(), z.string()).optional(),
+        worktreeId: z.string().optional(),
+      })
+    )
+    .optional(),
   createdAt: NonEmptyStringSchema,
+  definition: z
+    .strictObject({ id: z.string(), path: z.string(), revision: z.string() })
+    .optional(),
+  dependencyGroupIds: z.array(z.string()).optional(),
+  environmentTemplates: z.record(z.string(), z.string()).optional(),
   groupId: NonEmptyStringSchema,
+  inputs: z.record(z.string(), z.object({ file: z.string() })).optional(),
   instanceId: NonEmptyStringSchema,
   instanceIdsByGroup: z.record(z.string(), NonEmptyStringSchema),
+  profileId: z.string().optional(),
+  resourceIdle: z
+    .record(z.string(), z.enum(["keep-running", "stop-when-unused"]))
+    .optional(),
   stop: z.union([z.literal("process"), ResolvedRunCommandSchema]).optional(),
   worktreePath: NonEmptyStringSchema,
 });
@@ -96,6 +127,8 @@ export const parseCurrentBranchBaseLocalState = (
 ): BranchBaseLocalState => BranchBaseLocalStateSchema.parse(value);
 
 export interface InstanceRequest {
+  useDefault?: boolean;
+  instanceName?: string;
   configFingerprint: string;
   groupId: string;
   mode: AppGroupInstanceMode;
@@ -327,6 +360,16 @@ const getSelectedInstance = (
   worktree: WorktreeRecord,
   request: InstanceRequest
 ): AppGroupInstance | null => {
+  if (request.instanceName) {
+    return (
+      Object.values(repository.instances).find(
+        (instance) =>
+          instance.groupId === request.groupId &&
+          instance.configFingerprint === request.configFingerprint &&
+          instance.name === request.instanceName
+      ) ?? null
+    );
+  }
   if (request.mode === "per-worktree") {
     return (
       Object.values(repository.instances).find(
@@ -339,14 +382,15 @@ const getSelectedInstance = (
       ) ?? null
     );
   }
-  const selected =
-    repository.instances[
-      worktree.instanceSelections[
-        instanceSelectionKey(request.groupId, request.configFingerprint)
-      ] ??
-        worktree.instanceSelections[request.groupId] ??
-        ""
-    ];
+  const selected = request.useDefault
+    ? undefined
+    : repository.instances[
+        worktree.instanceSelections[
+          instanceSelectionKey(request.groupId, request.configFingerprint)
+        ] ??
+          worktree.instanceSelections[request.groupId] ??
+          ""
+      ];
   if (
     selected?.groupId === request.groupId &&
     selected.mode === "selectable" &&
@@ -416,6 +460,26 @@ export class FileBranchBaseStateStore {
     this.migrateLegacyStateIfNeeded();
   }
 
+  worktreeIdentity(repoPath: string, worktreePath: string): string | undefined {
+    return this.read().repositories[repoPath]?.worktrees[worktreePath]?.id;
+  }
+
+  allResourceInstances(): { repoPath: string; instance: AppGroupInstance }[] {
+    return Object.entries(this.read().repositories).flatMap(
+      ([repoPath, repository]) =>
+        Object.values(repository.instances).map((instance) => ({
+          instance: cloneInstance(instance),
+          repoPath,
+        }))
+    );
+  }
+
+  allInstances(repoPath: string): AppGroupInstance[] {
+    return Object.values(
+      this.read().repositories[repoPath]?.instances ?? {}
+    ).map(cloneInstance);
+  }
+
   instance(request: InstanceRequest): AppGroupInstance {
     return this.reconcileInstance(request);
   }
@@ -453,11 +517,12 @@ export class FileBranchBaseStateStore {
       worktreeRecord,
       request,
       {
-        isDefault: request.mode === "selectable",
+        isDefault: request.mode === "selectable" && !request.instanceName,
         name:
-          request.mode === "per-worktree"
+          request.instanceName ??
+          (request.mode === "per-worktree"
             ? request.worktreeLabel
-            : DEFAULT_INSTANCE_NAME,
+            : DEFAULT_INSTANCE_NAME),
         worktreePath:
           request.mode === "per-worktree" ? request.worktreePath : null,
       }

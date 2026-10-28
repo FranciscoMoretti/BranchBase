@@ -1,5 +1,7 @@
 import pathModule from "node:path";
 
+import { parseCommandResult } from "../../application/command-contract";
+import { runBoundCommand } from "../host/resource-status";
 import type { DaemonClient } from "./client";
 
 export const CLI_HELP = `BranchBase
@@ -8,6 +10,7 @@ export const CLI_HELP = `BranchBase
   branchbase dashboard [--repo PATH]
   branchbase project list
   branchbase project status [--repo PATH]
+  branchbase exec --repo PATH --worktree ID --group ID -- COMMAND [ARGS...]
   branchbase execute COMMAND --input JSON
   branchbase logs --repo PATH --worktree ID --group ID
 
@@ -68,6 +71,39 @@ const runCommand = (
         repoPath: pathModule.resolve(cwd, option(args, "--repo") ?? "."),
       });
     }
+  }
+  if (command === "exec") {
+    const separator = args.indexOf("--");
+    const options = args.slice(0, separator === -1 ? args.length : separator);
+    const worktreeId = option(options, "--worktree");
+    const appGroupName = option(options, "--group");
+    if (
+      !worktreeId ||
+      !appGroupName ||
+      separator === -1 ||
+      !args[separator + 1]
+    ) {
+      throw new Error(
+        "exec requires --worktree ID --group ID -- COMMAND [ARGS...]"
+      );
+    }
+    return client
+      .execute("resource-command-context", {
+        appGroupName,
+        repoPath: pathModule.resolve(cwd, option(options, "--repo") ?? "."),
+        worktreeId,
+      })
+      .then(async (value) => {
+        const context = parseCommandResult("resource-command-context", value);
+        try {
+          await runBoundCommand(args.slice(separator + 1), context);
+        } finally {
+          await client.execute("release-command-context", {
+            leaseId: context.leaseId,
+          });
+        }
+        return "";
+      });
   }
   if (command === "execute" && action) {
     return client.execute(action, JSON.parse(option(args, "--input") ?? "{}"));

@@ -13,6 +13,30 @@ export const runtimeSummary = (worktree: WorktreeSnapshot) => {
   if (value === "running" && groups.includes("stopped")) {
     value = "partial";
   }
+  const applications = worktree.appGroups.filter(
+    (group) => group.category !== "infrastructure"
+  );
+  const infrastructure = worktree.appGroups.filter(
+    (group) => group.category === "infrastructure"
+  );
+  if (
+    worktree.setupState === "idle" &&
+    applications.length > 0 &&
+    applications.every(
+      (group) => appGroupStatus(group) === "stopped" && !group.cleanupOnly
+    ) &&
+    infrastructure.some((group) => appGroupStatus(group) === "running") &&
+    infrastructure.every(
+      (group) => appGroupStatus(group) !== "partial" && !group.cleanupOnly
+    )
+  ) {
+    return {
+      label: "Applications stopped · infrastructure running",
+      ready,
+      total: apps.length,
+      value: "stopped" as const,
+    };
+  }
   const labels = {
     partial: "Partially running",
     running: "Running",
@@ -72,3 +96,20 @@ export const worktreeRuntimeReasons = (worktree: WorktreeSnapshot): string[] =>
   runtimeSummary(worktree).value === "partial"
     ? worktree.appGroups.flatMap(groupRuntimeReasons)
     : [];
+
+/** Process supervision and detached resource health are separate observations. */
+export const groupExecutionLabel = (group: AppGroupSnapshot): string => {
+  if (group.external) {
+    return "Externally managed";
+  }
+  if (group.processRunning) {
+    return "Managed process running";
+  }
+  if (group.health === "running") {
+    return "Running without a foreground process";
+  }
+  if (group.health === "partially-running" || group.run) {
+    return "No foreground process · check endpoint status";
+  }
+  return "Stopped";
+};

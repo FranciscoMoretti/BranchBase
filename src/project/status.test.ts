@@ -87,6 +87,7 @@ describe("Project status", () => {
       managedPid: () => null,
     },
     state: {
+      allResourceInstances: () => [],
       hasRunForWorktree: () => false,
       runningInstancesForWorktree: (): AppGroupInstance[] => [],
       worktreeConfigSource: () => "project-default" as const,

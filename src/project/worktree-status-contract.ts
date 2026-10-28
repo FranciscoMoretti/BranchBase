@@ -2,6 +2,10 @@ import { z } from "zod";
 
 import { BranchBaseConfigSchema } from "../configuration/branchbase-schema";
 import { WorktreeConfigSourceSchema } from "../configuration/worktree-config-source";
+import {
+  WorktreeProfileSchema,
+  ExistingResourceSchema,
+} from "../resources/resource-contract";
 import { DiskUsageSchema } from "./disk-usage-contract";
 
 export type { WorktreeConfigSource } from "../configuration/worktree-config-source";
@@ -16,6 +20,7 @@ const AppHealthSchema = z.enum(["not-running", "partially-running", "running"]);
 
 export const AppEndpointSnapshotSchema = z.strictObject({
   directUrl: z.string().nullable(),
+  host: z.string().optional(),
   id: z.string(),
   label: z.string(),
   listening: z.boolean(),
@@ -41,6 +46,7 @@ export const AppGroupSnapshotSchema = z.strictObject({
       })
     )
     .optional(),
+  external: z.boolean().optional(),
   health: AppHealthSchema,
   id: z.string().min(1),
   instance: z.strictObject({
@@ -90,11 +96,13 @@ export const WorktreeSnapshotSchema = z.strictObject({
   path: z.string(),
   primaryAppGroup: z.string().min(1),
   processRunning: z.boolean(),
+  profile: WorktreeProfileSchema.optional(),
   setupState: z.enum(["failed", "idle", "running"]),
 });
 
 export const WorkspaceSnapshotSchema = z.strictObject({
   disk: DiskUsageSchema.optional(),
+  existingResources: z.array(ExistingResourceSchema).optional(),
   globalProcesses: z.array(
     z.strictObject({
       argv: z.array(z.string()),
@@ -107,6 +115,28 @@ export const WorkspaceSnapshotSchema = z.strictObject({
   ),
   globalRunningCount: z.number().int().nonnegative(),
   mainWorktreePath: z.string(),
+  managedResources: z
+    .array(
+      z.object({
+        approved: z.boolean(),
+        canBuild: z.boolean(),
+        error: z.string().optional(),
+        id: z.string(),
+        instances: z.array(z.string()),
+        name: z.string(),
+        observations: z.record(
+          z.string(),
+          z.object({
+            consumers: z.number(),
+            health: z.enum(["running", "partially-running", "not-running"]),
+            manual: z.boolean(),
+          })
+        ),
+        path: z.string(),
+        revision: z.string(),
+      })
+    )
+    .optional(),
   projectDefaultConfig: BranchBaseConfigSchema,
   projectDefaultConfigPath: z.string(),
   projectDefaultConfigRevision: z.string().min(1),
@@ -151,8 +181,9 @@ export const worktreeHasRunningAppGroups = (
 ): boolean =>
   worktree.appGroups.some(
     (group) =>
-      appGroupIsRunning(group) ||
-      group.instances.some((instance) => instance.running)
+      !group.external &&
+      (appGroupIsRunning(group) ||
+        group.instances.some((instance) => instance.running))
   );
 
 export const appsAreRunning = (

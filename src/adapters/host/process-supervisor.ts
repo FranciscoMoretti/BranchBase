@@ -57,6 +57,7 @@ export interface ManagedProcessSummary {
 }
 
 export interface StartManagedProcessInput {
+  sensitive?: boolean;
   argv: string[];
   cwd: string;
   env: Record<string, string>;
@@ -223,7 +224,7 @@ export class ProcessSupervisor {
           cwd: input.cwd,
           detached: true,
           env: { ...process.env, ...input.env },
-          stdio: ["ignore", log, log],
+          stdio: input.sensitive ? "ignore" : ["ignore", log, log],
         });
       } finally {
         closeSync(log);
@@ -304,6 +305,7 @@ export class ProcessSupervisor {
   }
 
   async runFiniteCommand(input: {
+    sensitive?: boolean;
     argv: string[];
     cwd: string;
     env: Record<string, string>;
@@ -324,7 +326,7 @@ export class ProcessSupervisor {
         return spawn(command, args, {
           cwd: input.cwd,
           env: { ...process.env, ...input.env },
-          stdio: ["ignore", log, log],
+          stdio: input.sensitive ? "ignore" : ["ignore", log, log],
         });
       } finally {
         closeSync(log);

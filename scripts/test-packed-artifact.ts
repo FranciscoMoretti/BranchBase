@@ -143,6 +143,17 @@ try {
     helpOutput.includes("branchbase project status"),
     "Packed CLI help did not run without a daemon"
   );
+  const aliasPath = pathModule.join(
+    installDirectory,
+    "node_modules",
+    ".bin",
+    "bbase"
+  );
+  assert(existsSync(aliasPath), "Packed install did not expose the bbase CLI");
+  assert(
+    run(aliasPath, ["help"], { cwd: installDirectory }) === helpOutput,
+    "Packed bbase alias did not expose the same CLI"
+  );
   run(
     "bun",
     [
@@ -192,7 +203,7 @@ try {
     BRANCHBASE_PORT: String(port),
     HOME: homeDirectory,
   };
-  const startOutput = run(cliPath, ["start", "--repo", fixtureDirectory], {
+  const startOutput = run(aliasPath, ["start", "--repo", fixtureDirectory], {
     cwd: installDirectory,
     env: daemonEnvironment,
   });

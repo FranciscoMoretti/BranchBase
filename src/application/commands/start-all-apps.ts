@@ -20,6 +20,9 @@ export const startAllApps = async (
       .filter(
         (group) =>
           (!requestedGroup || group.id === requestedGroup) &&
+          (!worktree.profile ||
+            requestedGroup ||
+            group.category !== "infrastructure") &&
           appGroupIsStopped(group)
       )
       .map((group) => ({ appGroupName: group.id, worktreeId: worktree.id }))

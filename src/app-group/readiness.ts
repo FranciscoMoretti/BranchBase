@@ -14,13 +14,19 @@ export interface BackingPortLease {
 }
 
 export const reserveBackingPort = async (
-  excluded: ReadonlySet<number> = new Set()
+  excluded: ReadonlySet<number> = new Set(),
+  requested?: number
 ): Promise<BackingPortLease> => {
+  if (requested && excluded.has(requested)) {
+    throw new Error(
+      `Configured port ${requested} is already assigned to another instance. Release it or change the configuration.`
+    );
+  }
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const result = Promise.withResolvers<BackingPortLease>();
     const server = createServer();
     server.once("error", result.reject);
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(requested ?? 0, "127.0.0.1", () => {
       const address = server.address();
       if (!address || typeof address === "string") {
         server.close();

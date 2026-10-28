@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import type { AppGroupSnapshot } from "../../project/worktree-status-contract";
 import {
   endpointRuntime,
+  groupExecutionLabel,
   runtimeSummary,
   worktreeRuntimeReasons,
 } from "./runtime-summary";
@@ -121,4 +122,61 @@ test("a ready endpoint with a broken friendly route explains the route issue", (
       )
     ).toEqual({ label: `Route ${routeState}`, value: "partial" });
   }
+});
+
+test("healthy idle infrastructure does not mark stopped applications as partially running", () => {
+  const application = {
+    ...group("not-running"),
+    category: "application" as const,
+  };
+  const infrastructure = {
+    ...group("running"),
+    category: "infrastructure" as const,
+    processRunning: false,
+  };
+  const data = {
+    ...worktree,
+    appGroups: [infrastructure, application],
+    health: "running" as const,
+    processRunning: false,
+  };
+  expect(runtimeSummary(data)).toMatchObject({
+    label: "Applications stopped · infrastructure running",
+    value: "stopped",
+  });
+  expect(runtimeSummary({ ...data, setupState: "failed" }).label).toBe(
+    "Setup failed"
+  );
+  expect(
+    runtimeSummary({
+      ...data,
+      appGroups: [
+        { ...infrastructure, health: "partially-running" },
+        application,
+      ],
+    }).value
+  ).toBe("partial");
+  expect(
+    runtimeSummary({
+      ...data,
+      appGroups: [infrastructure, { ...application, cleanupOnly: true }],
+    }).value
+  ).toBe("partial");
+});
+
+test("execution distinguishes detached health, owned processes, external ownership, and stopped groups", () => {
+  expect(
+    groupExecutionLabel({ ...group("running"), processRunning: false })
+  ).toBe("Running without a foreground process");
+  expect(groupExecutionLabel(group("running"))).toBe("Managed process running");
+  expect(groupExecutionLabel({ ...group("running"), external: true })).toBe(
+    "Externally managed"
+  );
+  expect(groupExecutionLabel(group("not-running"))).toBe("Stopped");
+  expect(
+    groupExecutionLabel({
+      ...group("partially-running"),
+      processRunning: false,
+    })
+  ).toBe("No foreground process · check endpoint status");
 });
