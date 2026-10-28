@@ -437,3 +437,116 @@ test("detached resources without TCP endpoints use identity-bearing status for r
     await f.close();
   }
 }, 15_000);
+
+test("resolved output script paths must belong to the approved source manifest", async () => {
+  const f = await fixture();
+  try {
+    const definition = {
+      ...f.definition,
+      files: [],
+      instances: {
+        "0": {
+          ...f.definition.instances["0"],
+          outputs: { script: "database.ts" },
+        },
+      },
+      recipe: {
+        ...f.definition.recipe,
+        start: { argv: [process.execPath, "{outputs.script}"] },
+      },
+    };
+    writeFileSync(f.file, JSON.stringify(definition));
+    const registration = f.runtime.managedResources.register(f.file);
+    f.runtime.managedResources.approve("database", registration.revision);
+    await expect(
+      f.runtime.start(f.runtime.managedResources.target("database", "0"))
+    ).rejects.toThrow("files manifest");
+    expect(existsSync(path.join(f.owner, "starts"))).toBe(false);
+  } finally {
+    await f.close();
+  }
+});
+
+test("catalog inspections share asynchronous status checks across named instances", async () => {
+  const f = await fixture();
+  try {
+    writeFileSync(
+      path.join(f.owner, "service.ts"),
+      `import {appendFileSync,existsSync,writeFileSync,rmSync} from 'node:fs';
+      const marker='active-'+process.env.ID;const mode=process.argv[2];
+      if(mode==='start')writeFileSync(marker,'yes');else if(mode==='stop')rmSync(marker,{force:true});else{
+        appendFileSync('observations',process.env.ID+'\\n');
+        const timer=setInterval(()=>{if(existsSync('observe')){clearInterval(timer);console.log(JSON.stringify({instanceId:process.env.ID,running:existsSync(marker)}))}},20);
+      }`
+    );
+    writeFileSync(
+      f.file,
+      JSON.stringify({
+        ...f.definition,
+        files: ["service.ts"],
+        instances: {
+          "0": { outputs: {}, ports: {} },
+          "1": { outputs: {}, ports: {} },
+        },
+        recipe: {
+          apps: {},
+          env: { ID: "{instance.id}" },
+          start: { argv: [process.execPath, "service.ts", "start"] },
+          stop: { argv: [process.execPath, "service.ts", "stop"] },
+        },
+        status: { argv: [process.execPath, "service.ts", "status"] },
+      })
+    );
+    writeFileSync(path.join(f.owner, "observe"), "yes");
+    const registration = f.runtime.managedResources.register(f.file);
+    f.runtime.managedResources.approve("database", registration.revision);
+    await f.runtime.start(f.runtime.managedResources.target("database", "0"));
+    await f.runtime.start(f.runtime.managedResources.target("database", "1"));
+    writeFileSync(path.join(f.owner, "observations"), "");
+    rmSync(path.join(f.owner, "observe"));
+    const fresh = new AppGroupRuntime(
+      new ProcessSupervisor(path.join(f.root, "control")),
+      {
+        activate: async () => {},
+        deactivate: async () => {},
+        observe: () => "inactive",
+        url: (h) => `http://${h}`,
+      },
+      f.state
+    );
+    fresh.managedCatalog();
+    fresh.managedCatalog();
+    await pollUntil(
+      () =>
+        readFileSync(path.join(f.owner, "observations"), "utf-8")
+          .trim()
+          .split("\n").length === 2,
+      {
+        intervalMs: 20,
+        message: "Status checks were blocked or duplicated",
+        timeoutMs: 2000,
+      }
+    );
+    writeFileSync(path.join(f.owner, "observe"), "yes");
+    await pollUntil(
+      () =>
+        Object.values(fresh.managedCatalog()[0].observations).every(
+          (item) => item.health === "running"
+        ),
+      {
+        intervalMs: 20,
+        message: "Status results did not refresh",
+        timeoutMs: 2000,
+      }
+    );
+    expect(
+      readFileSync(path.join(f.owner, "observations"), "utf-8")
+        .trim()
+        .split("\n")
+    ).toHaveLength(2);
+    await f.runtime.stop(f.runtime.managedResources.target("database", "0"));
+    await f.runtime.stop(f.runtime.managedResources.target("database", "1"));
+  } finally {
+    await f.close();
+  }
+}, 15_000);

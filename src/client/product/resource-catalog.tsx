@@ -42,6 +42,11 @@ export const ResourceCatalog = ({ data }: { data: WorkspaceSnapshot }) => {
           name,
         },
       });
+      setId("");
+      setName("");
+      setEndpoints([
+        { host: "127.0.0.1", key: "first", name: "database", port: "5432" },
+      ]);
       setOpen(false);
     } catch {
       /* Keep entered values visible. */
@@ -60,7 +65,13 @@ export const ResourceCatalog = ({ data }: { data: WorkspaceSnapshot }) => {
             and data stay under their current owner.
           </p>
         </div>
-        <Button variant="outline" onClick={() => setOpen(true)}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            register.reset();
+            setOpen(true);
+          }}
+        >
           Connect existing resource
         </Button>
       </div>

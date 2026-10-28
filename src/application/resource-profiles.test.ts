@@ -185,6 +185,24 @@ const fixture = () => {
 };
 
 describe("resource profile lifecycle", () => {
+  it("retires captured dependencies when Restart follows a branch profile change", async () => {
+    const f = fixture();
+    try {
+      await f.controller.startAppGroup(f.repository, f.featureId, "worker");
+      const shared = f.group(f.featureId, "database");
+      git(f.feature, "checkout", "-qb", "experiment/new-database");
+      await f.controller.restartAppGroup(f.repository, f.featureId, "worker");
+      expect(f.group(f.featureId, "database").instance.id).not.toBe(
+        shared.instance.id
+      );
+      expect(
+        f.state.instanceById(f.repository, shared.instance.id)?.run
+      ).toBeNull();
+      expect(f.group(f.featureId, "worker").processRunning).toBe(true);
+    } finally {
+      await f.close();
+    }
+  }, 15_000);
   it("previews without provisioning and reuses one project resource until the last consumer stops", async () => {
     const f = fixture();
     try {

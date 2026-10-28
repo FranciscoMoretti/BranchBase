@@ -210,18 +210,20 @@ const validateBranchBaseConfig = (
         });
       }
     }
-    for (const [name, template] of Object.entries(group.env ?? {})) {
-      const error = branchbaseTemplateError(
-        template,
-        config.appGroups,
-        groupId
-      );
-      if (error) {
-        context.addIssue({
-          code: "custom",
-          message: error,
-          path: ["appGroups", groupId, "env", name],
-        });
+    for (const field of ["env", "outputs"] as const) {
+      for (const [name, template] of Object.entries(group[field] ?? {})) {
+        const error = branchbaseTemplateError(
+          template,
+          config.appGroups,
+          groupId
+        );
+        if (error) {
+          context.addIssue({
+            code: "custom",
+            message: error,
+            path: ["appGroups", groupId, field, name],
+          });
+        }
       }
     }
     for (const [index, argument] of group.start.argv.entries()) {

@@ -674,6 +674,10 @@ export class WorkspaceController {
   }
 
   private populateResourceProfiles(workspace: WorkspaceSnapshot): void {
+    workspace.resourceIssues = this.appGroups.managedResources.discover(
+      workspace.mainWorktreePath,
+      workspace.projectDefaultConfig
+    );
     workspace.existingResources = this.appGroups.resourceStore.resources();
     workspace.managedResources = this.appGroups.managedCatalog();
     for (const worktree of workspace.worktrees) {
@@ -727,6 +731,13 @@ export class WorkspaceController {
     if (status.workspace) {
       status.workspace.disk = status.disk;
       this.populateResourceProfiles(status.workspace);
+      status.issues.push(
+        ...(status.workspace.resourceIssues ?? []).map((message) => ({
+          area: "runtime" as const,
+          code: "managed-resource-unavailable",
+          message,
+        }))
+      );
     }
     if (status.observation) {
       status.observation.disk = status.disk;

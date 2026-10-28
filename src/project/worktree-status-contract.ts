@@ -143,6 +143,7 @@ export const WorkspaceSnapshotSchema = z.strictObject({
   projectDefaultPrimaryAppGroup: z.string().min(1),
   repoName: z.string(),
   repoPath: z.string(),
+  resourceIssues: z.array(z.string()).optional(),
   resources: ProcessUsageSchema.nullable().optional(),
   trustCommands: z.array(z.string()),
   trustFingerprint: z.string().min(1),

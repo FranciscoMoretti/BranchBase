@@ -95,13 +95,11 @@ const runCommand = (
       })
       .then(async (value) => {
         const context = parseCommandResult("resource-command-context", value);
-        try {
-          await runBoundCommand(args.slice(separator + 1), context);
-        } finally {
-          await client.execute("release-command-context", {
+        await runBoundCommand(args.slice(separator + 1), context, () =>
+          client.execute("release-command-context", {
             leaseId: context.leaseId,
-          });
-        }
+          })
+        );
         return "";
       });
   }

@@ -21,6 +21,15 @@ import {
 } from "./primitives";
 import { ResourceCatalog } from "./resource-catalog";
 
+const ResourceIssues = ({ issues }: { issues?: string[] }) =>
+  (issues ?? []).map((issue) => (
+    <ErrorNotice
+      key={issue}
+      error={new Error(issue)}
+      title="Resource unavailable"
+    />
+  ));
+
 export const InfrastructurePage = ({
   data,
   controls,
@@ -120,6 +129,7 @@ export const InfrastructurePage = ({
         </div>
       )}
       <ErrorNotice error={enable.error} />
+      <ResourceIssues issues={data.resourceIssues} />
       <div className="product-filterbar">
         <Search
           onChange={setSearch}

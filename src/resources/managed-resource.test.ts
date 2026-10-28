@@ -12,6 +12,93 @@ import path from "node:path";
 
 import { ManagedResourceRegistry } from "./managed-resource";
 
+test.each(["start", "stop", "build", "status"])(
+  "approval validates named-instance scripts for %s",
+  (action) => {
+    const root = realpathSync(
+      mkdtempSync(path.join(tmpdir(), "resource-template-"))
+    );
+    try {
+      mkdirSync(path.join(root, "scripts"));
+      writeFileSync(path.join(root, "scripts/first.ts"), "process.exit(0)");
+      writeFileSync(path.join(root, "scripts/second.ts"), "process.exit(0)");
+      const command = {
+        argv: [process.execPath, "scripts/{instance.name}.ts"],
+      };
+      const definition = {
+        directory: ".",
+        files: ["scripts/first.ts"],
+        id: "service",
+        idle: "keep-running",
+        instances: {
+          first: { outputs: {}, ports: {} },
+          second: { outputs: {}, ports: {} },
+        },
+        name: "Service",
+        recipe: {
+          apps: {},
+          start: { argv: ["true"] },
+          stop: "process",
+          ...(["start", "stop"].includes(action) ? { [action]: command } : {}),
+        },
+        status: { argv: ["true"] },
+        ...(["build", "status"].includes(action) ? { [action]: command } : {}),
+        version: 1,
+      };
+      const file = path.join(root, "resource.json");
+      const registry = new ManagedResourceRegistry(root);
+      writeFileSync(file, JSON.stringify(definition));
+      expect(() => registry.register(file)).toThrow("files manifest");
+      definition.files.push("scripts/second.ts");
+      writeFileSync(file, JSON.stringify(definition));
+      const approved = registry.register(file);
+      registry.approve("service", approved.revision);
+      writeFileSync(path.join(root, "scripts/second.ts"), "process.exit(1)");
+      expect(() =>
+        registry.assertCaptured({ id: "service", ...approved })
+      ).toThrow("captured revision");
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  }
+);
+
+test("instance outputs override recipe defaults without dropping other outputs", () => {
+  const root = realpathSync(
+    mkdtempSync(path.join(tmpdir(), "resource-outputs-"))
+  );
+  try {
+    const file = path.join(root, "resource.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        directory: ".",
+        files: [],
+        id: "service",
+        idle: "keep-running",
+        instances: {
+          default: { outputs: { database: "selected" }, ports: {} },
+        },
+        name: "Service",
+        recipe: {
+          apps: {},
+          outputs: { database: "default", host: "localhost" },
+          start: { argv: ["true"] },
+          stop: "process",
+        },
+        version: 1,
+      })
+    );
+    const registry = new ManagedResourceRegistry(root);
+    registry.register(file);
+    expect(
+      registry.target("service", "default").config.appGroups.resource.outputs
+    ).toEqual({ database: "selected", host: "localhost" });
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
 test.each(["start", "stop"])(
   "approval fingerprints %s scripts relative to their command directory",
   (action) => {

@@ -19,6 +19,43 @@ const Registry = z.record(
   })
 );
 
+const assertCommandSources = (
+  directory: string,
+  sourceFiles: string[],
+  argv: string[],
+  cwd: string
+): void => {
+  for (const [index, argument] of argv.entries()) {
+    if (argument.includes("{")) {
+      continue;
+    }
+    const candidate = path.resolve(cwd, argument);
+    if (!existsSync(candidate) || !statSync(candidate).isFile()) {
+      continue;
+    }
+    // Installed executables are supplied by the host; local command files
+    // and file arguments belong to the approved resource source manifest.
+    if (
+      index === 0 &&
+      path.isAbsolute(argument) &&
+      !candidate.startsWith(`${directory}${path.sep}`)
+    ) {
+      continue;
+    }
+    const sourceFile = realpathSync(candidate);
+    if (!sourceFile.startsWith(`${directory}${path.sep}`)) {
+      throw new Error(
+        "Resource command source files must remain inside their execution directory"
+      );
+    }
+    if (!sourceFiles.includes(sourceFile)) {
+      throw new Error(
+        `Add command source "${argument}" to the resource files manifest before approving it`
+      );
+    }
+  }
+};
+
 export const readManagedDefinition = (file: string) => {
   const source = realpathSync(file);
   const definition = ManagedResourceDefinitionSchema.parse(
@@ -51,36 +88,18 @@ export const readManagedDefinition = (file: string) => {
     if (command.cwd) {
       commandDirectories.push(cwd);
     }
-    for (const [index, argument] of command.argv.entries()) {
-      if (argument.includes("{")) {
-        continue;
-      }
-      const candidate = path.resolve(cwd, argument);
-      if (!existsSync(candidate) || !statSync(candidate).isFile()) {
-        continue;
-      }
-      // Installed executables are supplied by the host; local command files
-      // and file arguments belong to the approved resource source manifest.
-      if (
-        index === 0 &&
-        path.isAbsolute(argument) &&
-        !candidate.startsWith(`${directory}${path.sep}`)
-      ) {
-        continue;
-      }
-      const sourceFile = realpathSync(candidate);
-      if (!sourceFile.startsWith(`${directory}${path.sep}`)) {
-        throw new Error(
-          "Resource command source files must remain inside their execution directory"
-        );
-      }
-      if (!sourceFiles.includes(sourceFile)) {
-        throw new Error(
-          `Add command source "${argument}" to the resource files manifest before approving it`
-        );
-      }
+    for (const name of Object.keys(definition.instances)) {
+      assertCommandSources(
+        directory,
+        sourceFiles,
+        command.argv.map((argument) =>
+          argument.replaceAll("{instance.name}", name)
+        ),
+        cwd
+      );
     }
   }
+
   const hash = createHash("sha256")
     .update(JSON.stringify(definition))
     .update(source)
@@ -99,6 +118,21 @@ export const readManagedDefinition = (file: string) => {
   };
 };
 export type ManagedDefinition = ReturnType<typeof readManagedDefinition>;
+
+/** Enforce the manifest again after all runtime tokens have been resolved. */
+export const assertManagedCommandSources = (
+  resource: ManagedDefinition,
+  argv: string[],
+  cwd: string
+): void =>
+  assertCommandSources(
+    resource.directory,
+    resource.definition.files.map((file) =>
+      realpathSync(path.resolve(resource.directory, file))
+    ),
+    argv,
+    cwd
+  );
 
 /** The authoritative owner and approval are independent of every consumer. */
 export class ManagedResourceRegistry {
@@ -129,19 +163,20 @@ export class ManagedResourceRegistry {
     }
     return result;
   }
-  discover(repoPath: string, config: BranchBaseConfig) {
+  discover(repoPath: string, config: BranchBaseConfig): string[] {
+    const issues: string[] = [];
     for (const [id, declaration] of Object.entries(
       config.managedResources ?? {}
     )) {
       try {
         this.register(path.resolve(repoPath, declaration.file), id);
       } catch (error) {
-        throw new Error(
-          `Cannot load declared resource "${id}" from ${declaration.file}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+        issues.push(
+          `Cannot load declared resource "${id}" from ${declaration.file}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
+    return issues;
   }
   get(id: string) {
     const entry = this.read()[id];
@@ -246,7 +281,7 @@ export class ManagedResourceRegistry {
       category: "infrastructure" as const,
       env: { ...definition.recipe.env, ...values.env },
       instances: { mode: "selectable" as const },
-      outputs: values.outputs,
+      outputs: { ...definition.recipe.outputs, ...values.outputs },
     };
     const config: BranchBaseConfig = {
       appGroups: { resource: group },

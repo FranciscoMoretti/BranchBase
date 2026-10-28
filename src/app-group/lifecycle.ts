@@ -15,6 +15,7 @@ import type { ProcessSupervisor } from "../adapters/host/process-supervisor";
 import {
   commandEnvironment,
   managedResourceRunning,
+  observeManagedResourceRunning,
 } from "../adapters/host/resource-status";
 import type {
   LocalRoute,
@@ -53,8 +54,12 @@ import {
   waitForExternalResource,
   unresolvedExternalResource,
 } from "../resources/external-resource";
-import { ManagedResourceRegistry } from "../resources/managed-resource";
+import {
+  assertManagedCommandSources,
+  ManagedResourceRegistry,
+} from "../resources/managed-resource";
 import type { ManagedDefinition } from "../resources/managed-resource";
+import { ManagedResourceObservation } from "../resources/managed-resource-observation";
 import type { WorktreeProfileSchema } from "../resources/resource-contract";
 import { ResourceStore } from "../resources/resource-store";
 import type {
@@ -327,6 +332,7 @@ export class AppGroupRuntime {
   readonly resourceStore: ResourceStore;
   readonly managedResources: ManagedResourceRegistry;
   private readonly externalObservation = new ExternalResourceObservation();
+  private readonly managedObservation = new ManagedResourceObservation();
 
   constructor(
     processes: ProcessSupervisor,
@@ -714,7 +720,7 @@ export class AppGroupRuntime {
       try {
         this.managedResources.assertCaptured(run.definition);
         if (target.managed.definition.status) {
-          if (!this.detachedRunning(runContext(target, instance, run))) {
+          if (!this.inspectDetachedRunning(runContext(target, instance, run))) {
             groupSnapshotHealth = "partially-running";
           } else if (apps.length === 0) {
             groupSnapshotHealth = "running";
@@ -1158,8 +1164,10 @@ export class AppGroupRuntime {
         const current = this.reconcile(target);
         const selected = current[target.groupId];
         this.assertNoResourceConsumers(target, selected);
+        const previous = this.state.run(runKey(target.repoPath, selected.id));
         await this.stopUnlocked(target, selected);
         await this.startWithDependencies(target, current);
+        await this.stopUnusedDependencies(target, previous);
         return "restarted" as const;
       })
     );
@@ -1434,6 +1442,13 @@ export class AppGroupRuntime {
           `${displayName(context.target.groupId, context.group)} has no Stop command`
         );
       }
+      if (context.target.managed) {
+        assertManagedCommandSources(
+          context.target.managed,
+          command.argv,
+          commandWorkingDirectory(context.processPath, command.cwd)
+        );
+      }
       await this.processes.runFiniteCommand({
         argv: command.argv,
         cwd: commandWorkingDirectory(context.processPath, command.cwd),
@@ -1646,7 +1661,7 @@ export class AppGroupRuntime {
           instance.name
         );
         if (owner.managed?.definition.status) {
-          return this.detachedRunning(runContext(owner, instance, run));
+          return this.inspectDetachedRunning(runContext(owner, instance, run));
         }
       } catch {
         return false;
@@ -1801,13 +1816,15 @@ export class AppGroupRuntime {
         { resource: instances.resource.id }
       );
       const command = resolveStartCommand(target.config, "resource", bindings);
+      const argv = build.argv.map((value) =>
+        renderBranchBaseTemplate(value, {
+          appGroups: bindings,
+          currentGroup: "resource",
+        })
+      );
+      assertManagedCommandSources(managed, argv, managed.directory);
       await this.processes.runFiniteCommand({
-        argv: build.argv.map((value) =>
-          renderBranchBaseTemplate(value, {
-            appGroups: bindings,
-            currentGroup: "resource",
-          })
-        ),
+        argv,
         cwd: managed.directory,
         env: commandEnvironment(target.config.appGroups.resource, command.env),
         label: `Build ${id}/${name}`,
@@ -1916,13 +1933,14 @@ export class AppGroupRuntime {
     });
   }
 
-  private detachedRunning(context: RunContext): boolean {
+  private statusCommand(context: RunContext) {
     if (context.run.definition) {
       this.managedResources.assertCaptured(context.run.definition);
     }
-    const status = context.target.managed?.definition.status;
-    if (!status) {
-      return true;
+    const { managed } = context.target;
+    const status = managed?.definition.status;
+    if (!managed || !status) {
+      return null;
     }
     const bindings = context.run.bindings ?? {};
     const command = resolveStartCommand(
@@ -1930,17 +1948,65 @@ export class AppGroupRuntime {
       context.target.groupId,
       bindings
     );
-    return managedResourceRunning(
-      status.argv.map((value) =>
-        renderBranchBaseTemplate(value, {
-          appGroups: bindings,
-          currentGroup: context.target.groupId,
-        })
-      ),
-      context.processPath,
-      commandEnvironment(context.group, command.env),
-      context.run.instanceId
+    const argv = status.argv.map((value) =>
+      renderBranchBaseTemplate(value, {
+        appGroups: bindings,
+        currentGroup: context.target.groupId,
+      })
     );
+    assertManagedCommandSources(managed, argv, context.processPath);
+    return {
+      argv,
+      cwd: context.processPath,
+      env: commandEnvironment(context.group, command.env),
+      instanceId: context.run.instanceId,
+    };
+  }
+
+  private static observationKey(context: RunContext): string {
+    return JSON.stringify([
+      context.run.instanceId,
+      context.run.createdAt,
+      context.run.definition?.revision,
+    ]);
+  }
+
+  private inspectDetachedRunning(context: RunContext): boolean {
+    // Validate the captured recipe even when a previous observation is cached.
+    if (context.run.definition) {
+      this.managedResources.assertCaptured(context.run.definition);
+    }
+    return this.managedObservation.inspect(
+      AppGroupRuntime.observationKey(context),
+      async () => {
+        const command = this.statusCommand(context);
+        return command
+          ? await observeManagedResourceRunning(
+              command.argv,
+              command.cwd,
+              command.env,
+              command.instanceId
+            )
+          : true;
+      }
+    );
+  }
+
+  private detachedRunning(context: RunContext): boolean {
+    const command = this.statusCommand(context);
+    const running = command
+      ? managedResourceRunning(
+          command.argv,
+          command.cwd,
+          command.env,
+          command.instanceId
+        )
+      : true;
+    this.managedObservation.record(
+      AppGroupRuntime.observationKey(context),
+      running
+    );
+    return running;
   }
 
   private launchRunProcess(
@@ -1966,6 +2032,13 @@ export class AppGroupRuntime {
             context.run.instanceIdsByGroup
           )
       );
+      if (context.target.managed) {
+        assertManagedCommandSources(
+          context.target.managed,
+          command.argv,
+          commandWorkingDirectory(context.processPath, command.cwd)
+        );
+      }
       this.processes.startManagedProcess({
         argv: command.argv,
         cwd: commandWorkingDirectory(context.processPath, command.cwd),

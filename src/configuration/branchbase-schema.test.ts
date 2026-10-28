@@ -46,6 +46,22 @@ const validConfig = {
 } satisfies BranchBaseConfig;
 
 describe("shared BranchBase schema", () => {
+  it("reports invalid output templates at the configuration field", () => {
+    const config = cloneBranchBaseConfig(validConfig);
+    config.appGroups.services.outputs = { host: "{apps.databse.host}" };
+    const parsed = BranchBaseConfigSchema.safeParse(config);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues[0].path).toEqual([
+        "appGroups",
+        "services",
+        "outputs",
+        "host",
+      ]);
+    }
+    config.appGroups.services.outputs = { host: "{apps.database.host}" };
+    expect(BranchBaseConfigSchema.safeParse(config).success).toBe(true);
+  });
   it("accepts slot-free Apps with app-group environments", () => {
     const parsed = BranchBaseConfigSchema.parse(validConfig);
     expect(parsed.appGroups.development.env).toEqual({

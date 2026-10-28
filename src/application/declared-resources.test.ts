@@ -117,7 +117,9 @@ test("another clone cannot silently replace a declared resource owner", () => {
     f.controller.inspect(f.repo);
     const clone = path.join(f.root, "clone");
     f.git(f.root, "clone", "-q", f.repo, clone);
-    expect(() => f.controller.inspect(clone)).toThrow("authoritative owner");
+    expect(f.controller.inspect(clone).resourceIssues?.join("; ")).toContain(
+      "authoritative owner"
+    );
     expect(f.controller.inspect(f.repo).managedResources?.[0].path).toBe(
       f.file
     );
@@ -130,15 +132,25 @@ test("invalid declarations report their path without registering a different res
   const f = fixture();
   try {
     writeFileSync(f.file, JSON.stringify({ ...f.definition, id: "different" }));
-    expect(() => f.controller.inspect(f.repo)).toThrow(
+    expect(f.controller.inspect(f.repo).resourceIssues?.join("; ")).toContain(
       "does not match definition ID"
     );
     writeFileSync(f.file, "not json");
-    expect(() => f.controller.inspect(f.repo)).toThrow("infra/database.json");
+    expect(f.controller.inspect(f.repo).resourceIssues?.join("; ")).toContain(
+      "infra/database.json"
+    );
     rmSync(f.file);
-    expect(() => f.controller.inspect(f.repo)).toThrow(
+    expect(f.controller.inspect(f.repo).resourceIssues?.join("; ")).toContain(
       "Cannot load declared resource"
     );
+    expect(f.controller.inspect(f.repo).worktrees[0].appGroups).toHaveLength(1);
+    const status = f.controller.refreshProjectStatus(f.repo);
+    expect(status.workspace).not.toBeNull();
+    expect(
+      status.issues.some(
+        (issue) => issue.code === "managed-resource-unavailable"
+      )
+    ).toBe(true);
   } finally {
     rmSync(f.root, { force: true, recursive: true });
   }
