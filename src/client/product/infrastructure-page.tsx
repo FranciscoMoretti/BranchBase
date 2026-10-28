@@ -22,7 +22,7 @@ import {
 import { ResourceCatalog } from "./resource-catalog";
 
 const ResourceIssues = ({ issues }: { issues?: string[] }) =>
-  (issues ?? []).map((issue) => (
+  [...new Set(issues)].map((issue) => (
     <ErrorNotice
       key={issue}
       error={new Error(issue)}
@@ -171,11 +171,7 @@ export const InfrastructurePage = ({
               <ResourceUsage usage={group.resources} />
               {group.apps.map((app) => (
                 <span className="product-infra-endpoint" key={app.id}>
-                  {app.open && app.url ? (
-                    <AppLink app={app} />
-                  ) : (
-                    <span>{app.label}</span>
-                  )}
+                  <AppLink app={app} />
                   <code>
                     {app.port
                       ? `${app.host?.includes(":") ? `[${app.host}]` : (app.host ?? "127.0.0.1")}:${app.port}`

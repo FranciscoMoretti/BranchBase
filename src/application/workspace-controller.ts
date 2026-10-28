@@ -733,7 +733,7 @@ export class WorkspaceController {
       this.populateResourceProfiles(status.workspace);
       status.issues.push(
         ...(status.workspace.resourceIssues ?? []).map((message) => ({
-          area: "runtime" as const,
+          area: "configuration" as const,
           code: "managed-resource-unavailable",
           message,
         }))

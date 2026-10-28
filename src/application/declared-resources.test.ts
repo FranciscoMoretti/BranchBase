@@ -155,3 +155,28 @@ test("invalid declarations report their path without registering a different res
     rmSync(f.root, { force: true, recursive: true });
   }
 });
+
+test("a broken declaration does not block inspection of a stopped worktree for removal", async () => {
+  const f = fixture();
+  try {
+    const branch = path.join(f.root, "checkout");
+    f.git(f.repo, "worktree", "add", "-qb", "feature", branch);
+    rmSync(f.file);
+    const status = f.controller.refreshProjectStatus(f.repo);
+    expect(
+      status.issues.find(
+        (issue) => issue.code === "managed-resource-unavailable"
+      )?.area
+    ).toBe("configuration");
+    const worktree = status.worktrees.find((item) => !item.isMain);
+    if (!worktree) {
+      throw new Error("Missing linked worktree");
+    }
+    expect(
+      f.controller.worktreeRemovalTarget(f.repo, worktree.id).worktree.path
+    ).toBe(branch);
+  } finally {
+    await f.controller.close();
+    rmSync(f.root, { force: true, recursive: true });
+  }
+});
