@@ -850,23 +850,28 @@ export class AppGroupRuntime {
       const dependencyTarget = { ...target, groupId };
       // oxlint-disable-next-line no-await-in-loop -- Dependencies must start before consumers.
       result = await this.startUnlocked(dependencyTarget, instances);
-      if (
-        groupId === target.groupId ||
-        ["existing", "managed"].includes(
-          this.connection(dependencyTarget)?.policy ?? ""
-        )
-      ) {
+      const connection = this.connection(dependencyTarget);
+      if (groupId === target.groupId || connection?.policy === "existing") {
         continue;
       }
-      const dependency = this.state.run(
-        runKey(target.repoPath, instances[groupId].id)
-      );
+      const owner =
+        connection?.policy === "managed"
+          ? this.managedResources.target(
+              connection.resource,
+              connection.instance
+            )
+          : dependencyTarget;
+      const instance =
+        connection?.policy === "managed"
+          ? this.reconcile(owner).resource
+          : instances[groupId];
+      const dependency = this.state.run(runKey(owner.repoPath, instance.id));
       if (!dependency) {
         continue;
       }
       // oxlint-disable-next-line no-await-in-loop -- All dependency endpoints must be ready before the next consumer.
       const readiness = await readinessForRun(
-        runContext(dependencyTarget, instances[groupId], dependency)
+        runContext(owner, instance, dependency)
       );
       if (!readiness.every(Boolean)) {
         throw new Error(`Dependency "${groupId}" is not ready.`);
@@ -1909,35 +1914,6 @@ export class AppGroupRuntime {
         leaseId,
       };
     });
-  }
-
-  commandContext(target: AppGroupTarget) {
-    const instance = this.reconcile(target)[target.groupId];
-    const run = this.state.run(runKey(target.repoPath, instance.id));
-    if (!run?.bindings) {
-      throw new Error(
-        "Start the application once to establish its selected connection context"
-      );
-    }
-    if (run.profileId !== this.profile(target)?.id) {
-      throw new Error("Apply the selected profile before executing a command");
-    }
-    const command = resolveStartCommand(
-      target.config,
-      target.groupId,
-      run.bindings
-    );
-    return {
-      cwd: commandWorkingDirectory(run.worktreePath, command.cwd),
-      env: Object.fromEntries(
-        Object.entries(command.env).filter(
-          ([name]) =>
-            !run.inputs?.[name] ||
-            groupForTarget(target).env?.[name]?.includes("{")
-        )
-      ),
-      inputs: run.inputs ?? {},
-    };
   }
 
   private detachedRunning(context: RunContext): boolean {

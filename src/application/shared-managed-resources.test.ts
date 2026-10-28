@@ -168,13 +168,15 @@ test("four applications across projects share two independently identified manag
     expect(
       readFileSync(path.join(f.owner, "starts"), "utf-8").trim().split("\n")
     ).toHaveLength(2);
-    expect(f.runtime.commandContext(targets[0]).env).toEqual({
+    const firstContext = await f.runtime.manualCommandContext(targets[0]);
+    expect(firstContext.env).toEqual({
       DATABASE: "core-api-0",
       DB_PORT: String(f.ports[0]),
     });
-    expect(f.runtime.commandContext(targets[3]).env.DATABASE).toBe(
-      "core-api-1"
-    );
+    await f.runtime.releaseManualCommandContext(firstContext.leaseId);
+    const otherContext = await f.runtime.manualCommandContext(targets[3]);
+    expect(otherContext.env.DATABASE).toBe("core-api-1");
+    await f.runtime.releaseManualCommandContext(otherContext.leaseId);
     expect(f.runtime.reconcile(targets[0]).worker.id).toBe(before);
     const shared = f.runtime.managedResources.target("database", "0");
     await expect(f.runtime.stop(shared)).rejects.toThrow("in use");
@@ -186,9 +188,9 @@ test("four applications across projects share two independently identified manag
     expect(
       f.state.allInstances("resource:database").find((i) => i.name === "0")?.run
     ).toBeNull();
-    expect(f.runtime.commandContext(targets[1]).env.DATABASE).toBe(
-      "core-api-1"
-    );
+    const switchedContext = await f.runtime.manualCommandContext(targets[1]);
+    expect(switchedContext.env.DATABASE).toBe("core-api-1");
+    await f.runtime.releaseManualCommandContext(switchedContext.leaseId);
     await Promise.all(targets.slice(1).map((t) => f.runtime.stop(t)));
     expect(
       f.state.allInstances("resource:database").every((i) => i.run === null)
@@ -197,6 +199,40 @@ test("four applications across projects share two independently identified manag
     await f.close();
   }
 }, 30_000);
+
+test("consumers wait for every endpoint of their selected managed resource", async () => {
+  const f = await fixture();
+  try {
+    writeFileSync(
+      f.file,
+      JSON.stringify({
+        ...f.definition,
+        recipe: {
+          ...f.definition.recipe,
+          apps: {
+            ...f.definition.recipe.apps,
+            unavailable: {
+              protocol: "http",
+              readiness: { path: "/health", timeoutSeconds: 1, type: "http" },
+            },
+          },
+        },
+      })
+    );
+    const registration = f.runtime.managedResources.register(f.file);
+    f.runtime.managedResources.approve("database", registration.revision);
+    const target = f.target("consumer", "0");
+    await expect(f.runtime.start(target)).rejects.toThrow(
+      'Dependency "db" is not ready'
+    );
+    expect(f.runtime.reconcile(target).worker.run).toBeNull();
+    expect(f.runtime.managedCatalog()[0].observations["0"].health).toBe(
+      "partially-running"
+    );
+  } finally {
+    await f.close();
+  }
+}, 15_000);
 
 test("source edits preserve identity and prevent Stop from invoking a changed recipe", async () => {
   const f = await fixture();
@@ -253,8 +289,9 @@ test("detached resources prove instance identity before serving consumers", asyn
     f.runtime.managedResources.approve("database", registration.revision);
     const target = f.target("app0", "0");
     await f.runtime.start(target);
-    const context = f.runtime.commandContext(target);
+    const context = await f.runtime.manualCommandContext(target);
     expect(context.env.DATABASE).toBe("core-api-0");
+    await f.runtime.releaseManualCommandContext(context.leaseId);
     const marker = path.join(f.owner, `detached-${f.ports[0]}.json`);
     const captured = JSON.parse(readFileSync(marker, "utf-8"));
     writeFileSync(marker, JSON.stringify({ ...captured, id: "other-owner" }));
@@ -319,7 +356,9 @@ test("declared local inputs stay out of persisted bindings and logs while select
     expect(readFileSync(f.state.path, "utf-8")).not.toContain(
       "private-test-value"
     );
-    expect(f.runtime.commandContext(target).env.TOKEN).toBeUndefined();
+    const context = await f.runtime.manualCommandContext(target);
+    expect(context.env.TOKEN).toBeUndefined();
+    await f.runtime.releaseManualCommandContext(context.leaseId);
     const instance = f.runtime.reconcile(target).worker;
     expect(
       readFileSync(

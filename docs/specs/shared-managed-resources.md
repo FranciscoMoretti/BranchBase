@@ -1,6 +1,7 @@
 # Shared managed resources and independent application instances
 
-Date: 2026-10-27  
+Date: 2026-10-27
+
 Status: Accepted requirements. Implemented interfaces are documented in the [managed resources guide](../managed-resources.md) and [ADR 0007](../adr/0007-independent-managed-resources.md).
 
 ## Purpose

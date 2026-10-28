@@ -6,14 +6,15 @@ import { z } from "zod";
 
 import { readJsonFile, writeJsonFile } from "../adapters/persistence/json-file";
 import type { AppGroupTarget } from "../app-group/lifecycle";
+import type { BranchBaseCommand } from "../configuration/branchbase-command";
 import type { BranchBaseConfig } from "../configuration/branchbase-schema";
+import { commandWorkingDirectory } from "../configuration/command-directory";
 import { ManagedResourceDefinitionSchema } from "../configuration/managed-resource-schema";
 
 const Registry = z.record(
   z.string(),
   z.strictObject({
     approved: z.array(z.string()).optional(),
-    built: z.record(z.string(), z.string()).optional(),
     path: z.string(),
   })
 );
@@ -26,42 +27,68 @@ export const readManagedDefinition = (file: string) => {
   const directory = realpathSync(
     path.resolve(path.dirname(source), definition.directory)
   );
-  const commandFiles = [
+  const commands: (BranchBaseCommand | undefined)[] = [
     definition.recipe.start,
     ...(definition.recipe.stop === "process" ? [] : [definition.recipe.stop]),
     definition.build,
     definition.status,
-  ]
-    .flatMap((command) => command?.argv ?? [])
-    .filter((argument) => !argument.includes("{"));
-  for (const argument of commandFiles) {
-    const candidate = path.resolve(directory, argument);
-    if (
-      candidate.startsWith(`${directory}${path.sep}`) &&
-      existsSync(candidate) &&
-      statSync(candidate).isFile() &&
-      !definition.files.some(
-        (sourceFile) =>
-          realpathSync(path.resolve(directory, sourceFile)) ===
-          realpathSync(candidate)
-      )
-    ) {
-      throw new Error(
-        `Add command source "${argument}" to the resource files manifest before approving it`
-      );
-    }
-  }
-  const hash = createHash("sha256")
-    .update(JSON.stringify(definition))
-    .update(source)
-    .update(directory);
-  for (const fileName of definition.files.toSorted()) {
+  ];
+  const sourceFiles = definition.files.toSorted().map((fileName) => {
     const absolute = realpathSync(path.resolve(directory, fileName));
     if (!absolute.startsWith(`${directory}${path.sep}`)) {
       throw new Error(
         "Resource source files must remain inside their execution directory"
       );
     }
+    return absolute;
+  });
+  const commandDirectories: string[] = [];
+  for (const command of commands) {
+    if (!command) {
+      continue;
+    }
+    const cwd = commandWorkingDirectory(directory, command.cwd);
+    if (command.cwd) {
+      commandDirectories.push(cwd);
+    }
+    for (const [index, argument] of command.argv.entries()) {
+      if (argument.includes("{")) {
+        continue;
+      }
+      const candidate = path.resolve(cwd, argument);
+      if (!existsSync(candidate) || !statSync(candidate).isFile()) {
+        continue;
+      }
+      // Installed executables are supplied by the host; local command files
+      // and file arguments belong to the approved resource source manifest.
+      if (
+        index === 0 &&
+        path.isAbsolute(argument) &&
+        !candidate.startsWith(`${directory}${path.sep}`)
+      ) {
+        continue;
+      }
+      const sourceFile = realpathSync(candidate);
+      if (!sourceFile.startsWith(`${directory}${path.sep}`)) {
+        throw new Error(
+          "Resource command source files must remain inside their execution directory"
+        );
+      }
+      if (!sourceFiles.includes(sourceFile)) {
+        throw new Error(
+          `Add command source "${argument}" to the resource files manifest before approving it`
+        );
+      }
+    }
+  }
+  const hash = createHash("sha256")
+    .update(JSON.stringify(definition))
+    .update(source)
+    .update(directory);
+  if (commandDirectories.length > 0) {
+    hash.update(JSON.stringify(commandDirectories));
+  }
+  for (const absolute of sourceFiles) {
     hash.update(absolute).update(readFileSync(absolute));
   }
   return {

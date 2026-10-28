@@ -108,6 +108,7 @@ try {
     "package/plugins/branchbase/hooks/branchbase-hook",
     "package/plugins/branchbase/hooks/branchbase-hook.ts",
     "package/schema/branchbase.schema.json",
+    "package/schema/managed-resource.schema.json",
     "package/src/configuration/public.ts",
   ]) {
     assert(
