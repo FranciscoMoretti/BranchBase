@@ -1,5 +1,7 @@
 import pathModule from "node:path";
 
+import type { z } from "zod";
+
 import { pollUntil } from "../adapters/host/polling";
 import {
   inspectListeningPorts,
@@ -10,6 +12,11 @@ import {
 } from "../adapters/host/ports";
 import { appGroupInstanceProcessId } from "../adapters/host/process-supervisor";
 import type { ProcessSupervisor } from "../adapters/host/process-supervisor";
+import {
+  commandEnvironment,
+  managedResourceRunning,
+  observeManagedResourceRunning,
+} from "../adapters/host/resource-status";
 import type {
   LocalRoute,
   LocalRouteState,
@@ -25,16 +32,36 @@ import type {
   BranchBaseAppGroup,
   BranchBaseConfig,
 } from "../configuration/branchbase-schema";
+import { renderBranchBaseTemplate } from "../configuration/branchbase-template";
 import { commandWorkingDirectory } from "../configuration/command-directory";
 import {
   repositoryCommandFingerprint,
   repositoryFingerprintIsTrusted,
 } from "../configuration/repository-trust";
+import {
+  resolveResourceProfile,
+  dependencyOrder,
+} from "../configuration/resource-profiles";
+import type { ResourceConnection } from "../configuration/resource-profiles";
 import type {
   AppEndpointSnapshot,
   AppGroupSnapshot,
   AppHealth,
 } from "../project/worktree-status-contract";
+import {
+  ExternalResourceObservation,
+  externalEndpoints,
+  waitForExternalResource,
+  unresolvedExternalResource,
+} from "../resources/external-resource";
+import {
+  assertManagedCommandSources,
+  ManagedResourceRegistry,
+} from "../resources/managed-resource";
+import type { ManagedDefinition } from "../resources/managed-resource";
+import { ManagedResourceObservation } from "../resources/managed-resource-observation";
+import type { WorktreeProfileSchema } from "../resources/resource-contract";
+import { ResourceStore } from "../resources/resource-store";
 import type {
   AppGroupInstance,
   AppGroupRun,
@@ -54,6 +81,7 @@ import {
 import type { BackingPortLease } from "./readiness";
 
 export interface AppGroupTarget {
+  managed?: ManagedDefinition & { instanceName: string };
   config: BranchBaseConfig;
   groupId: string;
   repoPath: string;
@@ -241,7 +269,7 @@ const endpointRoute = (endpoint: RunEndpoint): LocalRoute => {
   return { hostname: endpoint.hostname, port: endpoint.port };
 };
 
-const instanceRequest = (target: AppGroupTarget): InstanceRequest => {
+const baseInstanceRequest = (target: AppGroupTarget): InstanceRequest => {
   const group = groupForTarget(target);
   return {
     configFingerprint: repositoryCommandFingerprint(target.config),
@@ -301,6 +329,10 @@ export class AppGroupRuntime {
   private readonly processes: ProcessSupervisor;
   private readonly routing: LocalRoutingEngine;
   private readonly state: FileBranchBaseStateStore;
+  readonly resourceStore: ResourceStore;
+  readonly managedResources: ManagedResourceRegistry;
+  private readonly externalObservation = new ExternalResourceObservation();
+  private readonly managedObservation = new ManagedResourceObservation();
 
   constructor(
     processes: ProcessSupervisor,
@@ -310,13 +342,272 @@ export class AppGroupRuntime {
     this.processes = processes;
     this.routing = routing;
     this.state = state;
+    this.resourceStore = new ResourceStore(pathModule.dirname(state.path));
+    this.managedResources = new ManagedResourceRegistry(
+      pathModule.dirname(state.path)
+    );
+  }
+
+  managedCatalog() {
+    const ports = inspectListeningPorts();
+    return this.managedResources.list().map((resource) => ({
+      ...resource,
+      observations: Object.fromEntries(
+        resource.instances.map((name) => {
+          const target = this.managedResources.target(resource.id, name);
+          const instance = this.reconcile(target).resource;
+          const snapshot = this.inspectInstance(target, instance, ports);
+          const consumers = this.state
+            .allResourceInstances()
+            .filter((entry) =>
+              entry.instance.run?.dependencyGroupIds?.some(
+                (id) =>
+                  entry.instance.run?.instanceIdsByGroup[id] === instance.id
+              )
+            ).length;
+          return [
+            name,
+            {
+              consumers,
+              health: snapshot.health,
+              manual: this.resourceStore.hasLease(instance.id),
+            },
+          ];
+        })
+      ),
+    }));
+  }
+
+  profile(target: AppGroupTarget) {
+    const selected = this.resourceStore.profile(
+      target.repoPath,
+      target.worktree.path
+    );
+    const override =
+      selected && target.config.profiles?.definitions[selected]
+        ? selected
+        : null;
+    return resolveResourceProfile(
+      target.config,
+      target.worktree.routeLabel,
+      override
+    );
+  }
+
+  private idlePolicy(
+    connection: ResourceConnection
+  ): "external" | "keep-running" | "stop-when-unused" {
+    if (connection.policy === "existing") {
+      return "external";
+    }
+    if (connection.policy === "managed") {
+      return this.managedResources.get(connection.resource).definition.idle;
+    }
+    return connection.idle ?? "keep-running";
+  }
+
+  private connection(target: AppGroupTarget): ResourceConnection | undefined {
+    return this.profile(target)?.connections[target.groupId];
+  }
+
+  private instanceRequest(
+    target: AppGroupTarget,
+    override?: ResourceConnection
+  ): InstanceRequest {
+    const connection = override ?? this.connection(target);
+    const request = baseInstanceRequest(target);
+    if (target.managed) {
+      return {
+        ...request,
+        configFingerprint: `resource:${target.managed.definition.id}`,
+        instanceName: target.managed.instanceName,
+        mode: "selectable",
+      };
+    }
+    if (connection?.policy === "managed") {
+      return this.instanceRequest(
+        this.managedResources.target(connection.resource, connection.instance)
+      );
+    }
+    if (connection?.policy === "project" || connection?.policy === "existing") {
+      return {
+        ...request,
+        mode: "selectable",
+        useDefault: connection.policy === "existing",
+      };
+    }
+    return connection?.policy === "worktree"
+      ? { ...request, mode: "per-worktree" }
+      : request;
+  }
+
+  private externalBindings(
+    target: AppGroupTarget
+  ): ResolvedBranchBaseAppGroups {
+    return Object.fromEntries(
+      Object.entries(this.profile(target)?.connections ?? {}).flatMap(
+        ([id, connection]) => {
+          if (connection.policy === "managed") {
+            const owner = this.managedResources.target(
+              connection.resource,
+              connection.instance
+            );
+            const instances = this.reconcile(owner);
+            const bindings = this.resolveTemplateAppGroups(
+              owner.config,
+              owner.repoPath,
+              owner.worktree.path,
+              { resource: instances.resource.id }
+            );
+            return [[id, { ...bindings.resource, id }]];
+          }
+          if (connection.policy !== "existing") {
+            return [];
+          }
+          const resource = this.resourceStore.resource(connection.resource);
+          return [
+            [
+              id,
+              {
+                apps: externalEndpoints(target.config.appGroups[id], resource),
+                id,
+                instanceId: `external:${resource.id}`,
+              },
+            ],
+          ];
+        }
+      )
+    );
+  }
+
+  profileStatus(
+    target: AppGroupTarget,
+    override?: string | null
+  ): z.infer<typeof WorktreeProfileSchema> | undefined {
+    const profile =
+      override === undefined
+        ? this.profile(target)
+        : resolveResourceProfile(
+            target.config,
+            target.worktree.routeLabel,
+            override
+          );
+    if (!profile || !target.config.profiles) {
+      return undefined;
+    }
+    const runs = this.state.runningInstancesForWorktree(
+      target.repoPath,
+      target.worktree.path
+    );
+    return {
+      choices: Object.entries(target.config.profiles.definitions).map(
+        ([id, value]) => ({ id, name: value.name })
+      ),
+      connections: Object.entries(profile.connections).map(
+        ([groupId, connection]) => {
+          let instance: AppGroupInstance | null = null;
+          let connectionError: string | undefined;
+          let idle: "external" | "keep-running" | "stop-when-unused" =
+            "keep-running";
+          try {
+            instance = this.state.instanceLookup(
+              this.instanceRequest({ ...target, groupId }, connection)
+            );
+            idle = this.idlePolicy(connection);
+          } catch (error) {
+            connectionError = errorMessage(error);
+          }
+          if (connection.policy === "existing") {
+            try {
+              externalEndpoints(
+                target.config.appGroups[groupId],
+                this.resourceStore.resource(connection.resource)
+              );
+            } catch (error) {
+              connectionError = errorMessage(error);
+            }
+          }
+          let resourceName = target.worktree.routeLabel;
+          if (connection.policy === "project") {
+            resourceName = "Project instance";
+          }
+          if (connection.policy === "managed") {
+            resourceName = `${connection.resource} / ${connection.instance}`;
+          }
+          if (connection.policy === "existing") {
+            resourceName = connection.resource;
+          }
+          return {
+            error: connectionError,
+            groupId,
+            idle,
+            name: target.config.appGroups[groupId]?.name ?? groupId,
+            policy: connection.policy,
+            resourceId:
+              connection.policy === "existing"
+                ? connection.resource
+                : (instance?.id ?? ""),
+            resourceName,
+          };
+        }
+      ),
+      id: profile.id,
+      name: profile.name,
+      runningProfile:
+        runs.find(
+          (instance) =>
+            target.config.appGroups[instance.groupId]?.category !==
+            "infrastructure"
+        )?.run?.profileId ?? null,
+      source: profile.source,
+    };
   }
 
   inspect(
     target: AppGroupTarget,
     ports: ReturnType<typeof inspectListeningPorts>
   ): AppGroupSnapshot {
-    const instance = this.state.instanceLookup(instanceRequest(target));
+    const connection = this.connection(target);
+    if (connection?.policy === "managed") {
+      try {
+        const owner = this.managedResources.target(
+          connection.resource,
+          connection.instance
+        );
+        const instance = this.reconcile(owner).resource;
+        const snapshot = this.inspectInstance(owner, instance, ports);
+        return {
+          ...snapshot,
+          id: target.groupId,
+          name: groupForTarget(target).name ?? target.groupId,
+        };
+      } catch {
+        return {
+          ...unresolvedExternalResource(
+            target.groupId,
+            groupForTarget(target),
+            connection.resource
+          ),
+          external: false,
+        };
+      }
+    }
+    if (connection?.policy === "existing") {
+      try {
+        return this.externalObservation.inspect(
+          target.groupId,
+          groupForTarget(target),
+          this.resourceStore.resource(connection.resource)
+        );
+      } catch {
+        return unresolvedExternalResource(
+          target.groupId,
+          groupForTarget(target),
+          connection.resource
+        );
+      }
+    }
+    const instance = this.state.instanceLookup(this.instanceRequest(target));
     if (!instance) {
       throw new Error(
         `App group "${target.groupId}" must be reconciled before inspection`
@@ -327,18 +618,25 @@ export class AppGroupRuntime {
 
   /** Reconcile persisted endpoint identity without allocating backing ports. */
   reconcile(target: AppGroupTarget): Record<string, AppGroupInstance> {
-    const configFingerprint = repositoryCommandFingerprint(target.config);
     const instances: Record<string, AppGroupInstance> = {};
     for (const [groupId, group] of Object.entries(target.config.appGroups)) {
-      const request: InstanceRequest = {
-        configFingerprint,
-        groupId,
-        mode: group.instances.mode,
-        repoLabel: pathModule.basename(target.repoPath),
-        repoPath: target.repoPath,
-        worktreeLabel: target.worktree.routeLabel,
-        worktreePath: target.worktree.path,
-      };
+      const connection = this.connection({ ...target, groupId });
+      if (connection?.policy === "managed") {
+        try {
+          instances[groupId] = this.reconcile(
+            this.managedResources.target(
+              connection.resource,
+              connection.instance
+            )
+          ).resource;
+        } catch {
+          instances[groupId] = this.state.reconcileInstance(
+            baseInstanceRequest({ ...target, groupId })
+          );
+        }
+        continue;
+      }
+      const request = this.instanceRequest({ ...target, groupId });
       const instance = this.state.reconcileInstance(request);
       instances[groupId] = instance;
       for (const [appId, app] of Object.entries(group.apps)) {
@@ -414,14 +712,31 @@ export class AppGroupRuntime {
     const groupSnapshotPending = this.lifecycleOperations.has(
       lifecycleKey(target.repoPath, instance.id)
     );
-    const groupSnapshotHealth = groupHealth(apps);
+    const emptyGroupHealth = processRunning ? "running" : "not-running";
+    let groupSnapshotHealth = apps.length
+      ? groupHealth(apps)
+      : emptyGroupHealth;
+    if (run?.definition && target.managed) {
+      try {
+        this.managedResources.assertCaptured(run.definition);
+        if (target.managed.definition.status) {
+          if (!this.inspectDetachedRunning(runContext(target, instance, run))) {
+            groupSnapshotHealth = "partially-running";
+          } else if (apps.length === 0) {
+            groupSnapshotHealth = "running";
+          }
+        }
+      } catch {
+        groupSnapshotHealth = "partially-running";
+      }
+    }
     const groupSnapshotInstances =
       instance.mode === "selectable"
         ? this.state
             .instances(
               target.repoPath,
               target.groupId,
-              repositoryCommandFingerprint(target.config)
+              this.instanceRequest(target).configFingerprint
             )
             .map((option) => ({
               id: option.id,
@@ -464,19 +779,55 @@ export class AppGroupRuntime {
     run: AppGroupRun | null
   ) {
     const templates = [...Object.values(group.env ?? {}), ...group.start.argv];
+    const dependencies =
+      run?.dependencyGroupIds ?? dependencyOrder(target.config, target.groupId);
     return Object.keys(target.config.appGroups)
       .filter(
         (groupId) =>
           groupId !== target.groupId &&
-          templates.some((value) =>
-            value.includes(`{appGroups.${groupId}.apps.`)
-          )
+          (dependencies.includes(groupId) ||
+            templates.some((value) =>
+              value.includes(`{appGroups.${groupId}.apps.`)
+            ))
       )
       .flatMap((groupId) => {
+        const capturedId = run?.bindings?.[groupId]?.instanceId;
+        if (capturedId?.startsWith("external:")) {
+          return [
+            {
+              groupId,
+              instanceId: capturedId,
+              name: capturedId.slice("external:".length),
+            },
+          ];
+        }
+        const external = this.profile(target)?.connections[groupId];
+        if (!run && external?.policy === "existing") {
+          return [
+            {
+              groupId,
+              instanceId: `external:${external.resource}`,
+              name: external.resource,
+            },
+          ];
+        }
+        if (!run && external?.policy === "managed") {
+          return [
+            {
+              groupId,
+              instanceId: `managed:${external.resource}:${external.instance}`,
+              name: `${external.resource} / ${external.instance}`,
+            },
+          ];
+        }
         const instanceId = run?.instanceIdsByGroup[groupId];
         const instance = instanceId
-          ? this.state.instanceById(target.repoPath, instanceId)
-          : this.state.instanceLookup(instanceRequest({ ...target, groupId }));
+          ? this.state
+              .allResourceInstances()
+              .find((entry) => entry.instance.id === instanceId)?.instance
+          : this.state.instanceLookup(
+              this.instanceRequest({ ...target, groupId })
+            );
         return instance
           ? [{ groupId, instanceId: instance.id, name: instance.name }]
           : [];
@@ -491,9 +842,121 @@ export class AppGroupRuntime {
         Object.values(effectiveInstances).map((instance) =>
           lifecycleKey(target.repoPath, instance.id)
         ),
-        () => this.startUnlocked(target, effectiveInstances)
+        () => this.startWithDependencies(target, this.reconcile(target))
       )
     );
+  }
+
+  private async startWithDependencies(
+    target: AppGroupTarget,
+    instances: Record<string, AppGroupInstance>
+  ): Promise<"already-running" | "started"> {
+    let result: "started" | "already-running" = "already-running";
+    for (const groupId of dependencyOrder(target.config, target.groupId)) {
+      const dependencyTarget = { ...target, groupId };
+      // oxlint-disable-next-line no-await-in-loop -- Dependencies must start before consumers.
+      result = await this.startUnlocked(dependencyTarget, instances);
+      const connection = this.connection(dependencyTarget);
+      if (groupId === target.groupId || connection?.policy === "existing") {
+        continue;
+      }
+      const owner =
+        connection?.policy === "managed"
+          ? this.managedResources.target(
+              connection.resource,
+              connection.instance
+            )
+          : dependencyTarget;
+      const instance =
+        connection?.policy === "managed"
+          ? this.reconcile(owner).resource
+          : instances[groupId];
+      const dependency = this.state.run(runKey(owner.repoPath, instance.id));
+      if (!dependency) {
+        continue;
+      }
+      // oxlint-disable-next-line no-await-in-loop -- All dependency endpoints must be ready before the next consumer.
+      const readiness = await readinessForRun(
+        runContext(owner, instance, dependency)
+      );
+      if (!readiness.every(Boolean)) {
+        throw new Error(`Dependency "${groupId}" is not ready.`);
+      }
+    }
+    return result;
+  }
+
+  private prepareResourceRun(
+    target: AppGroupTarget,
+    effectiveInstances: Record<string, AppGroupInstance>,
+    instance: AppGroupInstance
+  ): AppGroupRun {
+    const group = groupForTarget(target);
+    const key = runKey(target.repoPath, instance.id);
+    let run = this.state.run(key);
+    if (
+      run?.definition &&
+      target.managed?.revision !== run.definition.revision
+    ) {
+      throw new Error(
+        "Resource recipe changed. Restore the running revision to stop it, then approve and start the updated definition."
+      );
+    }
+    if (
+      run?.profileId &&
+      run.profileId !== this.profile(target)?.id &&
+      group.category !== "infrastructure"
+    ) {
+      throw new Error(
+        "The profile changed. Restart this application to apply its new connections."
+      );
+    }
+    if (!run) {
+      run = this.createRun({
+        config: target.config,
+        effectiveInstances,
+        externalGroups: this.externalBindings(target),
+        group,
+        groupId: target.groupId,
+        instance,
+        repoPath: target.repoPath,
+        worktreePath:
+          this.connection(target)?.policy === "project"
+            ? target.repoPath
+            : target.worktree.path,
+      });
+      if (target.managed) {
+        run.definition = {
+          id: target.managed.definition.id,
+          path: target.managed.path,
+          revision: target.managed.revision,
+        };
+      }
+      run.profileId = this.profile(target)?.id;
+      run.dependencyGroupIds = dependencyOrder(
+        target.config,
+        target.groupId
+      ).filter((id) => id !== target.groupId);
+      run.resourceIdle = Object.fromEntries(
+        Object.entries(this.profile(target)?.connections ?? {}).flatMap(
+          ([id, dependencyConnection]) =>
+            dependencyConnection.policy === "existing"
+              ? []
+              : [
+                  [
+                    id,
+                    dependencyConnection.policy === "managed"
+                      ? this.managedResources.get(dependencyConnection.resource)
+                          .definition.idle
+                      : (dependencyConnection.idle ?? "keep-running"),
+                  ],
+                ]
+        )
+      );
+      this.state.saveRun(key, run);
+    }
+
+    return run;
   }
 
   private async startUnlocked(
@@ -501,6 +964,24 @@ export class AppGroupRuntime {
     effectiveInstances: Record<string, AppGroupInstance>
   ): Promise<"already-running" | "started"> {
     const group = groupForTarget(target);
+    const connection = this.connection(target);
+    if (connection?.policy === "managed") {
+      const owner = this.managedResources.target(
+        connection.resource,
+        connection.instance
+      );
+      return this.startUnlocked(owner, this.reconcile(owner));
+    }
+    if (target.managed) {
+      this.managedResources.assertApproved(target.managed);
+    }
+    if (connection?.policy === "existing") {
+      await waitForExternalResource(
+        group,
+        this.resourceStore.resource(connection.resource)
+      );
+      return "already-running";
+    }
     await this.prepareRouting();
     await this.materializeEffectiveInstances(target, effectiveInstances);
     const instance = effectiveInstances[target.groupId];
@@ -510,34 +991,39 @@ export class AppGroupRuntime {
     const key = runKey(target.repoPath, instance.id);
     let run = this.state.run(key);
     const allocatedNow = run === null;
-    if (!run) {
-      run = this.createRun({
-        config: target.config,
-        effectiveInstances,
-        group,
-        groupId: target.groupId,
-        instance,
-        repoPath: target.repoPath,
-        worktreePath: target.worktree.path,
-      });
-      this.state.saveRun(key, run);
-    }
+    run = this.prepareResourceRun(target, effectiveInstances, instance);
 
     const context = runContext(target, instance, run);
     this.assertRunPortsAvailable(context, allocatedNow);
     const readiness = await readinessForRun(context);
-    if (readiness.every(Boolean) && this.allRoutesAreActive(context.run)) {
+    if (this.runIsReady(context, readiness)) {
       return "already-running";
     }
 
+    if (
+      target.managed?.definition.status &&
+      !allocatedNow &&
+      readiness.some(Boolean) &&
+      !this.detachedRunning(context)
+    ) {
+      throw new Error(
+        "A listener is present but the selected managed resource is not running"
+      );
+    }
     this.launchRunProcess(context, readiness);
     await this.waitForAndPublishRun(context);
     return "started";
   }
 
   retry(target: AppGroupTarget): Promise<"already-running" | "retried"> {
+    const connection = this.connection(target);
+    if (connection?.policy === "managed") {
+      return this.retry(
+        this.managedResources.target(connection.resource, connection.instance)
+      );
+    }
     this.reconcile(target);
-    const instance = this.state.instanceLookup(instanceRequest(target));
+    const instance = this.state.instanceLookup(this.instanceRequest(target));
     if (!instance) {
       throw new Error(`Unknown App group "${target.groupId}"`);
     }
@@ -554,6 +1040,9 @@ export class AppGroupRuntime {
     target: AppGroupTarget,
     instance: AppGroupInstance
   ): Promise<"already-running" | "retried"> {
+    if (this.connection(target)?.policy === "existing") {
+      throw new Error("This resource is externally managed.");
+    }
     await this.prepareRouting();
     const key = runKey(target.repoPath, instance.id);
     const run = this.state.run(key);
@@ -563,10 +1052,13 @@ export class AppGroupRuntime {
         `${displayName(target.groupId, groupForTarget(target))} has not been started`
       );
     }
+    if (run.definition) {
+      this.managedResources.assertCaptured(run.definition);
+    }
     const context = runContext(target, instance, run);
     this.assertRunPortsAvailable(context, false);
     const readiness = await readinessForRun(context);
-    if (readiness.every(Boolean) && this.allRoutesAreActive(context.run)) {
+    if (this.runIsReady(context, readiness)) {
       return "already-running";
     }
     await this.waitForAndPublishRun(context);
@@ -574,8 +1066,17 @@ export class AppGroupRuntime {
   }
 
   stop(target: AppGroupTarget): Promise<"already-stopped" | "stopped"> {
+    const connection = this.connection(target);
+    if (connection?.policy === "managed") {
+      return this.stop(
+        this.managedResources.target(connection.resource, connection.instance)
+      );
+    }
+    if (this.connection(target)?.policy === "existing") {
+      return Promise.resolve("already-stopped");
+    }
     this.reconcile(target);
-    const instance = this.state.instanceLookup(instanceRequest(target));
+    const instance = this.state.instanceLookup(this.instanceRequest(target));
     if (!instance) {
       throw new Error(`Unknown App group "${target.groupId}"`);
     }
@@ -583,7 +1084,17 @@ export class AppGroupRuntime {
       target.worktree.path,
       this.serializeLifecycle(
         [lifecycleKey(target.repoPath, instance.id)],
-        () => this.stopUnlocked(target, instance)
+        async () => {
+          if (this.connection(target)?.policy === "existing") {
+            return "already-stopped" as const;
+          }
+          const current = this.reconcile(target)[target.groupId];
+          this.assertNoResourceConsumers(target, current);
+          const run = this.state.run(runKey(target.repoPath, current.id));
+          const result = await this.stopUnlocked(target, current);
+          await this.stopUnusedDependencies(target, run);
+          return result;
+        }
       )
     );
   }
@@ -630,6 +1141,15 @@ export class AppGroupRuntime {
   }
 
   restart(target: AppGroupTarget): Promise<"restarted"> {
+    const connection = this.connection(target);
+    if (connection?.policy === "managed") {
+      return this.restart(
+        this.managedResources.target(connection.resource, connection.instance)
+      );
+    }
+    if (this.connection(target)?.policy === "existing") {
+      throw new Error("This resource is externally managed.");
+    }
     const effectiveInstances = this.reconcile(target);
     const instance = effectiveInstances[target.groupId];
     if (!instance) {
@@ -641,8 +1161,13 @@ export class AppGroupRuntime {
     return this.trackWorktreeOperation(
       target.worktree.path,
       this.serializeLifecycle(keys, async () => {
-        await this.stopUnlocked(target, instance);
-        await this.startUnlocked(target, effectiveInstances);
+        const current = this.reconcile(target);
+        const selected = current[target.groupId];
+        this.assertNoResourceConsumers(target, selected);
+        const previous = this.state.run(runKey(target.repoPath, selected.id));
+        await this.stopUnlocked(target, selected);
+        await this.startWithDependencies(target, current);
+        await this.stopUnusedDependencies(target, previous);
         return "restarted" as const;
       })
     );
@@ -652,12 +1177,147 @@ export class AppGroupRuntime {
     return (this.pendingWorktreeOperations.get(worktreePath) ?? 0) > 0;
   }
 
+  private hasConsumers(_repoPath: string, instanceId: string): boolean {
+    return (
+      this.resourceStore.hasLease(instanceId) ||
+      this.state
+        .allResourceInstances()
+        .map((entry) => entry.instance)
+        .some(
+          (item) =>
+            item.id !== instanceId &&
+            item.run?.dependencyGroupIds?.some(
+              (groupId) => item.run?.instanceIdsByGroup[groupId] === instanceId
+            )
+        )
+    );
+  }
+
+  private assertNoResourceConsumers(
+    target: AppGroupTarget,
+    instance: AppGroupInstance
+  ): void {
+    if (this.hasConsumers(target.repoPath, instance.id)) {
+      throw new Error(
+        "This resource is in use. Stop its applications before stopping or restarting it."
+      );
+    }
+  }
+
+  private async stopUnusedDependencies(
+    target: AppGroupTarget,
+    run: AppGroupRun | null
+  ): Promise<void> {
+    for (const groupId of (run?.dependencyGroupIds ?? []).toReversed()) {
+      if (run?.resourceIdle?.[groupId] !== "stop-when-unused") {
+        continue;
+      }
+      const owned = this.state
+        .allResourceInstances()
+        .find((entry) => entry.instance.id === run.instanceIdsByGroup[groupId]);
+      const instance = owned?.instance;
+      if (!instance?.run || this.hasConsumers(target.repoPath, instance.id)) {
+        continue;
+      }
+      if (instance.run.definition && owned) {
+        this.managedResources.assertCaptured(instance.run.definition);
+        const owner = this.managedResources.target(
+          instance.run.definition.id,
+          instance.name
+        );
+        // oxlint-disable-next-line no-await-in-loop -- Release dependencies after their consumers.
+        await this.stopUnlocked(owner, instance);
+        continue;
+      }
+      const ownedTarget = {
+        ...target,
+        groupId,
+        worktree: { ...target.worktree, path: instance.run.worktreePath },
+      };
+      // oxlint-disable-next-line no-await-in-loop -- Stop dependencies in reverse order after their last consumer.
+      await this.stopUnlocked(ownedTarget, instance);
+    }
+  }
+
+  async selectProfile(
+    target: AppGroupTarget,
+    profileId: string | null,
+    restart: boolean
+  ): Promise<void> {
+    const proposed = resolveResourceProfile(
+      target.config,
+      target.worktree.routeLabel,
+      profileId
+    );
+    if (!proposed) {
+      throw new Error("Configure resource profiles for this project first.");
+    }
+    for (const [groupId, connection] of Object.entries(proposed.connections)) {
+      if (connection.policy === "existing") {
+        externalEndpoints(
+          target.config.appGroups[groupId],
+          this.resourceStore.resource(connection.resource)
+        );
+      }
+    }
+    const instances = this.reconcile(target);
+    await this.trackWorktreeOperation(
+      target.worktree.path,
+      this.serializeLifecycle(
+        Object.values(instances).map((instance) =>
+          lifecycleKey(target.repoPath, instance.id)
+        ),
+        async () => {
+          const applicationRuns = this.state
+            .runningInstancesForWorktree(target.repoPath, target.worktree.path)
+            .filter(
+              (instance) =>
+                target.config.appGroups[instance.groupId]?.category !==
+                "infrastructure"
+            );
+          if (applicationRuns.length && !restart) {
+            throw new Error(
+              "Restart the running applications to change their resource connections."
+            );
+          }
+          for (const instance of applicationRuns) {
+            // oxlint-disable-next-line no-await-in-loop -- Finish stopping each application before changing its connections.
+            await this.stopUnlocked(
+              { ...target, groupId: instance.groupId },
+              instance
+            );
+          }
+          this.resourceStore.select(
+            target.repoPath,
+            target.worktree.path,
+            profileId
+          );
+          const next = this.reconcile(target);
+          for (const previous of applicationRuns) {
+            // oxlint-disable-next-line no-await-in-loop -- Restart consumers after their dependencies are ready.
+            await this.startWithDependencies(
+              { ...target, groupId: previous.groupId },
+              next
+            );
+          }
+          for (const previous of applicationRuns) {
+            // oxlint-disable-next-line no-await-in-loop -- Retire unused old dependencies only after the replacement is ready.
+            await this.stopUnusedDependencies(target, previous.run);
+          }
+        }
+      )
+    );
+  }
+
   private async stopUnlocked(
     target: AppGroupTarget,
     instance: AppGroupInstance
   ): Promise<"already-stopped" | "stopped"> {
     const key = runKey(target.repoPath, instance.id);
     const run = this.state.run(key);
+    if (run?.definition) {
+      this.managedResources.assertCaptured(run.definition);
+    }
     const context = stopContext(target, instance, run);
     if (
       !run &&
@@ -694,6 +1354,10 @@ export class AppGroupRuntime {
       return "already-stopped";
     }
     const target = detachedTarget(repoPath, instance, run);
+    this.assertNoResourceConsumers(target, instance);
+    if (run?.definition) {
+      this.managedResources.assertCaptured(run.definition);
+    }
     const context = stopContext(target, instance, run);
     const failures = await this.deactivateRunRoutes(context);
     if (run.stop && run.stop !== "process" && stopCommandTrusted) {
@@ -701,9 +1365,17 @@ export class AppGroupRuntime {
         await this.processes.runFiniteCommand({
           argv: run.stop.argv,
           cwd: commandWorkingDirectory(run.worktreePath, run.stop.cwd),
-          env: run.stop.env,
+          env: commandEnvironment(
+            {
+              ...context.group,
+              env: run.environmentTemplates,
+              inputs: run.inputs,
+            },
+            run.stop.env
+          ),
           label: `Stop ${run.groupId}`,
           logId: context.processId,
+          sensitive: Object.keys(run.inputs ?? {}).length > 0,
         });
       } catch (error) {
         failures.push(errorMessage(error));
@@ -751,27 +1423,48 @@ export class AppGroupRuntime {
       return [];
     }
     try {
-      const command = resolveStopCommand(
-        context.target.config,
-        context.target.groupId,
-        this.resolveTemplateAppGroups(
-          context.target.config,
-          context.target.repoPath,
-          context.processPath,
-          context.run?.instanceIdsByGroup
-        )
-      );
+      const command =
+        context.run?.stop && context.run.stop !== "process"
+          ? context.run.stop
+          : resolveStopCommand(
+              context.target.config,
+              context.target.groupId,
+              context.run?.bindings ??
+                this.resolveTemplateAppGroups(
+                  context.target.config,
+                  context.target.repoPath,
+                  context.processPath,
+                  context.run?.instanceIdsByGroup
+                )
+            );
       if (!command) {
         throw new Error(
           `${displayName(context.target.groupId, context.group)} has no Stop command`
         );
       }
+      if (context.target.managed) {
+        assertManagedCommandSources(
+          context.target.managed,
+          command.argv,
+          commandWorkingDirectory(context.processPath, command.cwd)
+        );
+      }
       await this.processes.runFiniteCommand({
         argv: command.argv,
         cwd: commandWorkingDirectory(context.processPath, command.cwd),
-        env: command.env,
+        env: commandEnvironment(
+          {
+            ...context.group,
+            env: context.run?.environmentTemplates ?? context.group.env,
+            inputs: context.run?.inputs ?? context.group.inputs,
+          },
+          command.env
+        ),
         label: `Stop ${displayName(context.target.groupId, context.group)}`,
         logId: context.processId,
+        sensitive:
+          Object.keys(context.run?.inputs ?? context.group.inputs ?? {})
+            .length > 0,
       });
       return [];
     } catch (error) {
@@ -810,15 +1503,34 @@ export class AppGroupRuntime {
   }
 
   createInstance(target: AppGroupTarget, name: string): AppGroupInstance {
-    return this.state.createSelectableInstance(instanceRequest(target), name);
+    if (
+      this.connection(target) &&
+      this.connection(target)?.policy !== "project"
+    ) {
+      throw new Error(
+        "Change the worktree profile to select a resource connection."
+      );
+    }
+    return this.state.createSelectableInstance(
+      this.instanceRequest(target),
+      name
+    );
   }
 
   selectInstance(target: AppGroupTarget, instanceId: string): AppGroupInstance {
-    return this.state.selectInstance(instanceRequest(target), instanceId);
+    if (
+      this.connection(target) &&
+      this.connection(target)?.policy !== "project"
+    ) {
+      throw new Error(
+        "Change the worktree profile to select a resource connection."
+      );
+    }
+    return this.state.selectInstance(this.instanceRequest(target), instanceId);
   }
 
   logId(target: AppGroupTarget): string {
-    const instance = this.state.instanceLookup(instanceRequest(target));
+    const instance = this.state.instanceLookup(this.instanceRequest(target));
     if (!instance) {
       throw new Error(`Unknown App group "${target.groupId}"`);
     }
@@ -829,7 +1541,12 @@ export class AppGroupRuntime {
     keys: readonly string[],
     operation: () => Promise<T>
   ): Promise<T> {
-    const operationKeys = [...new Set(keys)].toSorted();
+    const projectKeys = keys.map(
+      (key) => `${key.split("\0")[0]}\0profile-change`
+    );
+    const operationKeys = [
+      ...new Set(["managed-resources", ...keys, ...projectKeys]),
+    ].toSorted();
     const predecessor = (async () => {
       await Promise.all(
         operationKeys.map(async (key) => {
@@ -894,9 +1611,38 @@ export class AppGroupRuntime {
   }
 
   private async waitForAndPublishRun(context: RunContext): Promise<void> {
+    if (Object.keys(context.group.apps).length === 0) {
+      if (context.target.managed?.definition.status) {
+        await this.waitForDetachedResource(context);
+        return;
+      }
+      await pollUntil(
+        () =>
+          this.processes.managedPid(context.processId, context.processPath) !==
+          null,
+        {
+          intervalMs: 50,
+          message: "Worker did not stay running",
+          timeoutMs: 2000,
+        }
+      );
+      return;
+    }
     const readyAppIds = await this.waitForRunReadiness(context);
+    if (context.target.managed?.definition.status) {
+      await this.waitForDetachedResource(context);
+    }
     assertReadyEndpointsOwned(context.group, context.run, readyAppIds);
     await this.publishReadyRun(context, readyAppIds);
+  }
+
+  private waitForDetachedResource(context: RunContext) {
+    return pollUntil(() => this.detachedRunning(context), {
+      intervalMs: 500,
+      message:
+        "Detached resource did not become ready; no routes were published",
+      timeoutMs: 60_000,
+    });
   }
 
   private instanceIsRunning(
@@ -907,6 +1653,19 @@ export class AppGroupRuntime {
     const { run } = instance;
     if (!run) {
       return false;
+    }
+    if (run.definition) {
+      try {
+        const owner = this.managedResources.target(
+          run.definition.id,
+          instance.name
+        );
+        if (owner.managed?.definition.status) {
+          return this.inspectDetachedRunning(runContext(owner, instance, run));
+        }
+      } catch {
+        return false;
+      }
     }
     if (
       this.processes.managedPid(
@@ -927,6 +1686,7 @@ export class AppGroupRuntime {
   private createRun(input: {
     config: BranchBaseConfig;
     effectiveInstances: Record<string, AppGroupInstance>;
+    externalGroups?: ResolvedBranchBaseAppGroups;
     group: BranchBaseAppGroup;
     groupId: string;
     instance: AppGroupInstance;
@@ -948,26 +1708,27 @@ export class AppGroupRuntime {
     const instanceIdsByGroup = Object.fromEntries(
       Object.entries(input.effectiveInstances).map(([groupId, instance]) => [
         groupId,
-        instance.id,
+        input.externalGroups?.[groupId]?.instanceId ?? instance.id,
       ])
+    );
+    const bindings = this.resolveTemplateAppGroups(
+      input.config,
+      input.repoPath,
+      input.worktreePath,
+      instanceIdsByGroup,
+      input.externalGroups
     );
     const stop =
       input.group.stop === "process"
         ? "process"
-        : resolveStopCommand(
-            input.config,
-            input.groupId,
-            this.resolveTemplateAppGroups(
-              input.config,
-              input.repoPath,
-              input.worktreePath,
-              instanceIdsByGroup
-            )
-          );
+        : resolveStopCommand(input.config, input.groupId, bindings);
     return {
       apps,
+      bindings,
       createdAt: new Date().toISOString(),
+      environmentTemplates: input.group.env,
       groupId: input.groupId,
+      inputs: input.group.inputs,
       instanceId: input.instance.id,
       instanceIdsByGroup,
       stop: stop ?? "process",
@@ -1008,6 +1769,22 @@ export class AppGroupRuntime {
     );
   }
 
+  private runIsReady(
+    context: RunContext,
+    readiness: readonly boolean[]
+  ): boolean {
+    return (
+      readiness.every(Boolean) &&
+      (!context.target.managed?.definition.status ||
+        this.detachedRunning(context)) &&
+      this.allRoutesAreActive(context.run) &&
+      (readiness.length > 0 ||
+        Boolean(context.target.managed?.definition.status) ||
+        this.processes.managedPid(context.processId, context.processPath) !==
+          null)
+    );
+  }
+
   private allRoutesAreActive(run: AppGroupRun): boolean {
     return Object.values(run.apps).every(
       (endpoint) =>
@@ -1015,6 +1792,221 @@ export class AppGroupRuntime {
         (endpoint.hostname &&
           this.routing.observe(endpointRoute(endpoint)) === "active")
     );
+  }
+
+  async buildManagedResource(id: string, name: string): Promise<void> {
+    const target = this.managedResources.target(id, name);
+    const { managed } = target;
+    const build = managed?.definition.build;
+    if (!managed || !build) {
+      throw new Error("This resource has no Build command");
+    }
+    this.managedResources.assertApproved(managed);
+    await this.serializeLifecycle([], async () => {
+      this.managedResources.assertApproved(managed);
+      const instances = this.reconcile(target);
+      if (instances.resource.run) {
+        throw new Error("Stop the resource before building a new revision");
+      }
+      await this.materializeEffectiveInstances(target, instances);
+      const bindings = this.resolveTemplateAppGroups(
+        target.config,
+        target.repoPath,
+        target.worktree.path,
+        { resource: instances.resource.id }
+      );
+      const command = resolveStartCommand(target.config, "resource", bindings);
+      const argv = build.argv.map((value) =>
+        renderBranchBaseTemplate(value, {
+          appGroups: bindings,
+          currentGroup: "resource",
+        })
+      );
+      assertManagedCommandSources(managed, argv, managed.directory);
+      await this.processes.runFiniteCommand({
+        argv,
+        cwd: managed.directory,
+        env: commandEnvironment(target.config.appGroups.resource, command.env),
+        label: `Build ${id}/${name}`,
+        logId: appGroupInstanceProcessId(instances.resource.id),
+        sensitive:
+          Object.keys(target.config.appGroups.resource.inputs ?? {}).length > 0,
+      });
+    });
+  }
+
+  releaseManualCommandContext(id: string) {
+    return this.serializeLifecycle([], async () => {
+      const instances = this.resourceStore.lease(id);
+      this.resourceStore.release(id);
+      for (const instanceId of instances) {
+        const owned = this.state
+          .allResourceInstances()
+          .find((entry) => entry.instance.id === instanceId);
+        if (
+          !owned?.instance.run?.definition ||
+          this.hasConsumers(owned.repoPath, instanceId)
+        ) {
+          continue;
+        }
+        const resource = this.managedResources.get(
+          owned.instance.run.definition.id
+        );
+        if (resource.definition.idle !== "stop-when-unused") {
+          continue;
+        }
+        const target = this.managedResources.target(
+          resource.definition.id,
+          owned.instance.name
+        );
+        // oxlint-disable-next-line no-await-in-loop -- Retire released resources in order after the manual consumer exits.
+        await this.stopUnlocked(target, owned.instance);
+      }
+    });
+  }
+
+  manualCommandContext(target: AppGroupTarget) {
+    return this.serializeLifecycle([], async () => {
+      const instances = this.reconcile(target);
+      const running = this.state.run(
+        runKey(target.repoPath, instances[target.groupId].id)
+      );
+      if (!running) {
+        for (const connection of Object.values(
+          this.profile(target)?.connections ?? {}
+        )) {
+          if (connection.policy !== "managed") {
+            continue;
+          }
+          const owner = this.managedResources.target(
+            connection.resource,
+            connection.instance
+          );
+          if (owner.managed) {
+            this.managedResources.assertApproved(owner.managed);
+            const selected = this.reconcile(owner).resource;
+            if (selected.run?.definition) {
+              this.managedResources.assertCaptured(selected.run.definition);
+            }
+          }
+          // oxlint-disable-next-line no-await-in-loop -- Reserve explicit owner endpoints without starting commands.
+          await this.materializeEffectiveInstances(
+            owner,
+            this.reconcile(owner)
+          );
+        }
+        await this.materializeEffectiveInstances(target, instances);
+      }
+      const bindings =
+        running?.bindings ??
+        this.resolveTemplateAppGroups(
+          target.config,
+          target.repoPath,
+          target.worktree.path,
+          Object.fromEntries(
+            Object.entries(instances).map(([id, instance]) => [id, instance.id])
+          ),
+          this.externalBindings(target)
+        );
+      const command = resolveStartCommand(
+        target.config,
+        target.groupId,
+        bindings
+      );
+      const inputs = running?.inputs ?? groupForTarget(target).inputs ?? {};
+      const dependencies = dependencyOrder(target.config, target.groupId)
+        .filter((id) => id !== target.groupId)
+        .map((id) => bindings[id]?.instanceId)
+        .filter((id): id is string => Boolean(id));
+      const leaseId = this.resourceStore.hold(dependencies);
+      return {
+        cwd: commandWorkingDirectory(target.worktree.path, command.cwd),
+        env: Object.fromEntries(
+          Object.entries(command.env).filter(
+            ([key]) =>
+              !inputs[key] || groupForTarget(target).env?.[key]?.includes("{")
+          )
+        ),
+        inputs,
+        leaseId,
+      };
+    });
+  }
+
+  private statusCommand(context: RunContext) {
+    if (context.run.definition) {
+      this.managedResources.assertCaptured(context.run.definition);
+    }
+    const { managed } = context.target;
+    const status = managed?.definition.status;
+    if (!managed || !status) {
+      return null;
+    }
+    const bindings = context.run.bindings ?? {};
+    const command = resolveStartCommand(
+      context.target.config,
+      context.target.groupId,
+      bindings
+    );
+    const argv = status.argv.map((value) =>
+      renderBranchBaseTemplate(value, {
+        appGroups: bindings,
+        currentGroup: context.target.groupId,
+      })
+    );
+    assertManagedCommandSources(managed, argv, context.processPath);
+    return {
+      argv,
+      cwd: context.processPath,
+      env: commandEnvironment(context.group, command.env),
+      instanceId: context.run.instanceId,
+    };
+  }
+
+  private static observationKey(context: RunContext): string {
+    return JSON.stringify([
+      context.run.instanceId,
+      context.run.createdAt,
+      context.run.definition?.revision,
+    ]);
+  }
+
+  private inspectDetachedRunning(context: RunContext): boolean {
+    // Validate the captured recipe even when a previous observation is cached.
+    if (context.run.definition) {
+      this.managedResources.assertCaptured(context.run.definition);
+    }
+    return this.managedObservation.inspect(
+      AppGroupRuntime.observationKey(context),
+      async () => {
+        const command = this.statusCommand(context);
+        return command
+          ? await observeManagedResourceRunning(
+              command.argv,
+              command.cwd,
+              command.env,
+              command.instanceId
+            )
+          : true;
+      }
+    );
+  }
+
+  private detachedRunning(context: RunContext): boolean {
+    const command = this.statusCommand(context);
+    const running = command
+      ? managedResourceRunning(
+          command.argv,
+          command.cwd,
+          command.env,
+          command.instanceId
+        )
+      : true;
+    this.managedObservation.record(
+      AppGroupRuntime.observationKey(context),
+      running
+    );
+    return running;
   }
 
   private launchRunProcess(
@@ -1032,22 +2024,39 @@ export class AppGroupRuntime {
       const command = resolveStartCommand(
         context.target.config,
         context.target.groupId,
-        this.resolveTemplateAppGroups(
-          context.target.config,
-          context.target.repoPath,
-          context.processPath,
-          context.run.instanceIdsByGroup
-        )
+        context.run?.bindings ??
+          this.resolveTemplateAppGroups(
+            context.target.config,
+            context.target.repoPath,
+            context.processPath,
+            context.run.instanceIdsByGroup
+          )
       );
+      if (context.target.managed) {
+        assertManagedCommandSources(
+          context.target.managed,
+          command.argv,
+          commandWorkingDirectory(context.processPath, command.cwd)
+        );
+      }
       this.processes.startManagedProcess({
         argv: command.argv,
         cwd: commandWorkingDirectory(context.processPath, command.cwd),
-        env: command.env,
+        env: commandEnvironment(
+          {
+            ...context.group,
+            inputs: context.run?.inputs ?? context.group.inputs,
+          },
+          command.env
+        ),
         label: displayName(context.target.groupId, context.group),
         logId: context.processId,
         ownerId: context.processId,
         ownerRoot: context.processPath,
         processId: context.processId,
+        sensitive:
+          Object.keys(context.run?.inputs ?? context.group.inputs ?? {})
+            .length > 0,
         trackExitFailure: true,
       });
     } catch (error) {
@@ -1192,13 +2201,14 @@ export class AppGroupRuntime {
     config: BranchBaseConfig,
     repoPath: string,
     worktreePath: string,
-    instanceIdsByGroup?: Record<string, string>
+    instanceIdsByGroup?: Record<string, string>,
+    externalGroups: ResolvedBranchBaseAppGroups = {}
   ): ResolvedBranchBaseAppGroups {
     const configFingerprint = repositoryCommandFingerprint(config);
-    return Object.fromEntries(
+    const resolved: ResolvedBranchBaseAppGroups = Object.fromEntries(
       Object.entries(config.appGroups).map(([groupId, group]) => [
         groupId,
-        {
+        externalGroups[groupId] ?? {
           apps: Object.fromEntries(
             Object.entries(group.apps).map(([appId, app]) => {
               const selectedInstanceId = instanceIdsByGroup?.[groupId];
@@ -1235,9 +2245,28 @@ export class AppGroupRuntime {
             })
           ),
           id: groupId,
+          instanceId: instanceIdsByGroup?.[groupId],
+          instanceName: instanceIdsByGroup?.[groupId]
+            ? this.state.instanceById(repoPath, instanceIdsByGroup[groupId])
+                ?.name
+            : undefined,
+          outputs: group.outputs,
+          worktreeId: this.state.worktreeIdentity(repoPath, worktreePath),
         },
       ])
     );
+    for (const [id, group] of Object.entries(resolved)) {
+      group.outputs = Object.fromEntries(
+        Object.entries(group.outputs ?? {}).map(([name, value]) => [
+          name,
+          renderBranchBaseTemplate(value, {
+            appGroups: resolved,
+            currentGroup: id,
+          }),
+        ])
+      );
+    }
+    return resolved;
   }
 
   private async materializeEffectiveInstances(
@@ -1248,6 +2277,13 @@ export class AppGroupRuntime {
     const reservations: BackingPortLease[] = [];
     try {
       for (const [groupId, group] of Object.entries(target.config.appGroups)) {
+        if (
+          ["existing", "managed"].includes(
+            this.connection({ ...target, groupId })?.policy ?? ""
+          )
+        ) {
+          continue;
+        }
         const instance = instances[groupId];
         if (!instance) {
           throw new Error(`Unknown App group "${groupId}"`);
@@ -1262,10 +2298,15 @@ export class AppGroupRuntime {
             repoPath: target.repoPath,
           });
           if (assignment.port !== null) {
+            if (app.port && app.port !== assignment.port) {
+              throw new Error(
+                `Instance endpoint ${appId} retains port ${assignment.port}; explicit reconciliation is required before changing it to ${app.port}`
+              );
+            }
             continue;
           }
           // oxlint-disable-next-line no-await-in-loop -- Port reservations update shared leased state sequentially.
-          const reservation = await reserveBackingPort(leased);
+          const reservation = await reserveBackingPort(leased, app.port);
           reservations.push(reservation);
           leased.add(reservation.port);
           this.state.assignEndpointPort(key, appId, reservation.port);

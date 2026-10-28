@@ -125,3 +125,61 @@ test("CLI reports a daemon that is unavailable without rewriting the transport e
     "Failed to connect to daemon"
   );
 });
+
+test("exec passes resolved bindings to a real command and releases its reservation on failure", async () => {
+  const calls: string[] = [];
+  const client = new DaemonClient("http://localhost:3999", (url, init) => {
+    calls.push(url.pathname);
+    if (url.pathname === "/api/session") {
+      return Promise.resolve(Response.json({ token: "test-session" }));
+    }
+    if (url.pathname === "/api/commands/resource-command-context") {
+      expect(JSON.parse(String(init?.body))).toEqual({
+        appGroupName: "app",
+        repoPath: "/code/project",
+        worktreeId: "main",
+      });
+      return Promise.resolve(
+        Response.json({
+          cwd: process.cwd(),
+          env: { SELECTED_DATABASE: "core-api-1" },
+          inputs: {},
+          leaseId: "manual-consumer",
+        })
+      );
+    }
+    expect(JSON.parse(String(init?.body))).toEqual({
+      leaseId: "manual-consumer",
+    });
+    return Promise.resolve(
+      Response.json({
+        command: "release-command-context",
+        message: "Released",
+        ok: true,
+      })
+    );
+  });
+  await expect(
+    runCli(
+      [
+        "exec",
+        "--worktree",
+        "main",
+        "--group",
+        "app",
+        "--",
+        process.execPath,
+        "-e",
+        "process.exit(process.env.SELECTED_DATABASE === 'core-api-1' ? 7 : 9)",
+      ],
+      client,
+      "/code/project"
+    )
+  ).rejects.toThrow("Command exited with 7");
+  expect(calls).toEqual([
+    "/api/session",
+    "/api/commands/resource-command-context",
+    "/api/session",
+    "/api/commands/release-command-context",
+  ]);
+});

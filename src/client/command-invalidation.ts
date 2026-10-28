@@ -9,15 +9,24 @@ type Effect = "none" | "folders" | "catalog" | "project" | "runtime" | "logs";
 
 const effects = {
   "add-development-folder": "folders",
+  "approve-managed-resource": "runtime",
+  "build-managed-resource": "runtime",
   "clear-logs": "logs",
   "create-app-group-instance": "runtime",
   "create-worktree": "runtime",
   "delete-worktree": "runtime",
+  "enable-resource-profiles": "runtime",
   "initialize-repository": "project",
+  "operate-managed-resource": "runtime",
   "pick-repository": "none",
   "preview-repository-config": "none",
+  "preview-resource-profile": "none",
+  "register-managed-resource": "runtime",
+  "register-resource": "runtime",
+  "release-command-context": "none",
   "remove-development-folder": "folders",
   "remove-project": "project",
+  "resource-command-context": "none",
   "restart-apps": "runtime",
   "restart-running-apps": "runtime",
   "retry-apps": "runtime",
@@ -25,6 +34,7 @@ const effects = {
   "save-project": "catalog",
   "scan-development-folders": "folders",
   "select-app-group-instance": "runtime",
+  "select-resource-profile": "runtime",
   "select-worktree-config-source": "runtime",
   "setup-all-apps": "runtime",
   "start-all-apps": "runtime",
@@ -35,13 +45,11 @@ const effects = {
   "update-repository-config": "runtime",
 } satisfies Record<BranchBaseCommandName, Effect>;
 
-export const invalidateCommandQueries = async <
-  Name extends BranchBaseCommandName,
->(
+export const invalidateCommandQueries = <Name extends BranchBaseCommandName>(
   client: QueryClient,
   command: Name,
   input: BranchBaseCommandInput<Name>
-): Promise<void> => {
+): void => {
   const effect = effects[command];
   const keys: QueryKey[] = [];
   const repoPath = "repoPath" in input ? input.repoPath : undefined;
@@ -65,7 +73,9 @@ export const invalidateCommandQueries = async <
     // every alias, including after a partially failed lifecycle command.
     keys.push(["logs", repoPath]);
   }
-  await Promise.all(
-    keys.map((queryKey) => client.invalidateQueries({ queryKey }))
-  );
+  // Query refreshes report their own loading/errors; they must not keep a
+  // completed command pending (for example, an open profile-switch dialog).
+  for (const queryKey of keys) {
+    void client.invalidateQueries({ queryKey });
+  }
 };

@@ -11,7 +11,16 @@ export interface ResolvedTemplateApp {
 }
 
 export interface BranchBaseTemplateContext {
-  appGroups: Record<string, { apps: Record<string, ResolvedTemplateApp> }>;
+  appGroups: Record<
+    string,
+    {
+      apps: Record<string, ResolvedTemplateApp>;
+      instanceId?: string;
+      instanceName?: string;
+      outputs?: Record<string, string>;
+      worktreeId?: string;
+    }
+  >;
   currentGroup: string;
 }
 
@@ -45,9 +54,9 @@ const addAppTemplateValues = (
   groupId: string,
   currentGroup: string,
   appId: string,
-  app: TemplateApp
+  app: TemplateApp,
+  resolved: boolean
 ): void => {
-  const resolved = app.port !== undefined;
   const isHttp = resolved ? app.url !== undefined : app.protocol === "http";
   const prefixes = [`appGroups.${groupId}.apps.${appId}`];
   if (groupId === currentGroup) {
@@ -84,12 +93,39 @@ const templateValues = (
     string,
     BranchBaseAppGroup | BranchBaseTemplateContext["appGroups"][string]
   >,
-  currentGroup: string
+  currentGroup: string,
+  resolved: boolean
 ): Map<string, TemplateValue> => {
   const values = new Map<string, TemplateValue>();
+  const current = appGroups[currentGroup];
+  addTemplateValue(
+    values,
+    "{instance.id}",
+    current && "instanceId" in current ? (current.instanceId ?? null) : null
+  );
+  addTemplateValue(
+    values,
+    "{worktree.id}",
+    current && "worktreeId" in current ? (current.worktreeId ?? null) : null
+  );
+  addTemplateValue(
+    values,
+    "{instance.name}",
+    current && "instanceName" in current ? (current.instanceName ?? null) : null
+  );
   for (const [groupId, group] of Object.entries(appGroups)) {
+    for (const [name, output] of Object.entries(group.outputs ?? {})) {
+      addTemplateValue(
+        values,
+        `{appGroups.${groupId}.outputs.${name}}`,
+        output
+      );
+      if (groupId === currentGroup) {
+        addTemplateValue(values, `{outputs.${name}}`, output);
+      }
+    }
     for (const [appId, app] of Object.entries(group.apps)) {
-      addAppTemplateValues(values, groupId, currentGroup, appId, app);
+      addAppTemplateValues(values, groupId, currentGroup, appId, app, resolved);
     }
   }
   return values;
@@ -135,8 +171,11 @@ export const branchbaseTemplateError = (
   appGroups: Record<string, BranchBaseAppGroup>,
   currentGroup: string
 ): string | null =>
-  replaceKnownTokens(template, templateValues(appGroups, currentGroup), false)
-    .error;
+  replaceKnownTokens(
+    template,
+    templateValues(appGroups, currentGroup, false),
+    false
+  ).error;
 
 export const renderBranchBaseTemplate = (
   template: string,
@@ -144,7 +183,7 @@ export const renderBranchBaseTemplate = (
 ): string => {
   const rendered = replaceKnownTokens(
     template,
-    templateValues(context.appGroups, context.currentGroup),
+    templateValues(context.appGroups, context.currentGroup, true),
     true
   );
   if (rendered.error) {

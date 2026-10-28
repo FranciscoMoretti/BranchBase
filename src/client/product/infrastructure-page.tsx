@@ -1,20 +1,34 @@
-import { DatabaseIcon } from "lucide-react";
+import { ChevronDownIcon, DatabaseIcon } from "lucide-react";
 import { useState } from "react";
 
 import { appGroupStatus } from "../../app-group/status";
 import type { WorkspaceSnapshot } from "../../project/worktree-status-contract";
 import { Button } from "../components/ui/button";
+import { useCommand } from "../mutations";
 import { GroupToggle } from "./environment-list";
 import type { GroupControls } from "./environment-list";
+import { ManagedResourceCatalog } from "./managed-resource-catalog";
 import {
   AppLink,
+  CopyButton,
   Blank,
+  ErrorNotice,
   countLabel,
   PageHeading,
   ResourceUsage,
   Search,
   Status,
 } from "./primitives";
+import { ResourceCatalog } from "./resource-catalog";
+
+const ResourceIssues = ({ issues }: { issues?: string[] }) =>
+  [...new Set(issues)].map((issue) => (
+    <ErrorNotice
+      key={issue}
+      error={new Error(issue)}
+      title="Resource unavailable"
+    />
+  ));
 
 export const InfrastructurePage = ({
   data,
@@ -23,7 +37,9 @@ export const InfrastructurePage = ({
   data: WorkspaceSnapshot;
   controls: GroupControls;
 }) => {
+  const enable = useCommand("enable-resource-profiles", data.repoPath);
   const [search, setSearch] = useState("");
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [expanded, setExpanded] = useState<string[]>([]);
   const instances = new Map<
     string,
@@ -81,13 +97,43 @@ export const InfrastructurePage = ({
   return (
     <>
       <PageHeading
-        description="Shared and dedicated infrastructure instances for this project."
+        description="Inspect this project’s connections or manage shared resources on this machine."
         title="Infrastructure"
       />
+      <div>
+        <h2>Project connections</h2>
+        <p className="product-muted">
+          Selected infrastructure for {data.repoName}. Applications start and
+          stop independently.
+        </p>
+      </div>
+      {data.projectDefaultConfig.profiles ? null : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            disabled={enable.isPending}
+            onClick={() =>
+              enable.mutate({
+                repoPath: data.repoPath,
+                revision: data.projectDefaultConfigRevision,
+              })
+            }
+          >
+            {enable.isPending
+              ? "Enabling profiles…"
+              : "Enable resource profiles"}
+          </Button>
+          <span className="product-muted">
+            Adds Shared development and Isolated development to this project’s
+            configuration.
+          </span>
+        </div>
+      )}
+      <ErrorNotice error={enable.error} />
+      <ResourceIssues issues={data.resourceIssues} />
       <div className="product-filterbar">
         <Search
           onChange={setSearch}
-          placeholder="Search instances…"
+          placeholder="Search project connections…"
           value={search}
         />
         <span className="product-muted">
@@ -100,19 +146,19 @@ export const InfrastructurePage = ({
             <div className="product-infra-heading">
               <DatabaseIcon />
               <div>
-                <h2>{group.instance.name}</h2>
+                <h2>Instance {group.instance.name}</h2>
                 <p className="product-muted">{group.name}</p>
               </div>
               <Status value={appGroupStatus(group)} />
               <span className="product-muted">
-                Selected by {consumers.length} worktrees
+                Selected by {countLabel(consumers.length, "worktree")}
               </span>
               <div className="product-actions">
                 <Button
                   onClick={() => controls.inspect(worktree, group)}
                   variant="outline"
                 >
-                  View logs
+                  View endpoints & logs
                 </Button>
                 <GroupToggle
                   controls={controls}
@@ -124,7 +170,22 @@ export const InfrastructurePage = ({
             <div className="product-infra-apps">
               <ResourceUsage usage={group.resources} />
               {group.apps.map((app) => (
-                <AppLink app={app} key={app.id} />
+                <span className="product-infra-endpoint" key={app.id}>
+                  <AppLink app={app} />
+                  <code>
+                    {app.port
+                      ? `${app.host?.includes(":") ? `[${app.host}]` : (app.host ?? "127.0.0.1")}:${app.port}`
+                      : "Not allocated"}
+                  </code>
+                  <CopyButton
+                    label={`Copy ${app.label} endpoint`}
+                    value={
+                      app.port
+                        ? `${app.host?.includes(":") ? `[${app.host}]` : (app.host ?? "127.0.0.1")}:${app.port}`
+                        : ""
+                    }
+                  />
+                </span>
               ))}
             </div>
             <div>
@@ -179,7 +240,7 @@ export const InfrastructurePage = ({
             <div className="product-infra-heading">
               <DatabaseIcon />
               <div>
-                <h2>{instance.name}</h2>
+                <h2>Instance {instance.name}</h2>
                 <p className="product-muted">
                   {group.name} · No selecting worktrees
                 </p>
@@ -195,7 +256,7 @@ export const InfrastructurePage = ({
                 }
                 variant="outline"
               >
-                {cleanup ? "Inspect run" : "Choose instance in worktree"}
+                {cleanup ? "Inspect run" : "Change connection"}
               </Button>
               {cleanup && owner ? (
                 <GroupToggle
@@ -208,17 +269,58 @@ export const InfrastructurePage = ({
             <p className="product-muted">
               {cleanup
                 ? "This retained run is still owned by BranchBase and can be stopped."
-                : `Open ${worktree.branch} to select this instance before starting it.`}
+                : `Open ${worktree.branch} to change its connection. Manage this instance independently under Resources on this machine.`}
             </p>
           </section>
         );
       })}
       {shown.length === 0 && shownUnused.length === 0 ? (
         <Blank
-          description="Set an app group's category to infrastructure in project configuration to show its instances here."
-          title="No infrastructure instances"
+          description={
+            search
+              ? "Try another resource or instance name."
+              : "Set an app group's category to infrastructure in project configuration to show its connections here."
+          }
+          title={
+            search
+              ? "No matching project connections"
+              : "No project infrastructure connections"
+          }
         />
       ) : null}
+      <section className="product-machine-catalog">
+        <Button
+          variant="ghost"
+          className="product-machine-toggle"
+          aria-expanded={catalogOpen}
+          onClick={() => setCatalogOpen((open) => !open)}
+        >
+          <ChevronDownIcon className={catalogOpen ? "rotate-180" : ""} />
+          <span>
+            <strong>Resources on this machine</strong>
+            <span className="product-muted">
+              {countLabel(
+                (data.managedResources?.length ?? 0) +
+                  (data.existingResources?.length ?? 0),
+                "resource"
+              )}{" "}
+              · Shared across projects
+            </span>
+          </span>
+        </Button>
+        <div hidden={!catalogOpen} className="product-machine-content">
+          <p className="product-muted">
+            Definitions provide lifecycle recipes; their named instances provide
+            connections. Registering a definition starts nothing.
+          </p>
+          <ManagedResourceCatalog data={data} />
+          <ResourceCatalog data={data} />
+        </div>
+      </section>
+      <p className="product-muted">
+        Usage metrics cover tracked host processes and worktree files. Docker
+        CPU, memory, and volumes are not included.
+      </p>
     </>
   );
 };

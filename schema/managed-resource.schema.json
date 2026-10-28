@@ -1,0 +1,318 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": ["argv"],
+      "additionalProperties": false
+    },
+    "directory": {
+      "type": "string",
+      "minLength": 1
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "idle": {
+      "type": "string",
+      "enum": ["keep-running", "stop-when-unused"]
+    },
+    "instances": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "env": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "outputs": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "ports": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 65535
+            }
+          }
+        },
+        "required": ["outputs", "ports"],
+        "additionalProperties": false
+      }
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recipe": {
+      "type": "object",
+      "properties": {
+        "apps": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 65535
+              },
+              "protocol": {
+                "type": "string",
+                "enum": ["http", "tcp"]
+              },
+              "readiness": {
+                "default": "tcp",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "tcp"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "default": "/",
+                        "type": "string",
+                        "pattern": "^\\/.*"
+                      },
+                      "statuses": {
+                        "default": "200-399",
+                        "type": "string",
+                        "pattern": "^\\d{3}-\\d{3}$"
+                      },
+                      "timeoutSeconds": {
+                        "default": 60,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 300
+                      },
+                      "type": {
+                        "type": "string",
+                        "const": "http"
+                      }
+                    },
+                    "required": ["type"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": ["protocol"],
+            "additionalProperties": false
+          }
+        },
+        "category": {
+          "type": "string",
+          "enum": ["application", "infrastructure"]
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "env": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^\\/.*"
+              }
+            },
+            "required": ["file"],
+            "additionalProperties": false
+          }
+        },
+        "instances": {
+          "default": {
+            "mode": "per-worktree"
+          },
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "const": "per-worktree"
+                }
+              },
+              "required": ["mode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "const": "selectable"
+                }
+              },
+              "required": ["mode"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outputs": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.-]+$"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "argv": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "cwd": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["argv"],
+          "additionalProperties": false
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "process"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "argv": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "cwd": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": ["argv"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["apps", "start", "stop"],
+      "additionalProperties": false
+    },
+    "status": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": ["argv"],
+      "additionalProperties": false
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    }
+  },
+  "required": [
+    "directory",
+    "files",
+    "id",
+    "idle",
+    "instances",
+    "name",
+    "recipe",
+    "version"
+  ],
+  "additionalProperties": false
+}

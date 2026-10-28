@@ -62,6 +62,9 @@ export const GroupToggle = ({
   controls: GroupControls;
   compact?: boolean;
 }) => {
+  if (group.external) {
+    return <span className="product-muted">Externally managed</span>;
+  }
   const running = appGroupIsRunning(group);
   const busy = controls.blocked(worktree, group);
   const actionIcon = running ? <SquareIcon /> : <PlayIcon />;

@@ -37,6 +37,9 @@ export const appGroupCommandMenuItems = ({
   onToggle: () => void;
   pending: boolean;
 }): CommandMenuItem[] => {
+  if (group.external) {
+    return [];
+  }
   const running = appGroupIsRunning(group);
   const retryable =
     group.cleanupOnly !== true &&
@@ -99,6 +102,9 @@ export const AppGroupActionsMenu = ({
     pending,
   });
 
+  if (!items.length) {
+    return null;
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger

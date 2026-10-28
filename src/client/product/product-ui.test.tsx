@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Window } from "happy-dom";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { WorkspaceSnapshotSchema } from "../../project/worktree-status-contract";
 import type { AppGroupSnapshot } from "../../project/worktree-status-contract";
 import {
   InputGroup,
@@ -17,6 +18,7 @@ import {
 import { EnvironmentList } from "./environment-list";
 import type { GroupControls } from "./environment-list";
 import { GroupDetails } from "./group-details";
+import { ManagedResourceCatalog } from "./managed-resource-catalog";
 import { worktree } from "./test-fixtures";
 
 const noop = () => {};
@@ -124,7 +126,7 @@ test("group details keep readiness separate from routing and use a managed log v
     [...table.querySelectorAll('thead th[scope="col"]')].map(
       (cell) => cell.textContent
     )
-  ).toEqual(["App", "Readiness", "Access", "Actions"]);
+  ).toEqual(["Endpoint", "Readiness", "Access", "Actions"]);
   expect(table.querySelector('tbody th[scope="row"]')?.textContent).toBe(
     "Chat"
   );
@@ -245,4 +247,107 @@ test("Running renders a shared instance once without discarding either worktree 
       (item) => item.textContent
     )
   ).toEqual(["1/2 ready", "2/4 ready"]);
+});
+
+const renderCatalog = ({
+  approved = true,
+  consumers = 0,
+  manual = false,
+  health = "running",
+  observed = true,
+}: {
+  approved?: boolean;
+  consumers?: number;
+  manual?: boolean;
+  health?: "running" | "partially-running" | "not-running";
+  observed?: boolean;
+} = {}) => {
+  const data = WorkspaceSnapshotSchema.parse({
+    globalProcesses: [],
+    globalRunningCount: 0,
+    mainWorktreePath: "/repo",
+    managedResources: [
+      {
+        approved,
+        canBuild: false,
+        id: "database",
+        instances: ["0"],
+        name: "Database",
+        observations: observed ? { "0": { consumers, health, manual } } : {},
+        path: "/repo/database.json",
+        revision: "revision",
+      },
+    ],
+    projectDefaultConfig: {
+      appGroups: {
+        web: {
+          apps: { web: { protocol: "http" } },
+          start: { argv: ["bun", "dev"] },
+          stop: "process",
+        },
+      },
+      setup: { argv: ["true"] },
+      version: 1,
+    },
+    projectDefaultConfigPath: "/repo/.branchbase.json",
+    projectDefaultConfigRevision: "revision",
+    projectDefaultPrimaryAppGroup: "web",
+    repoName: "Project",
+    repoPath: "/repo",
+    trustCommands: [],
+    trustFingerprint: "fingerprint",
+    trustRequired: false,
+    trusted: true,
+    updatedAt: "2026-10-28T12:00:00Z",
+    worktrees: [],
+  });
+  const client = new QueryClient();
+  const html = renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <ManagedResourceCatalog data={data} />
+    </QueryClientProvider>
+  );
+  const dom = new Window();
+  dom.document.body.innerHTML = html;
+  const buttons = [...dom.document.querySelectorAll("button")];
+  const button = (label: string) =>
+    buttons.find((item) => item.textContent === label);
+  client.clear();
+  return { button, html };
+};
+
+test("resource lifecycle controls match running and stopped instances", () => {
+  const running = renderCatalog();
+  expect(running.button("Stop")?.disabled).toBe(false);
+  expect(running.button("Restart")?.disabled).toBe(false);
+  expect(running.button("Start")).toBeUndefined();
+  expect(running.button("Build")).toBeUndefined();
+  const stopped = renderCatalog({ health: "not-running" });
+  expect(stopped.button("Start")?.disabled).toBe(false);
+  expect(stopped.button("Stop")).toBeUndefined();
+  expect(stopped.button("Restart")).toBeUndefined();
+});
+
+test("resource consumers and manual reservations disable disruptive controls with an explanation", () => {
+  for (const state of [{ consumers: 2 }, { manual: true }]) {
+    const view = renderCatalog(state);
+    expect(view.button("Stop")?.disabled).toBe(true);
+    expect(view.button("Restart")?.disabled).toBe(true);
+    expect(view.html).toContain(
+      "Stop active consumers and finish manual commands"
+    );
+  }
+});
+
+test("unapproved definitions remain reviewable but cannot start", () => {
+  const view = renderCatalog({ approved: false, health: "not-running" });
+  expect(view.button("Start")?.disabled).toBe(true);
+  expect(view.button("Review definition")?.disabled).toBe(false);
+  expect(view.html).toContain("Review and approve this definition");
+});
+
+test("missing observations are not described as stopped", () => {
+  const view = renderCatalog({ observed: false });
+  expect(view.html).toContain("Status unavailable");
+  expect(view.button("Start")?.disabled).toBe(true);
 });

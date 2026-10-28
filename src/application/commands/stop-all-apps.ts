@@ -16,15 +16,24 @@ export const stopAllApps = async (
     input.worktreeIds
   );
   const targets = worktrees.flatMap((worktree) =>
-    worktree.appGroups.flatMap((group) => {
-      if (
-        (requestedGroup && group.id !== requestedGroup) ||
-        !appGroupIsRunning(group)
-      ) {
-        return [];
-      }
-      return [{ appGroupName: group.id, worktreeId: worktree.id }];
-    })
+    worktree.appGroups
+      .toSorted(
+        (left, right) =>
+          (right.dependencies?.length ?? 0) - (left.dependencies?.length ?? 0)
+      )
+      .flatMap((group) => {
+        if (
+          group.external ||
+          (worktree.profile &&
+            !requestedGroup &&
+            group.category === "infrastructure") ||
+          (requestedGroup && group.id !== requestedGroup) ||
+          !appGroupIsRunning(group)
+        ) {
+          return [];
+        }
+        return [{ appGroupName: group.id, worktreeId: worktree.id }];
+      })
   );
   for (const target of targets) {
     // oxlint-disable-next-line no-await-in-loop -- App group lifecycle operations are serialized to preserve stop ordering.

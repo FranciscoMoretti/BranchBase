@@ -35,6 +35,10 @@ export {
 export type ResolvedBranchBaseApp = ResolvedTemplateApp;
 
 export interface ResolvedBranchBaseAppGroup {
+  instanceId?: string;
+  instanceName?: string;
+  outputs?: Record<string, string>;
+  worktreeId?: string;
   apps: Record<string, ResolvedBranchBaseApp>;
   id: string;
 }

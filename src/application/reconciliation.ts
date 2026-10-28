@@ -25,6 +25,7 @@ export const reconcileProject = (
   if (!project) {
     return;
   }
+  appGroups.managedResources.discover(root, project.document.config);
   for (const worktree of worktrees) {
     const effective = resolveWorktreeConfiguration(
       project,

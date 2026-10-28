@@ -27,6 +27,11 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1024,
+                  "maximum": 65535
+                },
                 "protocol": {
                   "type": "string",
                   "enum": ["http", "tcp"]
@@ -76,6 +81,13 @@
             "type": "string",
             "enum": ["application", "infrastructure"]
           },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "env": {
             "type": "object",
             "propertyNames": {
@@ -84,6 +96,24 @@
             },
             "additionalProperties": {
               "type": "string"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "pattern": "^\\/.*"
+                }
+              },
+              "required": ["file"],
+              "additionalProperties": false
             }
           },
           "instances": {
@@ -118,6 +148,16 @@
           "name": {
             "type": "string",
             "minLength": 1
+          },
+          "outputs": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_.-]+$"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "start": {
             "type": "object",
@@ -169,6 +209,146 @@
         "required": ["apps", "start", "stop"],
         "additionalProperties": false
       }
+    },
+    "managedResources": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["file"],
+        "additionalProperties": false
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "string",
+          "minLength": 1
+        },
+        "definitions": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "connections": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "instance": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "policy": {
+                          "type": "string",
+                          "const": "managed"
+                        },
+                        "resource": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": ["instance", "policy", "resource"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "idle": {
+                          "type": "string",
+                          "enum": ["keep-running", "stop-when-unused"]
+                        },
+                        "policy": {
+                          "type": "string",
+                          "const": "project"
+                        }
+                      },
+                      "required": ["policy"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "idle": {
+                          "type": "string",
+                          "enum": ["keep-running", "stop-when-unused"]
+                        },
+                        "policy": {
+                          "type": "string",
+                          "const": "worktree"
+                        }
+                      },
+                      "required": ["policy"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "policy": {
+                          "type": "string",
+                          "const": "existing"
+                        },
+                        "resource": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": ["policy", "resource"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["connections", "name"],
+            "additionalProperties": false
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "branch": {
+                "type": "string",
+                "minLength": 1
+              },
+              "profile": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["branch", "profile"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["default", "definitions"],
+      "additionalProperties": false
     },
     "setup": {
       "type": "object",

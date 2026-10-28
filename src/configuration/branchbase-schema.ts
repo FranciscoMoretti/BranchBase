@@ -2,6 +2,11 @@ import { z } from "zod";
 
 import { BranchBaseCommandSchema } from "./branchbase-command";
 import { branchbaseTemplateError } from "./branchbase-template";
+import {
+  ResourceProfilesSchema,
+  dependencyOrder,
+  resolveResourceProfile,
+} from "./resource-profiles";
 
 export const MIN_BRANCHBASE_PORT = 1024;
 export const MAX_BRANCHBASE_PORT = 65_535;
@@ -39,6 +44,7 @@ export const BranchBaseReadinessSchema = z.union([
 
 export const BranchBaseAppSchema = z.strictObject({
   name: z.string().min(1).optional(),
+  port: z.number().int().min(1024).max(65_535).optional(),
   protocol: z.enum(["http", "tcp"]),
   readiness: BranchBaseReadinessSchema.default("tcp"),
 });
@@ -58,11 +64,21 @@ export const BranchBaseAppGroupInstancesSchema = z.discriminatedUnion("mode", [
 export const BranchBaseAppGroupSchema = z.strictObject({
   apps: z.record(BranchBaseAppIdSchema, BranchBaseAppSchema),
   category: z.enum(["application", "infrastructure"]).optional(),
+  dependsOn: z.array(z.string().min(1)).optional(),
   env: z.record(BranchBaseEnvironmentNameSchema, z.string()).optional(),
+  inputs: z
+    .record(
+      BranchBaseEnvironmentNameSchema,
+      z.strictObject({ file: z.string().startsWith("/") })
+    )
+    .optional(),
   instances: BranchBaseAppGroupInstancesSchema.default({
     mode: "per-worktree",
   }),
   name: z.string().min(1).optional(),
+  outputs: z
+    .record(z.string().regex(/^[a-zA-Z0-9_.-]+$/u), z.string())
+    .optional(),
   start: BranchBaseCommandSchema,
   stop: BranchBaseAppGroupStopSchema,
 });
@@ -72,11 +88,84 @@ export type BranchBaseAppGroup = z.infer<typeof BranchBaseAppGroupSchema>;
 const BranchBaseConfigObjectSchema = z.strictObject({
   $schema: z.string().optional(),
   appGroups: z.record(BranchBaseAppGroupNameSchema, BranchBaseAppGroupSchema),
+  managedResources: z
+    .record(
+      z.string().regex(/^[a-zA-Z0-9_-]+$/u),
+      z.strictObject({ file: z.string().min(1) })
+    )
+    .optional(),
+  profiles: ResourceProfilesSchema.optional(),
   setup: BranchBaseCommandSchema,
   version: z.literal(1),
 });
 
 type BranchBaseConfigShape = z.infer<typeof BranchBaseConfigObjectSchema>;
+
+const validateResourceScopes = (
+  config: BranchBaseConfigShape,
+  profileId: string,
+  context: z.RefinementCtx
+): void => {
+  const profile = resolveResourceProfile(config, "", profileId);
+  for (const [groupId, connection] of Object.entries(
+    profile?.connections ?? {}
+  )) {
+    if (connection.policy !== "project") {
+      continue;
+    }
+    let dependencies: string[];
+    try {
+      dependencies = dependencyOrder(config, groupId).filter(
+        (id) => id !== groupId
+      );
+    } catch {
+      continue;
+    }
+    for (const id of dependencies) {
+      const dependency = profile?.connections[id];
+      if (!dependency || dependency.policy === "worktree") {
+        context.addIssue({
+          code: "custom",
+          message: `Project resource "${groupId}" cannot depend on worktree-specific group "${id}"`,
+          path: ["profiles", "definitions", profileId, "connections", groupId],
+        });
+      }
+    }
+  }
+};
+
+const validateProfiles = (
+  config: BranchBaseConfigShape,
+  context: z.RefinementCtx
+): void => {
+  if (config.profiles) {
+    const { profiles } = config;
+    for (const id of [
+      profiles.default,
+      ...(profiles.rules ?? []).map((rule) => rule.profile),
+    ]) {
+      if (!profiles.definitions[id]) {
+        context.addIssue({
+          code: "custom",
+          message: `Unknown profile "${id}"`,
+          path: ["profiles"],
+        });
+      }
+    }
+    for (const [id, profile] of Object.entries(profiles.definitions)) {
+      validateResourceScopes(config, id, context);
+      for (const groupId of Object.keys(profile.connections)) {
+        if (config.appGroups[groupId]?.category !== "infrastructure") {
+          context.addIssue({
+            code: "custom",
+            message: "Connections must name infrastructure App groups",
+            path: ["profiles", "definitions", id, "connections", groupId],
+          });
+        }
+      }
+    }
+  }
+};
 
 const validateBranchBaseConfig = (
   config: BranchBaseConfigShape,
@@ -92,12 +181,22 @@ const validateBranchBaseConfig = (
     return;
   }
 
+  validateProfiles(config, context);
   for (const [groupId, group] of groups) {
-    const apps = Object.entries(group.apps);
-    if (apps.length === 0) {
+    try {
+      dependencyOrder(config, groupId);
+    } catch (error) {
       context.addIssue({
         code: "custom",
-        message: "An App group requires at least one App",
+        message: String(error),
+        path: ["appGroups", groupId, "dependsOn"],
+      });
+    }
+    const apps = Object.entries(group.apps);
+    if (apps.length === 0 && group.stop !== "process") {
+      context.addIssue({
+        code: "custom",
+        message: "A command-controlled App group requires at least one App",
         path: ["appGroups", groupId, "apps"],
       });
       continue;
@@ -111,18 +210,20 @@ const validateBranchBaseConfig = (
         });
       }
     }
-    for (const [name, template] of Object.entries(group.env ?? {})) {
-      const error = branchbaseTemplateError(
-        template,
-        config.appGroups,
-        groupId
-      );
-      if (error) {
-        context.addIssue({
-          code: "custom",
-          message: error,
-          path: ["appGroups", groupId, "env", name],
-        });
+    for (const field of ["env", "outputs"] as const) {
+      for (const [name, template] of Object.entries(group[field] ?? {})) {
+        const error = branchbaseTemplateError(
+          template,
+          config.appGroups,
+          groupId
+        );
+        if (error) {
+          context.addIssue({
+            code: "custom",
+            message: error,
+            path: ["appGroups", groupId, field, name],
+          });
+        }
       }
     }
     for (const [index, argument] of group.start.argv.entries()) {

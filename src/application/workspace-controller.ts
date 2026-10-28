@@ -47,6 +47,7 @@ import {
   trustRepository as saveRepositoryTrust,
 } from "../configuration/repository-trust";
 import type { RepositoryTrustApproval } from "../configuration/repository-trust-approval";
+import { defaultResourceProfiles } from "../configuration/resource-profiles";
 import type { WorktreeConfigSource } from "../configuration/worktree-config-source";
 import { ProductStore } from "../project/catalog";
 import type { AppPin, ProjectOverview } from "../project/catalog-contract";
@@ -59,6 +60,7 @@ import type { ProjectStatus } from "../project/status-contract";
 import { WorktreeDiskUsageCache } from "../project/worktree-disk-usage";
 import { worktreeHasRunningAppGroups } from "../project/worktree-status-contract";
 import type { WorkspaceSnapshot } from "../project/worktree-status-contract";
+import { ExistingResourceSchema } from "../resources/resource-contract";
 import { parseCommandInput, parseCommandResult } from "./command-contract";
 import type {
   BranchBaseCommandInput,
@@ -102,13 +104,84 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
       ok: true,
     };
   },
+  "approve-managed-resource": (controller, input) => {
+    controller.approveManagedResource(
+      String(input.resource),
+      String(input.revision)
+    );
+    return {
+      command: "approve-managed-resource",
+      message: "Resource revision approved",
+      ok: true,
+    };
+  },
+  "build-managed-resource": async (controller, input) => {
+    await controller.buildManagedResource(
+      String(input.resource),
+      String(input.instance)
+    );
+    return {
+      command: "build-managed-resource",
+      message: "Resource build completed",
+      ok: true,
+    };
+  },
   "clear-logs": clearLogs,
   "create-app-group-instance": createAppGroupInstance,
   "create-worktree": createWorktree,
   "delete-worktree": deleteWorktree,
+  "enable-resource-profiles": (controller, input) => {
+    controller.enableResourceProfiles(
+      String(input.repoPath),
+      String(input.revision)
+    );
+    return {
+      command: "enable-resource-profiles",
+      message:
+        "Shared and isolated profiles added. Review and approve the updated configuration before starting.",
+      ok: true,
+    };
+  },
   "initialize-repository": initializeRepositoryCommand,
+  "operate-managed-resource": async (controller, input) => {
+    await controller.operateManagedResource(
+      String(input.resource),
+      String(input.instance),
+      String(input.action)
+    );
+    return {
+      command: "operate-managed-resource",
+      message: "Resource operation completed",
+      ok: true,
+    };
+  },
   "pick-repository": pickRepository,
   "preview-repository-config": previewRepositoryConfig,
+  "preview-resource-profile": (controller, input) =>
+    controller.previewResourceProfile(
+      String(input.repoPath),
+      String(input.worktreeId),
+      input.profileId === null ? null : String(input.profileId)
+    ),
+  "register-managed-resource": (controller, input) =>
+    controller.registerManagedResource(String(input.definitionPath)),
+  "register-resource": (controller, input) => {
+    controller.registerResource(input.resource);
+    return {
+      command: "register-resource",
+      message:
+        "Existing resource connected. Its lifecycle remains externally managed.",
+      ok: true,
+    };
+  },
+  "release-command-context": async (controller, input) => {
+    await controller.releaseCommandContext(String(input.leaseId));
+    return {
+      command: "release-command-context",
+      message: "Manual command context released",
+      ok: true,
+    };
+  },
   "remove-development-folder": (controller, input) => {
     controller.removeDevelopmentFolder(String(input.repoPath));
     return {
@@ -125,6 +198,12 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
       ok: true,
     };
   },
+  "resource-command-context": (controller, input) =>
+    controller.resourceCommandContext(
+      String(input.repoPath),
+      String(input.worktreeId),
+      String(input.appGroupName)
+    ),
   "restart-apps": restartApps,
   "restart-running-apps": restartRunningApps,
   "retry-apps": retryApps,
@@ -153,6 +232,19 @@ const COMMAND_HANDLERS: Record<BranchBaseCommandName, CommandHandler> = {
     };
   },
   "select-app-group-instance": selectAppGroupInstance,
+  "select-resource-profile": async (controller, input) => {
+    await controller.selectResourceProfile(
+      String(input.repoPath),
+      String(input.worktreeId),
+      input.profileId === null ? null : String(input.profileId),
+      input.restart === true
+    );
+    return {
+      command: "select-resource-profile",
+      message: "Resource profile applied",
+      ok: true,
+    };
+  },
   "select-worktree-config-source": selectWorktreeConfigSource,
   "setup-all-apps": setupAllApps,
   "start-all-apps": startAllApps,
@@ -287,6 +379,7 @@ export class WorkspaceController {
       configured?.setupState === "running" ||
       configured?.appGroups.some(
         (group) =>
+          !group.external &&
           (!group.run || group.run.worktreePath === worktree.path) &&
           (group.pending ||
             group.processRunning ||
@@ -462,8 +555,146 @@ export class WorkspaceController {
     });
     this.product.observe(snapshot);
     snapshot.disk = this.populateWorktreeDiskUsage(snapshot.worktrees);
+    this.populateResourceProfiles(snapshot);
     return snapshot;
   }
+  previewResourceProfile(
+    repoPath: string,
+    worktreeId: string,
+    profileId: string | null
+  ) {
+    const { worktree } = this.worktree(repoPath, worktreeId);
+    const profile = this.appGroups.profileStatus(
+      this.appGroupTarget(repoPath, worktreeId, worktree.primaryAppGroup),
+      profileId
+    );
+    if (!profile) {
+      throw new Error("Configure resource profiles first.");
+    }
+    return profile;
+  }
+
+  operateManagedResource(id: string, name: string, action: string) {
+    const target = this.appGroups.managedResources.target(id, name);
+    if (action === "start") {
+      return this.appGroups.start(target);
+    }
+    if (action === "stop") {
+      return this.appGroups.stop(target);
+    }
+    if (action === "restart") {
+      return this.appGroups.restart(target);
+    }
+    throw new Error("Unknown resource operation");
+  }
+
+  registerManagedResource(file: string) {
+    const resource = this.appGroups.managedResources.register(file);
+    return {
+      definition: resource.definition,
+      directory: resource.directory,
+      id: resource.definition.id,
+      revision: resource.revision,
+    };
+  }
+  approveManagedResource(id: string, revision: string) {
+    this.appGroups.managedResources.approve(id, revision);
+  }
+  buildManagedResource(id: string, instance: string) {
+    return this.appGroups.buildManagedResource(id, instance);
+  }
+  resourceCommandContext(
+    repoPath: string,
+    worktreeId: string,
+    groupId: string
+  ) {
+    const target = this.appGroupTarget(repoPath, worktreeId, groupId);
+    this.assertConfigTrusted(target.repoPath, target.config);
+    return this.appGroups.manualCommandContext(target);
+  }
+
+  releaseCommandContext(id: string) {
+    return this.appGroups.releaseManualCommandContext(id);
+  }
+
+  registerResource(input: unknown): void {
+    this.appGroups.resourceStore.register(ExistingResourceSchema.parse(input));
+  }
+
+  enableResourceProfiles(repoPath: string, revision: string): void {
+    const workspace = this.inspect(repoPath);
+    if (workspace.projectDefaultConfig.profiles) {
+      throw new Error("Resource profiles are already configured.");
+    }
+    if (
+      workspace.worktrees.some(
+        (worktree) =>
+          this.state.hasRunForWorktree(workspace.repoPath, worktree.path) ||
+          this.appGroups.hasPendingLifecycle(worktree.path)
+      )
+    ) {
+      throw new Error(
+        "Stop this project's App groups before enabling resource profiles."
+      );
+    }
+    const config = workspace.projectDefaultConfig;
+    config.profiles = defaultResourceProfiles(config);
+    updateBranchBaseConfig(
+      workspace.projectDefaultConfigPath,
+      config,
+      revision
+    );
+  }
+
+  async selectResourceProfile(
+    repoPath: string,
+    worktreeId: string,
+    profileId: string | null,
+    restart: boolean
+  ): Promise<void> {
+    const { workspace, worktree } = this.worktree(repoPath, worktreeId);
+    if (
+      worktree.setupState === "running" ||
+      this.appGroups.hasPendingLifecycle(worktree.path)
+    ) {
+      throw new Error(
+        "Wait for the current lifecycle operation before changing profile."
+      );
+    }
+    const target = this.appGroupTarget(
+      workspace.repoPath,
+      worktree.id,
+      worktree.primaryAppGroup
+    );
+    // Applying connections to a stopped worktree executes no commands. Restart does.
+    if (restart) {
+      this.assertConfigTrusted(target.repoPath, target.config);
+    }
+    await this.appGroups.selectProfile(target, profileId, restart);
+  }
+
+  private populateResourceProfiles(workspace: WorkspaceSnapshot): void {
+    workspace.resourceIssues = this.appGroups.managedResources.discover(
+      workspace.mainWorktreePath,
+      workspace.projectDefaultConfig
+    );
+    workspace.existingResources = this.appGroups.resourceStore.resources();
+    workspace.managedResources = this.appGroups.managedCatalog();
+    for (const worktree of workspace.worktrees) {
+      const config = loadBranchBaseConfig(worktree.configuration.path);
+      worktree.profile = this.appGroups.profileStatus({
+        config,
+        groupId: worktree.primaryAppGroup,
+        repoPath: workspace.repoPath,
+        worktree: {
+          id: worktree.id,
+          path: worktree.path,
+          routeLabel: worktree.branch,
+        },
+      });
+    }
+  }
+
   private populateWorktreeDiskUsage(worktrees: ProjectStatus["worktrees"]) {
     for (const worktree of worktrees) {
       worktree.disk = this.diskUsage.read(worktree.path);
@@ -499,6 +730,14 @@ export class WorkspaceController {
     }
     if (status.workspace) {
       status.workspace.disk = status.disk;
+      this.populateResourceProfiles(status.workspace);
+      status.issues.push(
+        ...(status.workspace.resourceIssues ?? []).map((message) => ({
+          area: "configuration" as const,
+          code: "managed-resource-unavailable",
+          message,
+        }))
+      );
     }
     if (status.observation) {
       status.observation.disk = status.disk;

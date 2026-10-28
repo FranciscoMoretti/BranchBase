@@ -19,6 +19,9 @@ export const restartRunningApps = async (
     worktree.appGroups.flatMap((group) => {
       if (
         (requestedGroup && group.id !== requestedGroup) ||
+        (worktree.profile &&
+          !requestedGroup &&
+          group.category === "infrastructure") ||
         !appGroupCanRestart(group)
       ) {
         return [];

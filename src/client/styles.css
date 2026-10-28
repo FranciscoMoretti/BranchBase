@@ -2569,3 +2569,82 @@
   gap: 16px;
   padding: 24px;
 }
+
+/* Resource definitions, named instances, and project connections have separate scopes. */
+.product-machine-catalog {
+  padding: 20px;
+  margin-block: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.product-machine-toggle {
+  justify-content: flex-start;
+  height: auto;
+  max-width: 100%;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+}
+.product-machine-toggle > span > span {
+  display: block;
+  margin-top: 4px;
+}
+.product-machine-content {
+  margin-top: 20px;
+}
+.product-machine-content > p {
+  margin-bottom: 16px;
+}
+.product-resource-definition {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.product-resource-definition h3 {
+  font-weight: 600;
+}
+.product-resource-instances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+}
+.product-resource-instance {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.product-infra-endpoint {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.product-infra-endpoint code {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.product-profile-connection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 700px) {
+  .product-machine-catalog {
+    padding: 16px;
+  }
+  .product-machine-catalog .product-settings-panel {
+    padding: 16px;
+  }
+  .product-infra-apps {
+    gap: 12px;
+  }
+}

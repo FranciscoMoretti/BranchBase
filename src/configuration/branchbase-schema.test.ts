@@ -46,6 +46,22 @@ const validConfig = {
 } satisfies BranchBaseConfig;
 
 describe("shared BranchBase schema", () => {
+  it("reports invalid output templates at the configuration field", () => {
+    const config = cloneBranchBaseConfig(validConfig);
+    config.appGroups.services.outputs = { host: "{apps.databse.host}" };
+    const parsed = BranchBaseConfigSchema.safeParse(config);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues[0].path).toEqual([
+        "appGroups",
+        "services",
+        "outputs",
+        "host",
+      ]);
+    }
+    config.appGroups.services.outputs = { host: "{apps.database.host}" };
+    expect(BranchBaseConfigSchema.safeParse(config).success).toBe(true);
+  });
   it("accepts slot-free Apps with app-group environments", () => {
     const parsed = BranchBaseConfigSchema.parse(validConfig);
     expect(parsed.appGroups.development.env).toEqual({
@@ -77,7 +93,7 @@ describe("shared BranchBase schema", () => {
     });
   });
 
-  it("requires setup and at least one App group with one App", () => {
+  it("requires setup and groups; allows workers without endpoints", () => {
     expect(
       BranchBaseConfigSchema.safeParse({ ...validConfig, setup: undefined })
         .success
@@ -97,7 +113,7 @@ describe("shared BranchBase schema", () => {
           },
         },
       }).success
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects invalid references and accepts cross-group instance references", () => {
@@ -157,4 +173,20 @@ describe("shared BranchBase schema", () => {
     expect(clone).toEqual(parsed);
     expect(clone).not.toBe(parsed);
   });
+});
+
+it("accepts direct URL templates for HTTP endpoints with configured fixed ports", () => {
+  const config = structuredClone(validConfig);
+  const parsed = BranchBaseConfigSchema.parse({
+    ...config,
+    appGroups: {
+      ...config.appGroups,
+      development: {
+        ...config.appGroups.development,
+        apps: { api: { port: 8000, protocol: "http" } },
+        env: { API_PORT: "{apps.api.port}", API_URL: "{apps.api.directUrl}" },
+      },
+    },
+  });
+  expect(parsed.appGroups.development.apps.api.port).toBe(8000);
 });

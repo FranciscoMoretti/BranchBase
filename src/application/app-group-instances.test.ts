@@ -539,10 +539,13 @@ describe("App-group instance assignment", () => {
     const temporary = mkdtempSync(
       pathModule.join(tmpdir(), "branchbase-pending-start-")
     );
+    const processes = new ProcessSupervisor(
+      pathModule.join(temporary, "control")
+    );
     try {
       const routing = blockingPrepareRoutingEngine();
       const runtime = new AppGroupRuntime(
-        new ProcessSupervisor(pathModule.join(temporary, "control")),
+        processes,
         routing,
         new FileBranchBaseStateStore(pathModule.join(temporary, "state.json"))
       );
@@ -552,7 +555,9 @@ describe("App-group instance assignment", () => {
             Apps: {
               apps: {},
               instances: { mode: "per-worktree" as const },
-              start: { argv: ["true"] },
+              start: {
+                argv: [process.execPath, "-e", "setInterval(Boolean, 1000)"],
+              },
               stop: "process" as const,
             },
           },
@@ -576,6 +581,11 @@ describe("App-group instance assignment", () => {
         false
       );
     } finally {
+      await Promise.all(
+        processes
+          .listManagedProcesses()
+          .map((item) => processes.stopManagedProcess(item.ownerId, temporary))
+      );
       rmSync(temporary, { force: true, recursive: true });
     }
   });

@@ -50,7 +50,11 @@ import {
   Search,
   Status,
 } from "./primitives";
-import { endpointRuntime, groupRuntimeReasons } from "./runtime-summary";
+import {
+  endpointRuntime,
+  groupExecutionLabel,
+  groupRuntimeReasons,
+} from "./runtime-summary";
 
 const RunContext = ({
   group,
@@ -65,8 +69,8 @@ const RunContext = ({
       <span className="product-muted">Instance</span> {group.instance.name}
     </span>
     <span>
-      <span className="product-muted">Runtime</span>{" "}
-      {group.processRunning ? "Managed process running" : "No managed process"}
+      <span className="product-muted">Execution</span>{" "}
+      {groupExecutionLabel(group)}
     </span>
     {group.run ? (
       <span>
@@ -134,26 +138,28 @@ export const GroupDetails = ({
       </Button>
       <PageHeading
         level={2}
-        description={`${worktree.branch} · ${countLabel(group.apps.length, "app")}`}
+        description={`${worktree.branch} · ${countLabel(group.apps.length, "endpoint")}`}
         title={`${group.name} services`}
       >
         <Status value={appGroupStatus(group)} />
         <GroupToggle controls={controls} group={group} worktree={worktree} />
-        <Button
-          disabled={
-            controls.blocked(worktree, group) ||
-            (!group.processRunning && group.health === "not-running") ||
-            group.cleanupOnly
-          }
-          onClick={() => controls.restart(worktree, group)}
-          variant="outline"
-        >
-          Restart
-        </Button>
+        {group.external ? null : (
+          <Button
+            disabled={
+              controls.blocked(worktree, group) ||
+              (!group.processRunning && group.health === "not-running") ||
+              group.cleanupOnly
+            }
+            onClick={() => controls.restart(worktree, group)}
+            variant="outline"
+          >
+            Restart
+          </Button>
+        )}
       </PageHeading>
       <RunContext group={group} onTasks={() => onTabChange("tasks")} />
       <ErrorNotice error={save.error} />
-      {appGroupStatus(group) === "partial" ? (
+      {!group.external && appGroupStatus(group) === "partial" ? (
         <Alert>
           <AlertDescription>
             {groupRuntimeReasons(group).join(" · ")}
@@ -174,7 +180,7 @@ export const GroupDetails = ({
       >
         <TableHeader>
           <TableRow>
-            <TableHead scope="col">App</TableHead>
+            <TableHead scope="col">Endpoint</TableHead>
             <TableHead scope="col">Readiness</TableHead>
             <TableHead scope="col">Access</TableHead>
             <TableHead scope="col">Actions</TableHead>
@@ -183,6 +189,13 @@ export const GroupDetails = ({
         <TableBody>
           {group.apps.map((app) => {
             const state = endpointRuntime(app, group);
+            const host = app.host?.includes(":")
+              ? `[${app.host}]`
+              : (app.host ?? "127.0.0.1");
+            const address =
+              app.url ??
+              app.directUrl ??
+              (app.port ? `${host}:${app.port}` : "Not allocated");
             const pin = {
               appId: app.id,
               groupId: group.id,
@@ -209,11 +222,7 @@ export const GroupDetails = ({
                 </TableCell>
                 <TableCell>
                   <div className="product-endpoint-address">
-                    <code>
-                      {app.url ??
-                        app.directUrl ??
-                        (app.port ? `127.0.0.1:${app.port}` : "Not allocated")}
-                    </code>
+                    <code>{address}</code>
                     {app.protocol === "http" &&
                     app.readiness === "ready" &&
                     !app.open ? (
@@ -225,10 +234,14 @@ export const GroupDetails = ({
                 </TableCell>
                 <TableCell>
                   <div className="product-actions">
-                    <AppLink app={app} name={false} />
+                    {app.protocol === "http" ? (
+                      <AppLink app={app} name={false} />
+                    ) : (
+                      <span className="product-muted">TCP</span>
+                    )}
                     <CopyButton
                       label={`Copy ${app.label} endpoint`}
-                      value={app.url ?? app.directUrl ?? String(app.port ?? "")}
+                      value={app.port ? address : ""}
                     />
                     <Button
                       aria-label={`${pinned ? "Unpin" : "Pin"} ${app.label} on Projects`}
@@ -360,12 +373,20 @@ export const GroupDetails = ({
                     : "This group has its own instance for this worktree."}
                 </p>
               </div>
-              <AppGroupInstanceControl
-                disabled={controls.blocked(worktree, group)}
-                group={group}
-                onCreate={onCreateInstance}
-                onSelect={onSelectInstance}
-              />
+              {worktree.profile?.connections.some(
+                (connection) => connection.groupId === group.id
+              ) ? (
+                <p className="product-muted">
+                  Managed by this worktree’s resource profile.
+                </p>
+              ) : (
+                <AppGroupInstanceControl
+                  disabled={controls.blocked(worktree, group)}
+                  group={group}
+                  onCreate={onCreateInstance}
+                  onSelect={onSelectInstance}
+                />
+              )}
             </div>
             <Button onClick={() => controls.review(worktree)} variant="outline">
               Review worktree commands
