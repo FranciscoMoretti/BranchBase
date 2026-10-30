@@ -6,7 +6,7 @@ export default defineConfig({
   content: { root: "content" },
   description:
     "Run the apps your coding agents build side by side on your Mac. Manage their worktrees, services, and resource usage from one place.",
-  github: { dir: "website", owner: "FranciscoMoretti", repo: "brum" },
+  github: { dir: "website", owner: "FranciscoMoretti", repo: "branchbase" },
   logo: { text: "BranchBase" },
   navigation: { sidebar: { display: "flat" } },
   theme: {
