@@ -1,0 +1,40 @@
+---
+title: Connect Codex tasks
+description: See conversations associated with a worktree and optionally share running-app context with Codex.
+sidebar:
+  label: Codex integration
+---
+
+## Task discovery
+
+Select a worktree to see its matching non-archived, top-level Codex tasks. Matching uses the task's exact canonical working directory. A task started in another directory is not automatically associated with the repository root.
+
+Use **Open task** to continue a conversation or **New task** to open Codex at the selected worktree. Desktop links require an application that handles `codex://` URLs.
+
+Basic discovery does not require the BranchBase plugin. It uses a compatible local Codex app-server. If discovery is unavailable, application and infrastructure management continue to work.
+
+## Optional live activity
+
+The bundled plugin adds live activity and supplies BranchBase context when a task starts or resumes in a configured worktree:
+
+```sh
+codex plugin marketplace add FranciscoMoretti/brum --ref main
+codex plugin add branchbase@branchbase
+```
+
+Restart the desktop application, keep the BranchBase daemon running, and review the plugin hooks when prompted. The worktree root must contain a valid `.branchbase.json`.
+
+| Activity | Interpretation |
+| --- | --- |
+| Working | A task turn is in progress. |
+| Waiting for approval | The task is paused for permission. |
+| Ready | No turn is currently observed in progress. |
+| Unknown | BranchBase has no sufficiently recent activity observation. |
+
+Ready does not guarantee the task succeeded. If hooks are unavailable, task execution continues and activity can become Unknown.
+
+## Context boundaries
+
+The plugin supplies worktree identity, app/group labels, endpoints, and process/readiness state. It omits environment values, managed logs, command definitions, prompts, transcripts, and tool arguments or results.
+
+Task discovery retains metadata for association, not full conversation turns. Codex is optional and does not require an API key for this integration.

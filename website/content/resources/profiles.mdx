@@ -1,0 +1,79 @@
+---
+title: Select resource profiles
+description: Set project defaults, branch rules, and explicit per-worktree connection choices.
+sidebar:
+  label: Resource profiles
+---
+
+Use **Infrastructure → Enable resource profiles** to add Shared development and Isolated development to an existing configuration. Stop existing app groups first, then review and approve the updated configuration.
+
+## Define a shared and an isolated policy
+
+Add this `profiles` field alongside `version`, `setup`, and `appGroups` in `.branchbase.json`. The configuration must include an infrastructure group named `services`.
+
+```json
+{
+  "default": "shared",
+  "definitions": {
+    "shared": {
+      "name": "Shared development",
+      "connections": {
+        "services": { "policy": "project", "idle": "keep-running" }
+      }
+    },
+    "isolated": {
+      "name": "Isolated development",
+      "connections": {
+        "services": { "policy": "worktree", "idle": "stop-when-unused" }
+      }
+    }
+  },
+  "rules": [{ "branch": "schema/*", "profile": "isolated" }]
+}
+```
+
+The first matching branch rule wins. `*` matches any branch-name characters. Two branches matching `schema/*` each receive their own worktree resource; the rule does not make them share one instance.
+
+## Selection order
+
+1. Explicit local choice for the worktree.
+2. First matching branch rule.
+3. Project default.
+
+**Use branch / project default** clears the local override. Infrastructure groups omitted from a profile use the `project` policy.
+
+## Preview and apply
+
+Open a worktree's **Resource profile** panel and choose a profile. Review the connections before applying it.
+
+For a stopped application, applying saves the choice without starting services. For a running application, use **Apply and restart**. Until that explicit operation, the active run retains its captured connections.
+
+A profile switch does not rename the application or remove the old resource. A `keep-running` resource can remain available after its consumers move elsewhere.
+
+## Select a named managed instance
+
+A profile connection can point at a particular instance:
+
+```json
+{
+  "services": {
+    "policy": "managed",
+    "resource": "shared-services",
+    "instance": "1"
+  }
+}
+```
+
+The name `1` is scoped to `shared-services`. The resource's owner sets its idle policy; consumers do not override it. See [managed resources](/resources/managed).
+
+## Connect an existing service
+
+Use **Resources on this machine → Connect existing resource** to register its ID and endpoint addresses. Endpoint IDs must match the consumer infrastructure group's app IDs.
+
+```json
+{
+  "services": { "policy": "existing", "resource": "local-postgres" }
+}
+```
+
+The registered endpoint supplies connection values and readiness checks. BranchBase leaves lifecycle control with the existing owner. Register a new ID to change addresses, then explicitly select it.
