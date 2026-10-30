@@ -1,0 +1,53 @@
+---
+title: More agents. More branches. One base.
+description: Run the apps your coding agents build side by side on your Mac.
+sidebar:
+  label: Overview
+---
+
+Manage their worktrees, services, and resource usage from one place with BranchBase.
+
+Give each checkout its own application endpoints, share infrastructure when it makes sense, and select a separate instance when a branch needs different data. Use the dashboard or CLI to keep track of what is running as your agents work in parallel.
+
+<CardGroup cols={2}>
+  <Card
+    title="Start your first project"
+    href="/getting-started/first-project"
+    icon="play"
+  >
+    Connect a repository, review its commands, and open a running application.
+  </Card>
+  <Card title="Share infrastructure" href="/resources" icon="database">
+    Connect several worktrees or projects to the same managed resource.
+  </Card>
+  <Card title="Manage worktrees" href="/guides/worktrees" icon="git-branch">
+    Inspect applications, disk usage, RAM, and CPU before removing a checkout.
+  </Card>
+  <Card title="Use the CLI" href="/reference/cli" icon="terminal">
+    Inspect status, read logs, and run commands with the right connections.
+  </Card>
+</CardGroup>
+
+## Choose connections independently
+
+| Application checkout | Infrastructure selection | Why |
+| --- | --- | --- |
+| Main | Shared instance `0` | Normal development |
+| UI changes | Shared instance `0` | Reuse the same services |
+| Schema changes | Separate instance `1` | Work with different database state |
+| Integration checks | Separate instance `1` | Exercise that same schema |
+
+A profile records these choices. Application ports and infrastructure identity stay independent. Stopping one application preserves infrastructure that another active consumer still uses.
+
+## Start with observation
+
+You can add a project before creating configuration. BranchBase discovers Git worktrees and observes local listeners and resource use. To launch commands, add `.branchbase.json`, review the commands, and approve their fingerprint.
+
+BranchBase is **macOS-first** and uses **Bun**. Codex integration is optional. Docker is required only when your repository's infrastructure commands use it.
+
+<Callout type="note" title="Development documentation">
+  These docs describe the development source, including named managed resources
+  and the `bbase` alias. An installed package may not include those features
+  yet. See [installation](/getting-started/installation) for the source
+  workflow.
+</Callout>

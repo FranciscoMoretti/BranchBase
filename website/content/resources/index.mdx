@@ -1,0 +1,50 @@
+---
+title: Choose your infrastructure
+description: Share services where useful and choose separate instances when a branch needs different state.
+sidebar:
+  label: Overview
+---
+
+An application instance and its infrastructure instance have independent identities. A frontend checkout can use the same database as the primary checkout; a schema-change checkout can select another database without changing its application ports.
+
+## Pick a connection policy
+
+| Policy | Scope | Lifecycle owner |
+| --- | --- | --- |
+| `project` | Shared within one project and configuration contract. | BranchBase, using project commands. |
+| `worktree` | Dedicated to one worktree and configuration contract. | BranchBase, using worktree commands. |
+| `managed` | A named instance reusable across projects. | BranchBase, using the authoritative resource definition. |
+| `existing` | A service registered on this machine. | An external owner; BranchBase never starts or stops it. |
+
+[Profiles](/resources/profiles) select these policies. [Managed resources](/resources/managed) give infrastructure a durable owner, explicit ports, and public connection outputs.
+
+## Read the Infrastructure page
+
+**Project connections** shows the selected infrastructure and selecting worktrees for the current project. A selection is configuration; it does not prove an application is actively using the service.
+
+**Resources on this machine** contains the shared registry. Review definitions, inspect named instances, and use lifecycle controls there. An active consumer or manual-command reservation protects a resource from Stop or Restart.
+
+## Keep the boundaries explicit
+
+Start waits for required infrastructure before launching the application. Merely viewing a project or changing a stopped application's profile starts nothing.
+
+The idle policy controls what happens after the last consumer exits. Ordinary Stop preserves instance identity; repository Stop commands must preserve data. BranchBase does not automatically clone databases, orchestrate migrations, or partition shared worker queues.
+
+<CardGroup cols={2}>
+  <Card title="Select a profile" href="/resources/profiles" icon="git-branch">
+    Set defaults, branch rules, and explicit overrides.
+  </Card>
+  <Card
+    title="Declare managed resources"
+    href="/resources/managed"
+    icon="database"
+  >
+    Reuse named instances across projects.
+  </Card>
+  <Card title="Connect Docker Compose" href="/resources/compose" icon="boxes">
+    Pass explicit ports and keep persistent data.
+  </Card>
+  <Card title="Run a command" href="/resources/commands" icon="terminal">
+    Use the same connection context in your terminal.
+  </Card>
+</CardGroup>

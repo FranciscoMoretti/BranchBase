@@ -1,0 +1,67 @@
+---
+title: CLI reference
+description: Inspect projects, control the daemon, and invoke the same operations as the dashboard.
+---
+
+The CLI and dashboard share validation and command-approval rules. Start the daemon before querying projects or executing operations. `branchbase help` works without a daemon.
+
+## Daemon and dashboard
+
+```sh
+branchbase daemon start
+branchbase daemon status
+branchbase daemon stop
+branchbase dashboard --repo /absolute/path/to/project
+```
+
+The shorter `start`, `status`, and `stop` forms are also accepted. `bbase` is an alias in the next release; both names address the same daemon.
+
+## Project queries
+
+```sh
+branchbase project list --json
+branchbase project status --repo /absolute/path/to/project --json
+```
+
+Use the returned worktree IDs and group IDs for subsequent commands. Add `--json` for structured output.
+
+## Application lifecycle
+
+```sh
+branchbase execute start-apps --input '{"repoPath":"/absolute/path/to/project","worktreeId":"WORKTREE_ID","appGroupName":"applications"}'
+branchbase execute stop-apps --input '{"repoPath":"/absolute/path/to/project","worktreeId":"WORKTREE_ID","appGroupName":"applications"}'
+branchbase execute restart-apps --input '{"repoPath":"/absolute/path/to/project","worktreeId":"WORKTREE_ID","appGroupName":"applications"}'
+```
+
+Commands must be approved beforehand. Prefer the dashboard's review UI to inspect the configuration and exact fingerprint before approval.
+
+## Logs
+
+```sh
+branchbase logs --repo /absolute/path/to/project --worktree WORKTREE_ID --group applications
+```
+
+This returns the available managed-log lines; it is not a streaming follow command. BranchBase cannot retrieve logs from arbitrary externally launched processes.
+
+## Managed resources
+
+```sh
+branchbase execute register-managed-resource --input '{"repoPath":"/absolute/path/to/project","definitionPath":"/absolute/path/to/owner/infra.json"}'
+```
+
+Review the returned definition and revision before approving it:
+
+```sh
+branchbase execute approve-managed-resource --input '{"repoPath":"/absolute/path/to/project","resource":"local-cache","revision":"REVIEWED_REVISION"}'
+branchbase execute operate-managed-resource --input '{"repoPath":"/absolute/path/to/project","resource":"local-cache","instance":"0","action":"start"}'
+```
+
+The operation accepts `start`, `stop`, or `restart`. Use `build-managed-resource` with `repoPath`, `resource`, and `instance` for an optional explicit Build command.
+
+## Connection-aware commands
+
+```sh
+branchbase exec --repo /absolute/path/to/project --worktree WORKTREE_ID --group applications -- bun run test:integration
+```
+
+See [manual commands](/resources/commands) for local inputs, reservations, and infrastructure readiness requirements.

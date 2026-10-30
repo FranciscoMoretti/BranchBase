@@ -1,0 +1,153 @@
+---
+title: Declare named managed resources
+description: Give infrastructure a stable identity and an owner independent of the projects consuming it.
+sidebar:
+  label: Managed resources
+---
+
+A managed resource definition supplies lifecycle commands, endpoint declarations, and outputs. Its named instances can be shared among worktrees and across projects.
+
+## Declare the owner file
+
+Add a declaration to the primary worktree's `.branchbase.json`:
+
+```json
+{
+  "managedResources": {
+    "local-cache": { "file": "infra/cache.json" }
+  }
+}
+```
+
+This fragment sits alongside the usual `version`, `setup`, `appGroups`, and `profiles` fields. Opening or refreshing the project discovers the file without starting a command.
+
+The declaration key must match the definition's `id`. Paths resolve from the primary worktree even when you open a linked worktree. Consumer-only projects reference the resource through profiles and do not redeclare its ownership.
+
+## Define instances
+
+This example assumes `redis-server` is installed and available to the daemon. Save it as `infra/cache.json`:
+
+```json
+{
+  "version": 1,
+  "id": "local-cache",
+  "name": "Local cache",
+  "directory": "..",
+  "files": [],
+  "idle": "keep-running",
+  "recipe": {
+    "apps": { "cache": { "protocol": "tcp" } },
+    "start": {
+      "argv": [
+        "redis-server",
+        "--port",
+        "{apps.cache.port}",
+        "--bind",
+        "127.0.0.1",
+        "--dbfilename",
+        "cache-{instance.id}.rdb",
+        "--appendonly",
+        "no"
+      ]
+    },
+    "stop": "process"
+  },
+  "instances": {
+    "0": {
+      "ports": { "cache": 6379 },
+      "outputs": { "url": "redis://127.0.0.1:{apps.cache.port}/0" }
+    },
+    "1": {
+      "ports": { "cache": 6479 },
+      "outputs": { "url": "redis://127.0.0.1:{apps.cache.port}/0" }
+    }
+  }
+}
+```
+
+Each instance uses its own snapshot filename, derived from its stable identity. Redis writes snapshots in the owner directory; its own save policy determines when they are written. Configure the persistence policy your application needs and keep Stop separate from destruction.
+
+`directory` resolves relative to the definition file. `files` lists repository scripts and their transitive inputs; this example invokes an installed host executable without local scripts. A fixed-port conflict fails rather than choosing another port.
+
+## Connect an application
+
+The consumer infrastructure group declares the endpoint and output names it uses. This complete consumer configuration selects cache `0` by default and offers cache `1` as another profile:
+
+```json
+{
+  "version": 1,
+  "setup": { "argv": ["bun", "install"] },
+  "profiles": {
+    "default": "shared",
+    "definitions": {
+      "shared": {
+        "name": "Shared cache",
+        "connections": {
+          "services": {
+            "policy": "managed",
+            "resource": "local-cache",
+            "instance": "0"
+          }
+        }
+      },
+      "separate": {
+        "name": "Separate cache",
+        "connections": {
+          "services": {
+            "policy": "managed",
+            "resource": "local-cache",
+            "instance": "1"
+          }
+        }
+      }
+    }
+  },
+  "appGroups": {
+    "applications": {
+      "start": { "argv": ["bun", "run", "dev"] },
+      "stop": "process",
+      "dependsOn": ["services"],
+      "env": {
+        "PORT": "{apps.web.port}",
+        "REDIS_URL": "{appGroups.services.outputs.url}"
+      },
+      "apps": { "web": { "protocol": "http" } }
+    },
+    "services": {
+      "category": "infrastructure",
+      "start": { "argv": ["false"] },
+      "stop": "process",
+      "apps": { "cache": { "protocol": "tcp" } },
+      "outputs": { "url": "" }
+    }
+  }
+}
+```
+
+Adapt the application's `dev` command to read `PORT` and `REDIS_URL`. The `services` group's Start/Stop placeholders are not executed for a managed connection; the authoritative owner's commands are used. The empty output value declares the interface that the selected instance supplies.
+
+If this project also owns the definition, add the `managedResources` declaration above. A different consuming project only needs the profile reference; it does not register a second owner.
+
+## Approve the recipe
+
+Open **Infrastructure → Resources on this machine → Review definition**. Review the owner directory, lifecycle commands, source-file manifest, and instance configuration, then approve that exact revision.
+
+Include every local command script, Compose file, and transitive build input in `files`. Editing those files requires approval. If an active run captured the old revision, restore it to stop the old run safely before replacing the recipe. Identity remains stable; approval is not a new instance.
+
+## Detached resources
+
+A detached resource uses a configured Stop command and must provide `status.argv`. The status command returns exactly one JSON object:
+
+```json
+{ "instanceId": "THE_INSTANCE_UUID", "running": true }
+```
+
+Pass `{instance.id}` into the lifecycle adapter. Status must check native ownership evidence, such as container labels, before reporting the identity. An open port alone is not proof of ownership. Exit nonzero when ownership cannot be verified.
+
+The status command has a five-second timeout and bounded output. Every required endpoint must be ready before a consuming application starts.
+
+## Build, stop, and sharing
+
+An optional `build.argv` runs only when Build is requested. It does not start the service or automatically rebuild changed images.
+
+`keep-running` retains an idle resource. `stop-when-unused` stops it after the last consumer exits. Active applications and manual commands protect it across project boundaries. Removing its declaration does not unregister or stop an already registered resource.

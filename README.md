@@ -254,6 +254,26 @@ Use shared project infrastructure, isolated resources per worktree, or existing 
 
 Declare infrastructure definition files in `.branchbase.json` under `managedResources` to discover them automatically. Named managed resources can also serve applications across projects, with independent lifecycle commands, fixed ports, connection outputs, and command approval. See the [managed resources guide](docs/managed-resources.md).
 
+## Documentation site
+
+The user guides live in `website/content` and use [Blume](https://useblume.dev). The docs are a separate private package, so their dependencies are not part of the BranchBase CLI installation. Use Node.js 22.19 or newer for Blume and Bun for package management:
+
+```sh
+bun install --cwd website --frozen-lockfile
+bun run docs:dev
+```
+
+Build and validate before publishing:
+
+```sh
+bun run docs:build
+bun run docs:validate
+```
+
+If the docs development server is running, use `bun run docs:build --isolated` to verify a build without interrupting it. That build stays in `website/.blume-verify/dist`.
+
+The static output is `website/dist`. Generated runtime files, build output, and local secrets are ignored. Set `deployment.site` in `website/blume.config.ts` when choosing the production domain to enable canonical URLs and the sitemap. No deployment is configured yet.
+
 ## License
 
 Apache-2.0

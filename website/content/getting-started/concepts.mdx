@@ -1,0 +1,44 @@
+---
+title: Understand the model
+description: Projects, worktrees, application groups, resources, and profiles each have a distinct responsibility.
+sidebar:
+  label: Concepts
+---
+
+| Concept | Meaning |
+| --- | --- |
+| Project | A tracked Git repository and its worktrees. |
+| Primary worktree | The first worktree reported by Git; its configuration supplies project defaults. |
+| App group | Endpoints or workers that share one Start, Stop, and Restart lifecycle. |
+| Application instance | A particular app-group instance with its own identity and endpoints. |
+| Resource definition | The recipe and owner directory for infrastructure. |
+| Resource instance | A named realization of that recipe, with stable identity and associated data. |
+| Connection | An application's choice of resource instance for a dependency. |
+| Resource profile | A preset of those connections, selected for a worktree. |
+
+## Profiles describe connections
+
+Selecting a profile does not create a running environment. It determines the connections that a subsequent Start or explicit restart will use.
+
+A branch rule chooses a profile. It does not inherently create a resource for the branch name: a `project` policy shares one instance; a `worktree` policy gives each matching worktree a distinct one; a `managed` policy selects a specific named instance.
+
+## Startup has stages
+
+1. Resolve the effective configuration and selected profile.
+2. Validate approval, ownership, and backing-port availability.
+3. Reuse or start required infrastructure.
+4. Wait for dependency readiness.
+5. Resolve endpoint and resource-output bindings.
+6. Launch the application and publish ready HTTP routes.
+
+Build and Setup are explicit preparation actions. Starting an application does not automatically orchestrate migrations.
+
+## Identity outlives a process
+
+Stopping a resource does not mean deleting its data. A named managed instance keeps its identity across restarts and unrelated application changes. The owner recipe remains responsible for using that identity consistently in container names, volumes, and other persistent state.
+
+A resource definition has one authoritative owner directory, which can be different from every consuming checkout. Keep that directory available for lifecycle operations.
+
+## Selection and consumption differ
+
+A worktree can select a resource while its applications are stopped. Active runs and manual commands hold consumer references that protect the resource from being stopped. The resource's idle policy determines what happens after the final consumer stops.

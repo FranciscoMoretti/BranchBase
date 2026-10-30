@@ -1,0 +1,53 @@
+---
+title: Connect your first project
+description: Go from an existing Git repository to a reviewed command and a running application.
+sidebar:
+  label: First project
+---
+
+## 1. Add a repository
+
+Open the dashboard and choose **Add project → Single project**. Choose a Git repository, including one with existing linked worktrees. To discover several repositories, choose **Development folder** instead.
+
+Without configuration, BranchBase can show worktrees, listeners, disk usage, RAM, and CPU. It does not take control of processes launched elsewhere.
+
+## 2. Declare how the app runs
+
+Create `.branchbase.json` in the primary worktree, or use **Configure app groups** to prepare a starter. The following example assumes your `dev` script reads `PORT` and stays in the foreground:
+
+```json
+{
+  "version": 1,
+  "setup": { "argv": ["bun", "install"] },
+  "appGroups": {
+    "applications": {
+      "start": { "argv": ["bun", "run", "dev"] },
+      "stop": "process",
+      "env": { "PORT": "{apps.web.port}" },
+      "apps": { "web": { "protocol": "http" } }
+    }
+  }
+}
+```
+
+Adapt the command and variable names to your application. For example, a Vite application can take its assigned port as an argument: `"argv": ["bun", "run", "dev", "--port", "{apps.web.port}"]`.
+
+BranchBase supplies only explicitly declared environment bindings. It does not automatically inject `PORT` into every application.
+
+## 3. Review and prepare
+
+Review the setup and lifecycle commands in the configuration UI, then approve the current fingerprint. Saving configuration and approving commands are separate actions.
+
+Run **Setup** to install dependencies or perform the preparation defined by your repository. Setup is a finite command; it does not start the application.
+
+## 4. Start and open
+
+Choose **Start** on the application group. BranchBase allocates backing ports, launches the approved command, checks readiness, and publishes the HTTP app's Friendly URL.
+
+Use **Open** after the endpoint is ready. If startup fails, inspect the group's logs and endpoint status before trying again. A live process and a ready HTTP endpoint are different observations.
+
+## 5. Try another worktree
+
+Create or select a linked worktree. By default it inherits the primary worktree's configuration and gets its own application instance and ports. Run Setup if needed, then Start.
+
+Use [resource profiles](/resources/profiles) when both applications should connect to shared or separate infrastructure.

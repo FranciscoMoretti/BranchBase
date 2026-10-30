@@ -1,0 +1,75 @@
+---
+title: Connect Docker Compose
+description: Pass assigned ports and stable instance identity into Compose without rewriting your service topology.
+sidebar:
+  label: Docker Compose
+---
+
+BranchBase runs your repository's commands. It does not import an arbitrary Compose file, guess how its services connect, or rewrite fixed container names.
+
+This example uses a project/worktree resource profile. For sharing a named Compose stack across projects, move lifecycle ownership into a [managed resource definition](/resources/managed) and provide an identity-bearing status adapter.
+
+## Publish the assigned port
+
+Save a Compose file in every checkout that may own the service:
+
+```yaml
+services:
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: dev
+    ports:
+      - "127.0.0.1:${DATABASE_PORT}:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+volumes:
+  database:
+```
+
+The credentials above are a local development example. Do not reuse them for a remotely accessible database.
+
+## Declare the infrastructure group
+
+Add this group as `appGroups.services` in `.branchbase.json`:
+
+```json
+{
+  "category": "infrastructure",
+  "start": {
+    "argv": ["docker", "compose", "-p", "branchbase-{instance.id}", "up", "-d"]
+  },
+  "stop": {
+    "argv": ["docker", "compose", "-p", "branchbase-{instance.id}", "stop"]
+  },
+  "env": { "DATABASE_PORT": "{apps.database.port}" },
+  "apps": { "database": { "protocol": "tcp" } }
+}
+```
+
+Configure [shared and isolated profiles](/resources/profiles) to select a project-wide or worktree-specific instance. Use a Compose-scoped volume and avoid global `container_name` or volume names that would collapse separate instances into one.
+
+## Bind the application
+
+Declare the dependency and connection environment on the application group:
+
+```json
+{
+  "dependsOn": ["services"],
+  "env": {
+    "DATABASE_URL": "postgresql://dev:dev@{appGroups.services.apps.database.host}:{appGroups.services.apps.database.port}/dev"
+  }
+}
+```
+
+A project-shared resource launches from the primary checkout. A worktree-specific resource launches from that checkout. Keep required files available in the corresponding owner directory.
+
+## Preserve data and addresses
+
+Ordinary Stop uses `docker compose stop`, retaining containers and volumes. Do not configure `down -v` as an ordinary Stop command.
+
+Use explicit named-instance ports when adopting a stack whose existing ports must remain unchanged. Keep host-local and container-reachable URLs distinct in outputs: a host `.localhost` URL is not automatically reachable from inside a container.
+
+Migrations, database copying, container-to-host callbacks, and worker queue isolation remain repository responsibilities. Run maintenance explicitly with the [selected connection context](/resources/commands).

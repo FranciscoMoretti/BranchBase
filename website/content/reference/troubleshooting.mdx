@@ -1,0 +1,50 @@
+---
+title: Troubleshooting
+description: Diagnose approval, startup, connection, and observation problems without losing resource identity or data.
+---
+
+## Commands require approval
+
+Review the current project configuration or managed-resource definition and approve its exact revision. Editing configuration or declared source files can invalidate approval. Registration and discovery alone do not approve commands.
+
+## A backing port is occupied
+
+Inspect the endpoint's ownership and the process using the port. Stop the known owner if appropriate, or deliberately change your configuration. A fixed-port request never silently falls back to a different port.
+
+An assigned instance retains its backing port. Editing a fixed port does not silently move an existing instance; reconcile the instance explicitly.
+
+## Applications stopped, infrastructure running
+
+This is a valid state. Applications and infrastructure have separate lifecycles. Start the application if needed, or stop the idle resource explicitly when it has no consumers.
+
+A detached service can be running without a foreground process. Check resource status and endpoint readiness together.
+
+## A resource is only partially ready
+
+Inspect every required endpoint and the owner command's logs. A partially running stack can remain available for diagnosis, but consuming applications wait for all required managed-resource endpoints to be ready.
+
+For detached resources, verify that status checks the actual instance identity rather than reporting an unrelated listener as healthy.
+
+## Resource is still in use
+
+Check active application consumers and manual commands across projects. A stopped application can still have a failed cleanup operation that needs attention.
+
+If a CLI process was forcibly killed, its persisted command reservation may remain. After verifying that command and its children have exited, release the known lease ID:
+
+```sh
+branchbase execute release-command-context --input '{"leaseId":"LEASE_ID"}'
+```
+
+Do not clear reservations for live commands. The ID is recorded in the active daemon's `resources.json`; development and production daemons use separate state directories.
+
+## The recipe changed since Start
+
+The run captured the old definition and source revision. Restore that revision to stop the exact instance safely, then approve and start the updated recipe. Do not delete volumes to work around an approval error.
+
+## Codex tasks are unavailable
+
+Check the compatible local Codex installation and whether its app-server responds. Task association uses exact canonical working directories. A task-discovery error does not mean your application or infrastructure failed.
+
+## Disk numbers look incomplete
+
+Initial and queued scans take time. Folder measurements include ignored files and dependencies but exclude external caches and container volumes. Project totals are estimates of worktree folders, not guaranteed reclaimable storage. See [resource usage](/guides/worktrees#disk-ram-and-cpu).

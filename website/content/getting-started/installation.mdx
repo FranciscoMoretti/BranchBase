@@ -1,0 +1,60 @@
+---
+title: Install BranchBase
+description: Run the package or use the development source for the newest resource-management features.
+sidebar:
+  label: Installation
+---
+
+## Requirements
+
+- macOS with Git and `lsof`.
+- Bun 1.3 or newer.
+- The runtimes required by your project commands.
+
+Docker and Codex are optional integrations. BranchBase itself does not need an OpenAI API key.
+
+## Install the package
+
+```sh
+bun add --global branchbase
+branchbase start --repo /absolute/path/to/project
+branchbase dashboard --repo /absolute/path/to/project
+```
+
+Starting the daemon does not automatically open a browser. `dashboard` opens the UI. The default dashboard address is `http://127.0.0.1:3999`.
+
+The next release adds `bbase` as an alias. It runs the same CLI and uses the same state; the package name remains `branchbase`.
+
+## Run the development source
+
+For named managed resources and the `bbase` alias, run the current `main` branch from source. These features have merged but are not included in the published `0.4.0` package.
+
+```sh
+git clone https://github.com/FranciscoMoretti/branchbase.git
+cd branchbase
+bun install --frozen-lockfile
+bun run build
+bun scripts/daemon.ts start --repo /absolute/path/to/project
+bun scripts/daemon.ts dashboard --repo /absolute/path/to/project
+```
+
+When running from source, replace `branchbase` in the other guides with `bun scripts/daemon.ts`, executed from this checkout.
+
+## Check or stop the daemon
+
+```sh
+branchbase status
+branchbase stop
+```
+
+These commands manage the dashboard daemon. Use an app group's **Stop** action to stop that group explicitly.
+
+## Contribute locally
+
+```sh
+bun run dev
+```
+
+The development server prints its URL and chooses separate dashboard and routing ports. Its state and command approvals are isolated from the production daemon. Different BranchBase checkouts can run development servers concurrently.
+
+Continue with [your first project](/getting-started/first-project).

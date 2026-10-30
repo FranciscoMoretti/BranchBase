@@ -52,7 +52,10 @@
     "test:integration": "bun test --path-ignore-patterns=__branchbase_no_ignored_tests__ ./src/integration/portless-routing.test.ts",
     "test:pack": "bun scripts/test-packed-artifact.ts",
     "test:types": "tsc --noEmit",
-    "lint:fix": "ultracite fix"
+    "lint:fix": "ultracite fix",
+    "docs:dev": "bun run --cwd website dev",
+    "docs:build": "bun run --cwd website build",
+    "docs:validate": "bun run --cwd website validate"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

@@ -1,0 +1,61 @@
+---
+title: Run commands with selected connections
+description: Point migrations, tests, and debugging tools at the same resource instance as the application.
+sidebar:
+  label: Manual commands
+---
+
+Find the worktree and app-group IDs in structured project status:
+
+```sh
+branchbase project status --repo /absolute/path/to/project --json
+```
+
+Then run a command with that application's connection context:
+
+```sh
+branchbase exec --repo /absolute/path/to/project --worktree WORKTREE_ID --group applications -- bun run db:migrate
+```
+
+The command after `--` is invoked directly, without a shell. It receives the resolved bindings and runs in the application's configured working directory. Substitute a real worktree ID; it is not the branch name.
+
+## Infrastructure is not started implicitly
+
+`exec` resolves bindings even when the application is stopped. It does not start applications or infrastructure. Start the required resource first if your command needs a live database.
+
+The command holds a reservation for its selected resources until it exits. Stop and Restart refuse to interrupt resources protected by that reservation. A forcibly killed CLI can leave a reservation behind; see [troubleshooting](/reference/troubleshooting#resource-is-still-in-use).
+
+## Declare local inputs
+
+Add input-file descriptors to the application or resource recipe:
+
+```json
+{
+  "inputs": {
+    "SERVICE_TOKEN": { "file": "/absolute/private/service-token" }
+  },
+  "env": {
+    "DATABASE_PORT": "{appGroups.services.apps.database.port}"
+  }
+}
+```
+
+Files are read when the command executes. Keep machine-specific secret paths in the configuration appropriate to that machine; do not commit secret values.
+
+Precedence is:
+
+1. Group defaults.
+2. Declared local inputs.
+3. Selected instance bindings.
+
+A selected port binding takes precedence over a local override for the same variable. Your own dotenv or configuration loader must preserve those injected values.
+
+## Secrets and logs
+
+Input values are not stored in captured run bindings. Commands using input files suppress persisted stdout/stderr to avoid logging credentials. Manual commands still use the invoking terminal, so their output is your command's responsibility.
+
+Keep secrets out of public outputs and literal command arguments. Outputs describe connections; they are not a secret store.
+
+## Migrations remain explicit
+
+`exec` targets the selected environment. It does not decide migration ordering, reconcile incompatible branches, or create isolated worker queues. Starting an application never implicitly orchestrates those operations.

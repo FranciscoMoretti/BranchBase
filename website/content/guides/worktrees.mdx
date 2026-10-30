@@ -1,0 +1,39 @@
+---
+title: Work with multiple checkouts
+description: Inspect applications and resource usage, then safely remove a linked worktree when you are finished.
+sidebar:
+  label: Worktrees and usage
+---
+
+## Observe before configuring
+
+Add a single project or a development folder. BranchBase discovers linked worktrees even when their directories are outside the watched folder. You do not need `.branchbase.json` to inspect a project.
+
+Observed listeners can expose addresses and verified HTTP links. Observation does not grant BranchBase ownership of an external process or access to its logs.
+
+## Choose a configuration source
+
+Every worktree inherits the primary worktree's `.branchbase.json` by default. To test a branch-specific configuration, open the app group's configuration details and choose **This worktree**.
+
+If that file is missing or invalid, BranchBase shows the fallback to the project default and retains your preference. Fix the selected file before assuming its commands are effective.
+
+## Disk, RAM, and CPU
+
+| Metric | What it measures |
+| --- | --- |
+| Disk, per worktree | Files in that checkout, including dependencies, ignored files, and build output. |
+| Disk, per project | The sum of its measured worktree folders. |
+| RAM | Sampled memory associated with tracked host processes. |
+| CPU | Sampled CPU associated with tracked host processes. |
+
+Disk measurements run in the background and are cached. Initial or partial totals are labeled. Symlinks and mounted filesystems are not traversed. Shared files or nested checkouts can be counted more than once, so the estimate is not a promise of reclaimed space.
+
+Container volumes and external caches outside worktree folders are excluded. Docker CPU and memory are not attributed to these host-process totals.
+
+## Remove a linked worktree
+
+Open the worktree's actions menu and choose **Delete worktree**. Review the path and measured disk size in the confirmation.
+
+BranchBase protects the primary worktree, checks service activity, and does not force Git removal. Dirty or locked worktrees are refused. The Git branch is retained, but ignored local files in the removed checkout are deleted too.
+
+A shared service owned elsewhere does not prevent removing an idle consumer checkout. A managed resource's authoritative owner directory must remain available.
